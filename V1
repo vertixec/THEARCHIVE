@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="es" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>THE ARCHIVE | MAIN</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=JetBrains+Mono:wght@400;700&family=Oswald:wght@300;500&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'anton': ['Anton', 'sans-serif'],
+                        'mono': ['JetBrains Mono', 'monospace'],
+                        'oswald': ['Oswald', 'sans-serif'],
+                    },
+                    colors: {
+                        'acid': '#CCFF00',
+                        'danger': '#FF3B30',
+                        'dark': '#050505',
+                        'panel': '#111111'
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body { background-color: #050505; color: white; overflow-x: hidden; cursor: crosshair; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #050505; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #CCFF00; }
+
+        .film-grain {
+            position: fixed; inset: 0; pointer-events: none; z-index: 40; opacity: 0.04;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+        }
+
+        .perspective-1000 { perspective: 1000px; }
+        .preserve-3d { transform-style: preserve-3d; }
+        .backface-hidden { backface-visibility: hidden; }
+        .rotate-y-180 { transform: rotateY(180deg); }
+        .card-flip-inner { transition: transform 0.7s cubic-bezier(0.23, 1, 0.32, 1); width: 100%; height: 100%; }
+        .card-container.flipped .card-flip-inner { transform: rotateY(180deg); }
+
+        #loader { transition: opacity 0.8s ease-out, visibility 0.8s; }
+        .loading-bar { width: 0%; transition: width 1.5s ease-in-out; }
+
+        @keyframes slideInUp { from { transform: translate(-50%, 100%); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
+        @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+        .toast { animation: slideInUp 0.3s ease-out forwards; }
+        .toast.hiding { animation: fadeOut 0.3s ease-in forwards; }
+        
+        .scroll-custom::-webkit-scrollbar { width: 3px; }
+        .scroll-custom::-webkit-scrollbar-thumb { background: #CCFF00; }
+        
+        .scanline {
+            width: 100%; height: 2px; background: rgba(204, 255, 0, 0.1);
+            position: absolute; top: 0; left: 0; pointer-events: none;
+            animation: scan 4s linear infinite; opacity: 0.5;
+        }
+        @keyframes scan { from { top: 0; } to { top: 100%; } }
+
+        .filter-btn.active { background-color: #CCFF00; color: #000; border-color: #CCFF00; }
+    </style>
+</head>
+<body class="antialiased selection:bg-acid selection:text-black">
+
+    <div class="film-grain"></div>
+
+    <!-- Pantalla de Carga -->
+    <div id="loader" class="fixed inset-0 z-[100] bg-black flex flex-col items-center justify-center">
+        <h1 class="font-anton text-6xl md:text-9xl tracking-tighter animate-pulse text-white uppercase">Archive</h1>
+        <div class="w-64 h-1 bg-gray-800 mt-4 overflow-hidden">
+            <div id="loading-bar" class="h-full bg-acid loading-bar"></div>
+        </div>
+        <div id="loader-status" class="font-mono text-[10px] text-gray-500 mt-2 uppercase tracking-widest">Iniciando protocolo...</div>
+    </div>
+
+    <!-- Navegación Simplificada -->
+    <nav class="sticky top-0 z-50 bg-dark/95 backdrop-blur-md border-b border-white/10 h-[72px] flex justify-between items-center px-6">
+        <div class="flex items-center gap-8">
+            <div class="font-anton text-2xl tracking-tight leading-none cursor-pointer hover:text-acid transition-colors select-none uppercase" onclick="location.reload()">
+                The<br>Archive
+            </div>
+            <div class="hidden md:block w-px h-8 bg-white/20"></div>
+            <div class="font-oswald text-sm tracking-widest text-white uppercase">
+                <span>Base de Datos Principal</span>
+            </div>
+        </div>
+        <div id="sync-indicator" class="font-mono text-[10px] text-gray-500 border border-white/10 px-3 py-1 rounded-full uppercase tracking-tighter">
+            Estado: Desconectado
+        </div>
+    </nav>
+
+    <!-- Header Principal (ALINEADO A LA IZQUIERDA) -->
+    <header class="pt-12 pb-6 px-6 bg-panel/30">
+        <div class="w-full text-left">
+            <div class="flex items-center gap-3 mb-4">
+                <span class="bg-acid text-black font-mono text-[10px] px-2 py-0.5 font-bold uppercase tracking-widest text-shadow">VERTIX ACADEMY</span>
+            </div>
+            <h1 class="font-anton text-6xl md:text-8xl text-white uppercase tracking-tighter leading-[0.8] mb-4">The Archive</h1>
+            <p class="font-mono text-xs text-white/60 border-l border-acid pl-4 max-w-lg uppercase tracking-wider">Archivo central de prompts y referencias creativas con IA.</p>
+        </div>
+    </header>
+
+    <!-- Controles de Filtro -->
+    <section class="sticky top-[72px] z-40 bg-dark/90 backdrop-blur-md border-y border-white/10 px-6 py-4">
+        <div class="w-full flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
+            <div class="flex flex-wrap gap-2" id="filter-controls">
+                <button onclick="setFilter('all')" id="filter-all" class="filter-btn active px-4 py-1.5 border border-white/20 font-mono text-[10px] uppercase tracking-widest transition-all">All Assets</button>
+                <div id="dynamic-volume-filters" class="flex gap-2"></div>
+            </div>
+            
+            <div class="relative w-full md:w-64">
+                <input type="text" id="search-input" oninput="handleSearch()" placeholder="BUSCAR POR CATEGORÍA O PROMPT..." class="w-full bg-black border border-white/20 p-3 pl-10 font-mono text-[10px] text-acid focus:border-acid outline-none uppercase tracking-widest">
+                <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+            </div>
+        </div>
+        <!-- Categorías secundarias -->
+        <div id="dynamic-category-filters" class="w-full flex gap-2 overflow-x-auto mt-4 scroll-custom hidden pb-2 px-6"></div>
+    </section>
+
+    <!-- Grid Dinámico -->
+    <main id="grid-container" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-[2px] p-[2px] min-h-screen pb-20"></main>
+
+    <div id="toast-container" class="fixed bottom-10 left-1/2 transform -translate-x-1/2 z-[60] flex flex-col items-center gap-2 pointer-events-none"></div>
+
+    <script>
+        const S_URL = "https://tskmcvnbtexfqojoixuv.supabase.co";
+        const S_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRza21jdm5idGV4ZnFvam9peHV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUzOTIyNDUsImV4cCI6MjA4MDk2ODI0NX0.zKqlLDTD0N6Ufb637GThBASw5OFLMggWCq1BHCLd830";
+        
+        let sb;
+        try {
+            sb = window.supabase.createClient(S_URL, S_KEY);
+        } catch (e) {
+            console.error("Supabase Error:", e);
+        }
+
+        let dbItems = [];
+        let currentVol = 'all';
+        let currentCat = 'all';
+        let searchQuery = '';
+
+        window.onload = async () => {
+            const bar = document.getElementById('loading-bar');
+            const status = document.getElementById('loader-status');
+            
+            setTimeout(() => bar.style.width = '100%', 100);
+            status.innerText = "Accediendo a la tabla prompts...";
+
+            await fetchAssets();
+            setupRealtime();
+
+            setTimeout(() => {
+                const loader = document.getElementById('loader');
+                loader.style.opacity = '0';
+                setTimeout(() => loader.style.display = 'none', 800);
+            }, 1200);
+        };
+
+        async function fetchAssets() {
+            if (!sb) return;
+            const { data, error } = await sb
+                .from('prompts') 
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (error) {
+                console.error("Fetch Error:", error);
+                document.getElementById('sync-indicator').innerText = 'Fallo de Sincronización';
+                document.getElementById('sync-indicator').classList.add('text-danger');
+            } else {
+                dbItems = data || [];
+                document.getElementById('sync-indicator').innerText = 'Base de Datos Online';
+                document.getElementById('sync-indicator').classList.remove('text-danger');
+                document.getElementById('sync-indicator').classList.add('text-acid');
+                generateDynamicFilters();
+                renderGrid();
+            }
+        }
+
+        function setupRealtime() {
+            if (!sb) return;
+            sb.channel('main-channel')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'prompts' }, (payload) => {
+                    fetchAssets();
+                }).subscribe();
+        }
+
+        function generateDynamicFilters() {
+            const volContainer = document.getElementById('dynamic-volume-filters');
+            volContainer.innerHTML = '';
+            
+            const volumes = [...new Set(dbItems.map(item => (item.volume || 'GENERAL').trim().toUpperCase()))].sort();
+            
+            volumes.forEach(vol => {
+                const btn = document.createElement('button');
+                btn.className = `filter-btn px-4 py-1.5 border border-white/20 font-mono text-[10px] uppercase tracking-widest transition-all ${currentVol === vol ? 'active' : ''}`;
+                btn.innerText = vol;
+                btn.onclick = () => setFilter(vol);
+                volContainer.appendChild(btn);
+            });
+
+            updateCategoryFilters();
+        }
+
+        function updateCategoryFilters() {
+            const catContainer = document.getElementById('dynamic-category-filters');
+            if (currentVol === 'all') {
+                catContainer.classList.add('hidden');
+                return;
+            }
+
+            const relevantItems = dbItems.filter(i => (i.volume || 'GENERAL').trim().toUpperCase() === currentVol);
+            const categories = [...new Set(relevantItems.map(item => (item.category || 'ASSET').trim().toUpperCase()))].sort();
+
+            if (categories.length > 0) {
+                catContainer.classList.remove('hidden');
+                catContainer.innerHTML = `<button onclick="setCategory('all')" class="px-3 py-1 border ${currentCat === 'all' ? 'border-acid text-acid' : 'border-white/10 text-white/40'} font-mono text-[9px] uppercase tracking-tighter whitespace-nowrap">Todo en ${currentVol}</button>`;
+                
+                categories.forEach(cat => {
+                    const btn = document.createElement('button');
+                    btn.className = `px-3 py-1 border ${currentCat === cat ? 'border-acid text-acid' : 'border-white/10 text-white/40'} font-mono text-[9px] uppercase tracking-tighter whitespace-nowrap hover:border-acid transition-colors`;
+                    btn.innerText = cat;
+                    btn.onclick = () => setCategory(cat);
+                    catContainer.appendChild(btn);
+                });
+            } else {
+                catContainer.classList.add('hidden');
+            }
+        }
+
+        function setFilter(vol) {
+            currentVol = vol;
+            currentCat = 'all';
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.innerText.trim().toUpperCase() === vol || (vol === 'all' && btn.id === 'filter-all'));
+            });
+            updateCategoryFilters();
+            renderGrid();
+        }
+
+        function setCategory(cat) {
+            currentCat = cat;
+            updateCategoryFilters();
+            renderGrid();
+        }
+
+        function handleSearch() {
+            searchQuery = document.getElementById('search-input').value.toLowerCase().trim();
+            renderGrid();
+        }
+
+        function renderGrid() {
+            const container = document.getElementById('grid-container');
+            container.innerHTML = '';
+
+            const filtered = dbItems.filter(item => {
+                const itemVol = (item.volume || 'GENERAL').trim().toUpperCase();
+                const itemCat = (item.category || 'ASSET').trim().toUpperCase();
+                
+                const matchesVol = currentVol === 'all' || itemVol === currentVol;
+                const matchesCat = currentCat === 'all' || itemCat === currentCat;
+                const matchesSearch = !searchQuery || 
+                                     itemCat.toLowerCase().includes(searchQuery) || 
+                                     (item.prompt_text || '').toLowerCase().includes(searchQuery) ||
+                                     itemVol.toLowerCase().includes(searchQuery);
+                
+                return matchesVol && matchesCat && matchesSearch;
+            });
+
+            if (filtered.length === 0) {
+                container.innerHTML = `<div class="col-span-full py-32 text-center font-mono text-gray-600 uppercase text-[10px] tracking-[0.2em]">SISTEMA DE FILTRADO: 0 COINCIDENCIAS.</div>`;
+                return;
+            }
+
+            filtered.forEach((item) => {
+                const promptContent = (item.prompt_text || "SIN CONTENIDO").toString();
+                const escapedPrompt = promptContent.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                
+                const date = item.created_at ? new Date(item.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit' }) : "--/--/--";
+                const displayImg = item.image_url || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=500";
+                const modelValue = item.model || "UNSPECIFIED";
+
+                const card = document.createElement('div');
+                card.className = 'card-container perspective-1000 aspect-[3/4] cursor-pointer group';
+                card.innerHTML = `
+                    <div class="card-flip-inner preserve-3d relative h-full w-full">
+                        <!-- FRONT -->
+                        <div class="absolute inset-0 backface-hidden bg-black border border-white/5 overflow-hidden">
+                            <div class="scanline"></div>
+                            <img src="${displayImg}" class="w-full h-full object-cover filter grayscale contrast-125 brightness-75 group-hover:grayscale-0 group-hover:brightness-100 group-hover:scale-105 transition-all duration-700 ease-out">
+                            <div class="absolute top-3 left-3 flex gap-2">
+                                <span class="bg-black/80 backdrop-blur-md text-[8px] font-mono px-2 py-0.5 border border-white/10 tracking-widest uppercase">${item.volume || 'GENERAL'}</span>
+                            </div>
+                            <div class="absolute bottom-0 left-0 w-full h-12 bg-gradient-to-t from-black via-black/40 to-transparent">
+                                <div class="w-0 group-hover:w-full h-0.5 bg-acid transition-all duration-500 mt-2 absolute bottom-0"></div>
+                            </div>
+                        </div>
+                        <!-- BACK -->
+                        <div class="absolute inset-0 backface-hidden rotate-y-180 bg-panel border border-acid/30 p-5 flex flex-col justify-between overflow-hidden">
+                            <div class="relative z-10 h-full flex flex-col">
+                                <div class="flex justify-between items-start font-mono text-[9px] text-gray-500 border-b border-white/10 pb-3 mb-4 uppercase tracking-tighter">
+                                    <div><div class="text-acid mb-1">MODEL: ${modelValue}</div><div>Ref: ${item.id ? item.id.toString().slice(0, 12) : 'N/A'}</div></div>
+                                    <div class="text-right"><div>Date: ${date}</div></div>
+                                </div>
+                                <div class="flex-grow overflow-y-auto pr-2 scroll-custom">
+                                    <div class="flex items-center justify-between mb-2 border-l-2 border-acid pl-2">
+                                        <div class="font-mono text-[10px] text-acid/80 uppercase tracking-widest">PROMPT:</div>
+                                        <button onclick="event.stopPropagation(); copyToClipboard('${escapedPrompt}', this)" class="text-white/40 hover:text-acid transition-colors p-1" title="Copiar Prompt">
+                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"></path></svg>
+                                        </button>
+                                    </div>
+                                    <p class="font-mono text-[11px] text-white leading-relaxed uppercase opacity-90">${promptContent}</p>
+                                </div>
+                                <div class="mt-4 pt-4 border-t border-white/10 grid grid-cols-2 gap-2">
+                                    <div class="bg-black/40 p-2 border border-white/5"><div class="font-mono text-[7px] text-gray-500 uppercase">Volumen</div><div class="font-oswald text-[10px] text-white uppercase">${item.volume || 'N/A'}</div></div>
+                                    <div class="bg-black/40 p-2 border border-white/5"><div class="font-mono text-[7px] text-gray-500 uppercase">Categoría</div><div class="font-oswald text-[10px] text-white uppercase">${item.category || 'N/A'}</div></div>
+                                </div>
+                            </div>
+                            <button onclick="event.stopPropagation(); copyToClipboard('${escapedPrompt}', this)" class="relative z-10 w-full py-4 mt-4 bg-acid text-black font-anton uppercase transition-all hover:bg-white text-xl tracking-tighter active:scale-95">Copiar Protocolo</button>
+                        </div>
+                    </div>
+                `;
+                card.onclick = () => card.classList.toggle('flipped');
+                container.appendChild(card);
+            });
+        }
+
+        function showToast(msg, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast bg-black border ${type === 'error' ? 'border-danger' : 'border-acid'} px-8 py-4 shadow-2xl`;
+            toast.innerHTML = `<span class="font-mono text-[10px] ${type === 'error' ? 'text-danger' : 'text-acid'} uppercase font-bold tracking-[0.3em]">${msg}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => { toast.classList.add('hiding'); setTimeout(() => toast.remove(), 400); }, 3000);
+        }
+
+        function copyToClipboard(text, btn) {
+            navigator.clipboard.writeText(text).then(() => {
+                showToast("SEQUENCE COPIED");
+                if (btn.tagName === 'BUTTON' && btn.classList.contains('font-anton')) {
+                    const oldText = btn.innerText; btn.innerText = "SUCCESS";
+                    setTimeout(() => btn.innerText = oldText, 1200);
+                } else {
+                    btn.classList.add('text-acid');
+                    setTimeout(() => btn.classList.remove('text-acid'), 1200);
+                }
+            }).catch(err => {
+                const textArea = document.createElement("textarea");
+                textArea.value = text;
+                document.body.appendChild(textArea);
+                textArea.select();
+                try {
+                    document.execCommand('copy');
+                    showToast("SEQUENCE COPIED");
+                } catch (e) {
+                    showToast("COPY FAILED", 'error');
+                }
+                document.body.removeChild(textArea);
+            });
+        }
+    </script>
+</body>
+</html>
