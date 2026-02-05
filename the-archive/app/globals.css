@@ -1,0 +1,141 @@
+@import "tailwindcss";
+
+@theme {
+  --font-anton: "Anton", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+  --font-oswald: "Oswald", sans-serif;
+
+  --color-acid: #ccff00;
+  --color-danger: #ff3b30;
+  --color-dark: #050505;
+  --color-panel: #111111;
+}
+
+@layer base {
+  body {
+    background-color: #050505;
+    color: white;
+    overflow-x: hidden;
+    cursor: crosshair;
+    @apply antialiased selection:bg-acid selection:text-black;
+  }
+}
+
+@layer utilities {
+  .clip-path-none {
+    clip-path: none;
+  }
+
+  .perspective-1000 {
+    perspective: 1000px;
+  }
+
+  .preserve-3d {
+    transform-style: preserve-3d;
+  }
+
+  .backface-hidden {
+    backface-visibility: hidden;
+  }
+
+  .rotate-y-180 {
+    transform: rotateY(180deg);
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #050505;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #ccff00;
+}
+
+.scroll-custom::-webkit-scrollbar {
+  width: 3px;
+}
+
+.scroll-custom::-webkit-scrollbar-thumb {
+  background: #ccff00;
+}
+
+/* Effects */
+.film-grain {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 40;
+  opacity: 0.04;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.scanline {
+  width: 100%;
+  height: 2px;
+  background: rgba(204, 255, 0, 0.1);
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  animation: scan 4s linear infinite;
+  opacity: 0.5;
+}
+
+@keyframes scan {
+  from {
+    top: 0;
+  }
+  to {
+    top: 100%;
+  }
+}
+
+/* Card Transitions */
+.card-flip-inner {
+  transition: transform 0.7s cubic-bezier(0.23, 1, 0.32, 1);
+  width: 100%;
+  height: 100%;
+}
+
+.flipped .card-flip-inner {
+  transform: rotateY(180deg);
+}
+
+/* Toast Animations */
+@keyframes slideInUp {
+  from {
+    transform: translate(-50%, 100%);
+    opacity: 0;
+  }
+  to {
+    transform: translate(-50%, 0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.toast-anim {
+  animation: slideInUp 0.3s ease-out forwards;
+}
+
+.toast-hiding {
+  animation: fadeOut 0.3s ease-in forwards;
+}
