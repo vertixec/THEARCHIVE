@@ -29,7 +29,7 @@ export default function Loader() {
         ></div>
       </div>
       <div className="font-mono text-[10px] text-gray-500 mt-2 uppercase tracking-widest">
-        {progress < 100 ? 'Initializing protocol...' : 'System Ready'}
+        {progress < 100 ? 'Starting...' : 'System Ready'}
       </div>
     </div>
   );

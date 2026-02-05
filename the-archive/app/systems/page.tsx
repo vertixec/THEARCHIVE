@@ -46,7 +46,7 @@ export default function Systems() {
             <span className="bg-acid text-black font-mono text-[10px] px-2 py-0.5 font-bold uppercase tracking-widest text-shadow">VERTIX ACADEMY</span>
           </div>
           <h1 id="view-title" className="font-anton text-6xl md:text-8xl text-white uppercase tracking-tighter leading-[0.8] mb-4">Archive Systems</h1>
-          <p id="view-desc" className="font-mono text-xs text-white/60 border-l border-acid pl-4 max-w-lg uppercase tracking-wider">Functional use cases and logic protocols.</p>
+          <p id="view-desc" className="font-mono text-xs text-white/60 border-l border-acid pl-4 max-w-lg uppercase tracking-wider">Functional use cases and logic patterns.</p>
         </div>
       </header>
 
