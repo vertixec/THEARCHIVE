@@ -5,6 +5,8 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 
+import { useAuth } from '@/components/AuthContext';
+
 interface NavigationProps {
   status?: 'ONLINE' | 'OFFLINE' | 'ERROR' | 'SYNCING';
 }
@@ -12,21 +14,7 @@ interface NavigationProps {
 export default function Navigation({ status = 'ONLINE' }: NavigationProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const [user, setUser] = useState<any>(null);
-
-  useEffect(() => {
-    const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
-    };
-    getUser();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
+  const { user } = useAuth();
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -83,18 +71,28 @@ export default function Navigation({ status = 'ONLINE' }: NavigationProps) {
         )}
       </div>
 
-      <div className="flex items-center gap-6">
-        <div id="sync-indicator" className={`font-mono text-[10px] border px-3 py-1 rounded-full uppercase tracking-tighter ${getStatusColor()}`}>
-          Status: {status === 'ONLINE' ? 'V1 ONLINE' : status}
-        </div>
-        {user && (
-          <button 
-            onClick={handleSignOut}
-            className="font-mono text-[10px] text-gray-500 hover:text-danger border border-white/10 hover:border-danger px-3 py-1 rounded transition-all uppercase tracking-widest"
+      <div className="flex items-center gap-10">
+        {!isAuthPage && (
+          <Link 
+            href="/favorites" 
+            className={`font-oswald text-xs md:text-sm tracking-[0.2em] transition-all duration-300 hover:text-acid py-1 border-b-2 ${isTabActive('/favorites') ? 'text-acid border-acid' : 'text-white/60 border-transparent underline-offset-8'}`}
           >
-            Sign_Out
-          </button>
+            LIKES
+          </Link>
         )}
+        <div className="flex items-center gap-4">
+          <div id="sync-indicator" className={`font-mono text-[10px] border px-3 py-1 rounded-full uppercase tracking-tighter ${getStatusColor()}`}>
+            Status: {status === 'ONLINE' ? 'V1 ONLINE' : status}
+          </div>
+          {user && (
+            <button 
+              onClick={handleSignOut}
+              className="font-mono text-[10px] text-gray-500 hover:text-danger border border-white/10 hover:border-danger px-3 py-1 rounded transition-all uppercase tracking-widest"
+            >
+              Sign_Out
+            </button>
+          )}
+        </div>
       </div>
     </nav>
   );

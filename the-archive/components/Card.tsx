@@ -1,18 +1,78 @@
-'use client';
-
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useToast } from './Toast';
+import { supabase } from '@/lib/supabaseClient';
+import { useAuth } from './AuthContext';
 
 interface AssetCardProps {
   item: any;
   cardTitle: string;
   secondaryLabel: string;
   bottomLabel: string;
+  itemType: 'visual' | 'system' | 'community';
+  initialIsLiked?: boolean;
+  onToggle?: (itemId: string, itemType: string, newIsLiked: boolean) => void;
 }
 
-export default function Card({ item, cardTitle, secondaryLabel, bottomLabel }: AssetCardProps) {
+export default function Card({ item, cardTitle, secondaryLabel, bottomLabel, itemType, initialIsLiked = false, onToggle }: AssetCardProps) {
   const [isFlipped, setIsFlipped] = useState(false);
   const { showToast } = useToast();
+  const [isLiked, setIsLiked] = useState(initialIsLiked);
+  const { user } = useAuth();
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  useEffect(() => {
+    setIsLiked(initialIsLiked);
+  }, [initialIsLiked]);
+
+  const toggleLike = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (isProcessing) return;
+
+    if (!user) {
+      showToast('LOGIN REQUIRED');
+      return;
+    }
+
+    setIsProcessing(true);
+    const previousLikedState = isLiked;
+    
+    // Optimistic Update
+    setIsLiked(!previousLikedState);
+    showToast(!previousLikedState ? 'ADDED TO LIKES' : 'REMOVED FROM LIKES');
+    if (onToggle) onToggle(item.id, itemType, !previousLikedState);
+
+    try {
+      if (previousLikedState) {
+        const { error } = await supabase
+          .from('user_likes')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('item_id', item.id)
+          .eq('item_type', itemType);
+        
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('user_likes')
+          .insert({
+            user_id: user.id,
+            item_id: item.id,
+            item_type: itemType
+          });
+        
+        if (error) throw error;
+      }
+    } catch (error: any) {
+      console.error('Like toggle error:', error);
+      setIsLiked(previousLikedState);
+      if (onToggle) onToggle(item.id, itemType, previousLikedState);
+      showToast('SYNC ERROR');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   const promptContent = (item.prompt_text || "IMAGE DATA").toString();
   const date = item.created_at ? new Date(item.created_at).toLocaleDateString('en-US', { day: '2-digit', month: '2-digit' }) : "--/--";
@@ -27,7 +87,10 @@ export default function Card({ item, cardTitle, secondaryLabel, bottomLabel }: A
   return (
     <div 
       className={`card-container perspective-1000 aspect-[3/4] cursor-pointer group ${isFlipped ? 'flipped' : ''}`}
-      onClick={() => setIsFlipped(!isFlipped)}
+      onClick={() => {
+        console.log('Card container clicked - Flipped status:', !isFlipped);
+        setIsFlipped(!isFlipped);
+      }}
     >
       <div className="card-flip-inner preserve-3d relative h-full w-full">
         {/* Front */}
@@ -38,12 +101,30 @@ export default function Card({ item, cardTitle, secondaryLabel, bottomLabel }: A
             alt={cardTitle}
             className="w-full h-full object-cover filter grayscale contrast-125 brightness-75 group-hover:grayscale-0 group-hover:brightness-100 group-hover:scale-105 transition-all duration-700 ease-out"
           />
-          <div className="absolute top-3 left-3">
+          <div className="absolute top-3 left-3 z-20">
             <span className={`${secondaryLabel === 'FEATURED' ? 'bg-acid text-black' : 'bg-black/80 text-white'} backdrop-blur-md text-[8px] font-mono px-2 py-0.5 border border-white/10 tracking-widest uppercase`}>
               {secondaryLabel}
             </span>
           </div>
-          <div className="absolute bottom-4 left-4 right-4">
+          
+          <div className="absolute top-3 right-3 flex gap-2 z-[40]">
+            <button 
+              type="button"
+              onClick={(e) => {
+                toggleLike(e);
+              }}
+              onMouseDown={(e) => e.stopPropagation()}
+              className={`p-2 transition-all duration-200 hover:scale-125 active:scale-95 pointer-events-auto rounded-full bg-black/50 backdrop-blur-md border border-white/20 shadow-xl ${isLiked ? 'text-acid border-acid/50' : 'text-white/60 hover:text-acid'}`}
+              title={isLiked ? "Unlike" : "Like"}
+              aria-label="Toggle Like"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill={isLiked ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="pointer-events-none">
+                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path>
+              </svg>
+            </button>
+          </div>
+
+          <div className="absolute bottom-4 left-4 right-4 z-20">
             <div className="font-anton text-xl text-white uppercase tracking-tighter leading-none">{cardTitle}</div>
             <div className="w-0 group-hover:w-full h-0.5 bg-acid transition-all duration-500 mt-2"></div>
           </div>

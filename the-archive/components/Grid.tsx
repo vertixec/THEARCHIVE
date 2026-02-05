@@ -2,6 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import Card from './Card';
+import { supabase } from '@/lib/supabaseClient';
+
+import { useAuth } from './AuthContext';
 
 interface GridProps {
   items: any[];
@@ -12,6 +15,37 @@ interface GridProps {
 
 export default function Grid({ items, activeTab, filter, searchQuery }: GridProps) {
   const [filteredItems, setFilteredItems] = useState<any[]>([]);
+  const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
+  const { user } = useAuth();
+
+  useEffect(() => {
+    let isMounted = true;
+    const itemType = activeTab === 'main' ? 'visual' : activeTab === 'systems' ? 'system' : 'community';
+
+    async function fetchLikes() {
+      if (!user || !isMounted) return;
+
+      const { data } = await supabase
+        .from('user_likes')
+        .select('item_id')
+        .eq('user_id', user.id)
+        .eq('item_type', itemType);
+
+      if (data && isMounted) {
+        setLikedIds(new Set(data.map(l => l.item_id.toString())));
+      }
+    }
+
+    fetchLikes();
+
+    if (!user) {
+      setLikedIds(new Set());
+    }
+
+    return () => {
+      isMounted = false;
+    }
+  }, [activeTab, user]);
 
   useEffect(() => {
     let typeField: 'volume' | 'prompt_type' | 'author' = 'volume';
@@ -68,6 +102,8 @@ export default function Grid({ items, activeTab, filter, searchQuery }: GridProp
           bottomLabel = 'AUTHOR';
         }
 
+        const itemType = activeTab === 'main' ? 'visual' : activeTab === 'systems' ? 'system' : 'community';
+
         return (
           <Card 
             key={item.id}
@@ -75,6 +111,8 @@ export default function Grid({ items, activeTab, filter, searchQuery }: GridProp
             cardTitle={cardTitle}
             secondaryLabel={secondaryLabel}
             bottomLabel={bottomLabel}
+            itemType={itemType}
+            initialIsLiked={likedIds.has(item.id.toString())}
           />
         );
       })}

@@ -5,6 +5,7 @@ import Loader from "@/components/Loader";
 import Navigation from "@/components/Navigation";
 import { ToastProvider } from "@/components/Toast";
 import { SyncProvider } from "@/components/SyncContext";
+import { AuthProvider } from "@/components/AuthContext";
 import AppContent from "@/components/AppContent";
 
 const anton = Anton({
@@ -38,9 +39,11 @@ export default function RootLayout({
       <body className={`${anton.variable} ${mono.variable} ${oswald.variable} antialiased selection:bg-acid selection:text-black`}>
         <div className="film-grain"></div>
         <SyncProvider>
-          <ToastProvider>
-            <AppContent>{children}</AppContent>
-          </ToastProvider>
+          <AuthProvider>
+            <ToastProvider>
+              <AppContent>{children}</AppContent>
+            </ToastProvider>
+          </AuthProvider>
         </SyncProvider>
       </body>
     </html>
