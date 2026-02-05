@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es" class="scroll-smooth">
+<html lang="en" class="scroll-smooth">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -70,7 +70,6 @@
 
         .filter-btn.active { background-color: #CCFF00; color: #000; border-color: #CCFF00; }
         
-        /* Tab Styles */
         .nav-tab.active { color: #CCFF00; border-bottom: 2px solid #CCFF00; }
         .nav-tab { transition: all 0.3s ease; }
     </style>
@@ -79,16 +78,16 @@
 
     <div class="film-grain"></div>
 
-    <!-- Pantalla de Carga -->
+    <!-- Loader Screen -->
     <div id="loader" class="fixed inset-0 z-[100] bg-black flex flex-col items-center justify-center">
         <h1 class="font-anton text-6xl md:text-9xl tracking-tighter animate-pulse text-white uppercase">Archive</h1>
         <div class="w-64 h-1 bg-gray-800 mt-4 overflow-hidden">
             <div id="loading-bar" class="h-full bg-acid loading-bar"></div>
         </div>
-        <div id="loader-status" class="font-mono text-[10px] text-gray-500 mt-2 uppercase tracking-widest">Iniciando protocolo...</div>
+        <div id="loader-status" class="font-mono text-[10px] text-gray-500 mt-2 uppercase tracking-widest">Initializing protocol...</div>
     </div>
 
-    <!-- Navegación Simplificada -->
+    <!-- Navigation -->
     <nav class="sticky top-0 z-50 bg-dark/95 backdrop-blur-md border-b border-white/10 h-[72px] flex justify-between items-center px-6">
         <div class="flex items-center gap-8">
             <div class="font-anton text-2xl tracking-tight leading-none cursor-pointer hover:text-acid transition-colors select-none uppercase" onclick="location.reload()">
@@ -108,11 +107,11 @@
             </div>
         </div>
         <div id="sync-indicator" class="font-mono text-[10px] text-gray-500 border border-white/10 px-3 py-1 rounded-full uppercase tracking-tighter">
-            Estado: Desconectado
+            Status: Offline
         </div>
     </nav>
 
-    <!-- Contenido Dinámico -->
+    <!-- Dynamic Content -->
     <div id="view-content">
         <header class="pt-12 pb-6 px-6 bg-panel/30">
             <div class="w-full text-left">
@@ -120,26 +119,26 @@
                     <span class="bg-acid text-black font-mono text-[10px] px-2 py-0.5 font-bold uppercase tracking-widest text-shadow">VERTIX ACADEMY</span>
                 </div>
                 <h1 id="view-title" class="font-anton text-6xl md:text-8xl text-white uppercase tracking-tighter leading-[0.8] mb-4">The Archive</h1>
-                <p id="view-desc" class="font-mono text-xs text-white/60 border-l border-acid pl-4 max-w-lg uppercase tracking-wider">Archivo central de prompts y referencias creativas con IA.</p>
+                <p id="view-desc" class="font-mono text-xs text-white/60 border-l border-acid pl-4 max-w-lg uppercase tracking-wider">Central repository for prompts and AI creative references.</p>
             </div>
         </header>
 
-        <!-- Controles de Filtro -->
+        <!-- Filter Controls -->
         <section class="sticky top-[72px] z-40 bg-dark/90 backdrop-blur-md border-y border-white/10 px-6 py-4">
             <div class="w-full flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
                 <div class="flex flex-wrap gap-2" id="filter-controls">
-                    <button onclick="setFilter('all')" id="filter-all" class="filter-btn active px-4 py-1.5 border border-white/20 font-mono text-[10px] uppercase tracking-widest transition-all">Todos los Registros</button>
+                    <button onclick="setFilter('all')" id="filter-all" class="filter-btn active px-4 py-1.5 border border-white/20 font-mono text-[10px] uppercase tracking-widest transition-all">All Records</button>
                     <div id="dynamic-type-filters" class="flex gap-2"></div>
                 </div>
                 
                 <div class="relative w-full md:w-64">
-                    <input type="text" id="search-input" oninput="handleSearch()" placeholder="BUSCAR EN REGISTROS..." class="w-full bg-black border border-white/20 p-3 pl-10 font-mono text-[10px] text-acid focus:border-acid outline-none uppercase tracking-widest">
+                    <input type="text" id="search-input" oninput="handleSearch()" placeholder="SEARCH RECORDS..." class="w-full bg-black border border-white/20 p-3 pl-10 font-mono text-[10px] text-acid focus:border-acid outline-none uppercase tracking-widest">
                     <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                 </div>
             </div>
         </section>
 
-        <!-- Grid Dinámico -->
+        <!-- Dynamic Grid -->
         <main id="grid-container" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-[2px] p-[2px] min-h-screen pb-20"></main>
     </div>
 
@@ -161,11 +160,14 @@
 
         window.onload = async () => {
             const bar = document.getElementById('loading-bar');
-            setTimeout(() => bar.style.width = '100%', 100);
+            if (bar) bar.style.width = '100%';
             await loadData();
             setTimeout(() => {
-                document.getElementById('loader').style.opacity = '0';
-                setTimeout(() => document.getElementById('loader').style.display = 'none', 800);
+                const loader = document.getElementById('loader');
+                if (loader) {
+                    loader.style.opacity = '0';
+                    setTimeout(() => loader.style.display = 'none', 800);
+                }
             }, 1200);
         };
 
@@ -175,18 +177,23 @@
             if(currentActiveTab === 'systems') table = 'functional_prompts';
             if(currentActiveTab === 'community') table = 'community_visuals';
             
-            status.innerText = `Accediendo a tabla: ${table}...`;
+            if (status) status.innerText = `Accessing Data: ${table}...`;
             
             if (!sb) return;
             const { data, error } = await sb.from(table).select('*').order('created_at', { ascending: false });
 
+            const indicator = document.getElementById('sync-indicator');
             if (error) {
-                document.getElementById('sync-indicator').innerText = 'ERROR SYNC';
-                document.getElementById('sync-indicator').className = 'font-mono text-[10px] text-danger border border-danger px-3 py-1 rounded-full uppercase tracking-tighter';
+                if (indicator) {
+                    indicator.innerText = 'SYNC ERROR';
+                    indicator.className = 'font-mono text-[10px] text-danger border border-danger px-3 py-1 rounded-full uppercase tracking-tighter';
+                }
             } else {
                 dbItems = data || [];
-                document.getElementById('sync-indicator').innerText = 'SYNC ONLINE';
-                document.getElementById('sync-indicator').className = 'font-mono text-[10px] text-acid border border-acid px-3 py-1 rounded-full uppercase tracking-tighter';
+                if (indicator) {
+                    indicator.innerText = 'V1 ONLINE';
+                    indicator.className = 'font-mono text-[10px] text-acid border border-acid px-3 py-1 rounded-full uppercase tracking-tighter';
+                }
                 generateTypeFilters();
                 renderGrid();
             }
@@ -195,24 +202,25 @@
         function switchTab(tabId) {
             currentActiveTab = tabId;
             document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-            document.getElementById(`tab-${tabId}`).classList.add('active');
+            const activeTabBtn = document.getElementById(`tab-${tabId}`);
+            if (activeTabBtn) activeTabBtn.classList.add('active');
             
             const title = document.getElementById('view-title');
             const desc = document.getElementById('view-desc');
             const filterAllBtn = document.getElementById('filter-all');
             
             if (tabId === 'systems') {
-                title.innerText = "Archive Systems";
-                desc.innerText = "Casos de uso funcionales";
-                filterAllBtn.innerText = "Todos los Sistemas";
+                if(title) title.innerText = "Archive Systems";
+                if(desc) desc.innerText = "Functional use cases and logic protocols.";
+                if(filterAllBtn) filterAllBtn.innerText = "All Systems";
             } else if (tabId === 'community') {
-                title.innerText = "Community Hub";
-                desc.innerText = "Visuales destacados creados por la comunidad.";
-                filterAllBtn.innerText = "Toda la Comunidad";
+                if(title) title.innerText = "Community Hub";
+                if(desc) desc.innerText = "Featured visuals created by the community.";
+                if(filterAllBtn) filterAllBtn.innerText = "All Community";
             } else {
-                title.innerText = "The Archive";
-                desc.innerText = "Archivo central de prompts y referencias creativas con IA.";
-                filterAllBtn.innerText = "Todos los Assets";
+                if(title) title.innerText = "The Archive";
+                if(desc) desc.innerText = "Central repository for prompts and AI creative references.";
+                if(filterAllBtn) filterAllBtn.innerText = "All Assets";
             }
             
             currentTypeFilter = 'all';
@@ -221,13 +229,17 @@
 
         function generateTypeFilters() {
             const container = document.getElementById('dynamic-type-filters');
+            if (!container) return;
             container.innerHTML = '';
             
             let field = 'volume';
             if(currentActiveTab === 'systems') field = 'prompt_type';
             if(currentActiveTab === 'community') field = 'author';
             
-            const types = [...new Set(dbItems.map(item => (item[field] || 'GENERAL').trim().toUpperCase()))].sort();
+            const types = [...new Set(dbItems.map(item => {
+                const val = item[field] || 'GENERAL';
+                return val.toString().trim().toUpperCase();
+            }))].sort();
             
             types.forEach(t => {
                 const btn = document.createElement('button');
@@ -241,18 +253,21 @@
         function setFilter(type) {
             currentTypeFilter = type;
             document.querySelectorAll('.filter-btn').forEach(btn => {
-                btn.classList.toggle('active', btn.innerText.trim().toUpperCase() === type || (type === 'all' && btn.id === 'filter-all'));
+                const btnText = btn.innerText.trim().toUpperCase();
+                btn.classList.toggle('active', btnText === type || (type === 'all' && btn.id === 'filter-all'));
             });
             renderGrid();
         }
 
         function handleSearch() {
-            searchQuery = document.getElementById('search-input').value.toLowerCase().trim();
+            const input = document.getElementById('search-input');
+            searchQuery = input ? input.value.toLowerCase().trim() : '';
             renderGrid();
         }
 
         function renderGrid() {
             const container = document.getElementById('grid-container');
+            if (!container) return;
             container.innerHTML = '';
             
             let typeField = 'volume';
@@ -260,7 +275,7 @@
             if(currentActiveTab === 'community') typeField = 'author';
 
             const filtered = dbItems.filter(item => {
-                const itemType = (item[typeField] || 'GENERAL').trim().toUpperCase();
+                const itemType = (item[typeField] || 'GENERAL').toString().trim().toUpperCase();
                 const matchesType = currentTypeFilter === 'all' || itemType === currentTypeFilter;
                 
                 const searchStr = (
@@ -278,14 +293,13 @@
             });
 
             if (filtered.length === 0) {
-                container.innerHTML = `<div class="col-span-full py-32 text-center font-mono text-gray-600 uppercase text-[10px] tracking-[0.2em]">0 REGISTROS ENCONTRADOS.</div>`;
+                container.innerHTML = `<div class="col-span-full py-32 text-center font-mono text-gray-600 uppercase text-[10px] tracking-[0.2em]">0 RECORDS FOUND.</div>`;
                 return;
             }
 
             filtered.forEach((item) => {
                 const promptContent = (item.prompt_text || "IMAGE DATA").toString();
-                const escapedPrompt = promptContent.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-                const date = item.created_at ? new Date(item.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' }) : "--/--";
+                const date = item.created_at ? new Date(item.created_at).toLocaleDateString('en-US', { day: '2-digit', month: '2-digit' }) : "--/--";
                 const displayImg = item.image_url || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=500";
                 
                 let cardTitle = 'ASSET';
@@ -308,6 +322,8 @@
 
                 const card = document.createElement('div');
                 card.className = 'card-container perspective-1000 aspect-[3/4] cursor-pointer group';
+                
+                // Usamos innerHTML de forma segura y manejamos el evento de copiado por separado
                 card.innerHTML = `
                     <div class="card-flip-inner preserve-3d relative h-full w-full">
                         <div class="absolute inset-0 backface-hidden bg-black border border-white/5 overflow-hidden">
@@ -328,7 +344,12 @@
                                     <div class="text-right"><div>DATE: ${date}</div></div>
                                 </div>
                                 <div class="flex-grow overflow-y-auto pr-2 scroll-custom">
-                                    <div class="font-mono text-[10px] text-acid/80 uppercase tracking-widest mb-2 border-l-2 border-acid pl-2">DATA PROTOCOL:</div>
+                                    <div class="flex items-center gap-2 mb-2">
+                                        <div class="font-mono text-[10px] text-acid/80 uppercase tracking-widest border-l-2 border-acid pl-2">PROMPT:</div>
+                                        <button class="copy-trigger text-acid/50 hover:text-acid transition-colors p-1" title="Copy Prompt">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                                        </button>
+                                    </div>
                                     <p class="font-mono text-[11px] text-white leading-relaxed uppercase opacity-90">${promptContent}</p>
                                 </div>
                                 <div class="mt-4 pt-4 border-t border-white/10 grid grid-cols-2 gap-2">
@@ -336,30 +357,59 @@
                                     <div class="bg-black/40 p-2 border border-white/5"><div class="font-mono text-[7px] text-gray-500 uppercase">STATUS</div><div class="font-oswald text-[10px] text-white uppercase">${secondaryLabel}</div></div>
                                 </div>
                             </div>
-                            <button onclick="event.stopPropagation(); copyToClipboard('${escapedPrompt}', this)" class="w-full py-4 mt-4 bg-acid text-black font-anton uppercase transition-all hover:bg-white text-xl tracking-tighter">${currentActiveTab === 'community' ? 'Copy Model Info' : 'Copy Protocol'}</button>
                         </div>
                     </div>
                 `;
-                card.onclick = () => card.classList.toggle('flipped');
+                
+                // Manejo de eventos manual para evitar colisiones de clics
+                const copyBtn = card.querySelector('.copy-trigger');
+                if(copyBtn) {
+                    copyBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        copyToClipboard(promptContent);
+                    };
+                }
+
+                card.onclick = (e) => {
+                    // Si el clic viene del botón o sus hijos, no girar
+                    if (e.target.closest('.copy-trigger')) return;
+                    card.classList.toggle('flipped');
+                };
+                
                 container.appendChild(card);
             });
         }
 
         function showToast(msg) {
             const container = document.getElementById('toast-container');
+            if (!container) return;
             const toast = document.createElement('div');
             toast.className = `toast bg-black border border-acid px-8 py-4 shadow-2xl`;
             toast.innerHTML = `<span class="font-mono text-[10px] text-acid uppercase font-bold tracking-[0.3em]">${msg}</span>`;
             container.appendChild(toast);
-            setTimeout(() => { toast.classList.add('hiding'); setTimeout(() => toast.remove(), 400); }, 2000);
+            setTimeout(() => { 
+                toast.classList.add('hiding'); 
+                setTimeout(() => toast.remove(), 400); 
+            }, 2000);
         }
 
-        function copyToClipboard(text, btn) {
-            navigator.clipboard.writeText(text).then(() => {
-                showToast("SEQUENCE COPIED");
-                const old = btn.innerText; btn.innerText = "SUCCESS";
-                setTimeout(() => btn.innerText = old, 1200);
-            });
+        function copyToClipboard(text) {
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            textArea.style.position = "fixed";
+            textArea.style.left = "-9999px";
+            textArea.style.top = "0";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            
+            try {
+                document.execCommand('copy');
+                showToast("PROMPT COPIED");
+            } catch (err) {
+                console.error('Copy Error', err);
+            }
+            document.body.removeChild(textArea);
         }
     </script>
 </body>
