@@ -8,7 +8,7 @@ interface AssetCardProps {
   cardTitle: string;
   secondaryLabel: string;
   bottomLabel: string;
-  itemType: 'visual' | 'system' | 'community';
+  itemType: 'visual' | 'system' | 'community' | 'workflow';
   initialIsLiked?: boolean;
   onToggle?: (itemId: string, itemType: string, newIsLiked: boolean) => void;
 }
@@ -144,20 +144,43 @@ export default function Card({ item, cardTitle, secondaryLabel, bottomLabel, ite
             </div>
             
             <div className="flex-grow overflow-y-auto pr-2 scroll-custom">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="font-mono text-[10px] text-acid/80 uppercase tracking-widest border-l-2 border-acid pl-2">PROMPT:</div>
-                <button 
-                  onClick={handleCopy}
-                  className="text-acid/50 hover:text-acid transition-colors p-1" 
-                  title="Copy Prompt"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                  </svg>
-                </button>
-              </div>
-              <p className="font-mono text-[11px] text-white leading-relaxed uppercase opacity-90">{promptContent}</p>
+              {itemType === 'workflow' ? (
+                <div className="h-full flex flex-col justify-center items-center text-center">
+                  <div className="font-mono text-[10px] text-acid/80 uppercase tracking-widest mb-4 border-b border-acid pb-1">WORKFLOW ACCESS</div>
+                  <h3 className="font-anton text-2xl text-white uppercase mb-6 tracking-tight">{item.name}</h3>
+                  <a 
+                    href={item.link} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="bg-acid text-black font-oswald text-xs px-6 py-2 rounded hover:brightness-110 transition-all flex items-center gap-2 uppercase tracking-widest font-bold"
+                  >
+                    Go To Workflow
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                      <polyline points="15 3 21 3 21 9"></polyline>
+                      <line x1="10" y1="14" x2="21" y2="3"></line>
+                    </svg>
+                  </a>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="font-mono text-[10px] text-acid/80 uppercase tracking-widest border-l-2 border-acid pl-2">PROMPT:</div>
+                    <button 
+                      onClick={handleCopy}
+                      className="text-acid/50 hover:text-acid transition-colors p-1" 
+                      title="Copy Prompt"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                      </svg>
+                    </button>
+                  </div>
+                  <p className="font-mono text-[11px] text-white leading-relaxed uppercase opacity-90">{promptContent}</p>
+                </>
+              )}
             </div>
 
             <div className="mt-4 pt-4 border-t border-white/10 grid grid-cols-2 gap-2">

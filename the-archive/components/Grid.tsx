@@ -8,7 +8,7 @@ import { useAuth } from './AuthContext';
 
 interface GridProps {
   items: any[];
-  activeTab: 'main' | 'systems' | 'community';
+  activeTab: 'main' | 'systems' | 'community' | 'workflows';
   filter: string;
   searchQuery: string;
 }
@@ -20,7 +20,7 @@ export default function Grid({ items, activeTab, filter, searchQuery }: GridProp
 
   useEffect(() => {
     let isMounted = true;
-    const itemType = activeTab === 'main' ? 'visual' : activeTab === 'systems' ? 'system' : 'community';
+    const itemType = activeTab === 'main' ? 'visual' : activeTab === 'systems' ? 'system' : activeTab === 'community' ? 'community' : 'workflow';
 
     async function fetchLikes() {
       if (!user || !isMounted) return;
@@ -48,13 +48,15 @@ export default function Grid({ items, activeTab, filter, searchQuery }: GridProp
   }, [activeTab, user]);
 
   useEffect(() => {
-    let typeField: 'volume' | 'prompt_type' | 'author' = 'volume';
+    let typeField: 'volume' | 'prompt_type' | 'author' | 'name' = 'volume';
     if (activeTab === 'systems') typeField = 'prompt_type';
     if (activeTab === 'community') typeField = 'author';
+    if (activeTab === 'workflows') typeField = 'name';
 
     const filtered = items.filter(item => {
-      const itemType = (item[typeField] || 'GENERAL').toString().trim().toUpperCase();
-      const matchesType = filter === 'ALL' || itemType === filter;
+      // For workflows, we don't really have a strict type filter yet, so we'll treat all as matches if filter is ALL
+      const itemTypeValue = (item[typeField] || (activeTab === 'workflows' ? item.name : 'GENERAL')).toString().trim().toUpperCase();
+      const matchesType = filter === 'ALL' || itemTypeValue === filter;
       
       const searchStr = (
         (item.prompt_text || '') + 
@@ -63,7 +65,8 @@ export default function Grid({ items, activeTab, filter, searchQuery }: GridProp
         (item.category || '') +
         (item.volume || '') +
         (item.prompt_type || '') +
-        (item.author || '')
+        (item.author || '') +
+        (item.name || '')
       ).toLowerCase();
       
       const matchesSearch = !searchQuery || searchStr.includes(searchQuery.toLowerCase());
@@ -99,10 +102,13 @@ export default function Grid({ items, activeTab, filter, searchQuery }: GridProp
         } else if(activeTab === 'community') {
           cardTitle = item.author || 'COMMUNITY';
           secondaryLabel = item.is_featured ? 'FEATURED' : 'MEMBER';
-          bottomLabel = 'AUTHOR';
+        } else if(activeTab === 'workflows') {
+          cardTitle = item.name || 'WORKFLOW';
+          secondaryLabel = 'ACCESS';
+          bottomLabel = 'TYPE';
         }
 
-        const itemType = activeTab === 'main' ? 'visual' : activeTab === 'systems' ? 'system' : 'community';
+        const itemType = activeTab === 'main' ? 'visual' : activeTab === 'systems' ? 'system' : activeTab === 'community' ? 'community' : activeTab === 'workflows' ? 'workflow' : 'visual';
 
         return (
           <Card 

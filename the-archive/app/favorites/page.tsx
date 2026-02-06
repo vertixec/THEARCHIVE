@@ -9,6 +9,7 @@ export default function Favorites() {
   const { setStatus } = useSync();
   const [likedItems, setLikedItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentSource, setCurrentSource] = useState('ALL');
 
   useEffect(() => {
     async function loadFavorites() {
@@ -45,6 +46,7 @@ export default function Favorites() {
       const visualIds = likes.filter(l => l.item_type === 'visual').map(l => l.item_id);
       const systemIds = likes.filter(l => l.item_type === 'system').map(l => l.item_id);
       const communityIds = likes.filter(l => l.item_type === 'community').map(l => l.item_id);
+      const workflowIds = likes.filter(l => l.item_type === 'workflow').map(l => l.item_id);
 
       const fetchPromises = [];
 
@@ -66,6 +68,13 @@ export default function Favorites() {
         fetchPromises.push(
           supabase.from('community_visuals').select('*').in('id', communityIds).then(res => {
             return (res.data || []).map(item => ({ ...item, _itemType: 'community' as const }));
+          })
+        );
+      }
+      if (workflowIds.length > 0) {
+        fetchPromises.push(
+          supabase.from('workflows').select('*').in('id', workflowIds).then(res => {
+            return (res.data || []).map(item => ({ ...item, _itemType: 'workflow' as const }));
           })
         );
       }
@@ -92,6 +101,18 @@ export default function Favorites() {
     }
   };
 
+  const sources = [
+    { id: 'ALL', label: 'ALL SOURCES' },
+    { id: 'visual', label: 'VISUALS' },
+    { id: 'system', label: 'SYSTEMS' },
+    { id: 'community', label: 'COMMUNITY' },
+    { id: 'workflow', label: 'WORKFLOWS' }
+  ];
+
+  const filteredItems = currentSource === 'ALL' 
+    ? likedItems 
+    : likedItems.filter(item => item._itemType === currentSource);
+
   return (
     <div id="view-content">
       <header className="pt-12 pb-6 px-6 bg-panel/30">
@@ -104,18 +125,33 @@ export default function Favorites() {
         </div>
       </header>
 
+      {/* Source Filters */}
+      <section className="sticky top-[72px] z-40 bg-dark/90 backdrop-blur-md border-y border-white/10 px-6 py-4">
+        <div className="flex flex-wrap gap-2">
+          {sources.map((source) => (
+            <button 
+              key={source.id}
+              onClick={() => setCurrentSource(source.id)} 
+              className={`px-4 py-1.5 border border-white/20 font-mono text-[10px] uppercase tracking-widest transition-all ${currentSource === source.id ? 'bg-acid text-black border-acid' : 'hover:border-acid/50 text-white/70'}`}
+            >
+              {source.label}
+            </button>
+          ))}
+        </div>
+      </section>
+
       {loading ? (
         <div className="flex justify-center items-center py-20">
           <div className="font-mono text-acid animate-pulse tracking-widest uppercase text-xs">Accessing Likes...</div>
         </div>
-      ) : likedItems.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-32 border-y border-white/5">
-          <div className="font-anton text-4xl text-white/20 uppercase tracking-tighter mb-4">Empty Repository</div>
-          <p className="font-mono text-[10px] text-gray-600 uppercase tracking-widest">No liked assets found in your session.</p>
+      ) : filteredItems.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-32 border-b border-white/5">
+          <div className="font-anton text-4xl text-white/20 uppercase tracking-tighter mb-4">No Records</div>
+          <p className="font-mono text-[10px] text-gray-600 uppercase tracking-widest">No assets found for the selected source.</p>
         </div>
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-[2px] p-[2px] min-h-screen pb-20">
-          {likedItems.map((item) => {
+          {filteredItems.map((item) => {
             const activeTab = item._itemType;
             let cardTitle = 'ASSET';
             let secondaryLabel = 'VOL';
@@ -133,6 +169,10 @@ export default function Favorites() {
               cardTitle = item.author || 'COMMUNITY';
               secondaryLabel = item.is_featured ? 'FEATURED' : 'MEMBER';
               bottomLabel = 'AUTHOR';
+            } else if(activeTab === 'workflow') {
+              cardTitle = item.name || 'WORKFLOW';
+              secondaryLabel = 'ACCESS';
+              bottomLabel = 'TYPE';
             }
 
             return (
