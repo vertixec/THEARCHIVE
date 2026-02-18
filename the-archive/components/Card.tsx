@@ -19,6 +19,7 @@ export default function Card({ item, cardTitle, secondaryLabel, bottomLabel, ite
   const [isLiked, setIsLiked] = useState(initialIsLiked);
   const { user } = useAuth();
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showTooltip, setShowTooltip] = useState(false);
 
   useEffect(() => {
     setIsLiked(initialIsLiked);
@@ -77,6 +78,7 @@ export default function Card({ item, cardTitle, secondaryLabel, bottomLabel, ite
   const promptContent = (item.prompt_text || "IMAGE DATA").toString();
   const date = item.created_at ? new Date(item.created_at).toLocaleDateString('en-US', { day: '2-digit', month: '2-digit' }) : "--/--";
   const displayImg = item.image_url || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=500";
+  const instructions = item.instructions || "";
 
   const handleCopy = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -133,12 +135,12 @@ export default function Card({ item, cardTitle, secondaryLabel, bottomLabel, ite
         {/* Back */}
         <div className="absolute inset-0 backface-hidden rotate-y-180 bg-panel border border-acid/30 p-5 flex flex-col justify-between overflow-hidden">
           <div className="h-full flex flex-col">
-            <div className="flex justify-between items-start font-mono text-[9px] text-gray-500 border-b border-white/10 pb-3 mb-4 uppercase tracking-tighter">
+            <div className="flex justify-between items-start font-mono text-[9px] text-gray-500 border-b border-white/10 pb-3 mb-4 uppercase tracking-tighter relative">
               <div>
                 <div className="text-acid mb-1">MODEL: {item.model || 'UNK'}</div>
                 <div>REF: {item.id}</div>
               </div>
-              <div className="text-right">
+              <div className="text-right flex flex-col items-end">
                 <div>DATE: {date}</div>
               </div>
             </div>
@@ -167,21 +169,61 @@ export default function Card({ item, cardTitle, secondaryLabel, bottomLabel, ite
                 <>
                   <div className="flex items-center gap-2 mb-2">
                     <div className="font-mono text-[10px] text-acid/80 uppercase tracking-widest border-l-2 border-acid pl-2">PROMPT:</div>
-                    <button 
-                      onClick={handleCopy}
-                      className="text-acid/50 hover:text-acid transition-colors p-1" 
-                      title="Copy Prompt"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                      </svg>
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button 
+                        onClick={handleCopy}
+                        className="text-acid/50 hover:text-acid transition-colors p-1" 
+                        title="Copy Prompt"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                        </svg>
+                      </button>
+
+                      {itemType === 'system' && instructions && (
+                        <div className="relative">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation(); // Prevent card from flipping or unflipping
+                              setShowTooltip(!showTooltip);
+                            }}
+                            className={`w-4 h-4 rounded-full border flex items-center justify-center transition-all duration-200 ${showTooltip ? 'bg-acid text-black border-acid' : 'border-acid/30 text-acid/50 hover:text-acid hover:border-acid'}`}
+                            title="Show Instructions"
+                          >
+                            <span className="font-serif italic text-[10px] pb-0.5">{showTooltip ? '×' : 'i'}</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <p className="font-mono text-[11px] text-white leading-relaxed uppercase opacity-90">{promptContent}</p>
                 </>
               )}
             </div>
+
+            {/* Tooltip Overlay - Click to toggle */}
+            {showTooltip && instructions && (
+              <div 
+                className="absolute top-20 left-5 right-5 bg-black/98 border border-acid/60 p-4 z-[100] shadow-[0_0_30px_rgba(0,0,0,0.8)] backdrop-blur-2xl transition-all duration-300 animate-in fade-in zoom-in-95 cursor-default"
+                onClick={(e) => e.stopPropagation()} // Prevent card flip when clicking inside tooltip
+              >
+                <div className="text-acid font-mono text-[8px] mb-3 border-b border-acid/20 pb-1 tracking-widest uppercase flex justify-between items-center">
+                  <span>Instructions</span>
+                  <button 
+                    onClick={() => setShowTooltip(false)}
+                    className="hover:text-white transition-colors uppercase text-[7px]"
+                  >
+                    [ Close ]
+                  </button>
+                </div>
+                <div className="text-white font-mono text-[10px] leading-relaxed uppercase text-left italic">
+                  {instructions}
+                </div>
+                {/* Arrow pointing to the button area */}
+                <div className="absolute -top-1 left-[125px] w-2 h-2 bg-black border-t border-l border-acid/60 rotate-45"></div>
+              </div>
+            )}
 
             <div className="mt-4 pt-4 border-t border-white/10 grid grid-cols-2 gap-2">
               <div className="bg-black/40 p-2 border border-white/5">
