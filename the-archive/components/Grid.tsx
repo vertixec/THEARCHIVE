@@ -16,6 +16,7 @@ interface GridProps {
 export default function Grid({ items, activeTab, filter, searchQuery }: GridProps) {
   const [filteredItems, setFilteredItems] = useState<any[]>([]);
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
+  const [flippedId, setFlippedId] = useState<string | null>(null);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -74,6 +75,7 @@ export default function Grid({ items, activeTab, filter, searchQuery }: GridProp
     });
 
     setFilteredItems(filtered);
+    setFlippedId(null); // Reset flipped state on filter/tab change
   }, [items, activeTab, filter, searchQuery]);
 
   if (filteredItems.length === 0) {
@@ -119,6 +121,8 @@ export default function Grid({ items, activeTab, filter, searchQuery }: GridProp
             bottomLabel={bottomLabel}
             itemType={itemType}
             initialIsLiked={likedIds.has(item.id.toString())}
+            isFlipped={flippedId === item.id.toString()}
+            onFlip={() => setFlippedId(flippedId === item.id.toString() ? null : item.id.toString())}
           />
         );
       })}

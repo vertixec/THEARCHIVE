@@ -10,6 +10,7 @@ export default function Favorites() {
   const [likedItems, setLikedItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentSource, setCurrentSource] = useState('ALL');
+  const [flippedId, setFlippedId] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadFavorites() {
@@ -132,7 +133,10 @@ export default function Favorites() {
           {sources.map((source) => (
             <button 
               key={source.id}
-              onClick={() => setCurrentSource(source.id)} 
+              onClick={() => {
+                setCurrentSource(source.id);
+                setFlippedId(null); // Reset flip state on source change
+              }} 
               className={`px-4 py-1.5 border border-white/20 font-mono text-[10px] uppercase tracking-widest transition-all ${currentSource === source.id ? 'bg-acid text-black border-acid' : 'hover:border-acid/50 text-white/70'}`}
             >
               {source.label}
@@ -186,7 +190,10 @@ export default function Favorites() {
                 itemType={item._itemType}
                 initialIsLiked={true}
                 onToggle={handleToggle}
+                isFlipped={flippedId === `${item._itemType}-${item.id}`}
+                onFlip={() => setFlippedId(flippedId === `${item._itemType}-${item.id}` ? null : `${item._itemType}-${item.id}`)}
               />
+
             );
           })}
         </div>

@@ -11,10 +11,21 @@ interface AssetCardProps {
   itemType: 'visual' | 'system' | 'community' | 'workflow';
   initialIsLiked?: boolean;
   onToggle?: (itemId: string, itemType: string, newIsLiked: boolean) => void;
+  isFlipped?: boolean;
+  onFlip?: () => void;
 }
 
-export default function Card({ item, cardTitle, secondaryLabel, bottomLabel, itemType, initialIsLiked = false, onToggle }: AssetCardProps) {
-  const [isFlipped, setIsFlipped] = useState(false);
+export default function Card({ 
+  item, 
+  cardTitle, 
+  secondaryLabel, 
+  bottomLabel, 
+  itemType, 
+  initialIsLiked = false, 
+  onToggle,
+  isFlipped = false,
+  onFlip
+}: AssetCardProps) {
   const { showToast } = useToast();
   const [isLiked, setIsLiked] = useState(initialIsLiked);
   const { user } = useAuth();
@@ -91,8 +102,7 @@ export default function Card({ item, cardTitle, secondaryLabel, bottomLabel, ite
       className={`card-container perspective-1000 aspect-[3/4] cursor-pointer group ${isFlipped && itemType !== 'community' ? 'flipped' : ''}`}
       onClick={() => {
         if (itemType === 'community') return;
-        console.log('Card container clicked - Flipped status:', !isFlipped);
-        setIsFlipped(!isFlipped);
+        if (onFlip) onFlip();
       }}
     >
       <div className="card-flip-inner preserve-3d relative h-full w-full">
