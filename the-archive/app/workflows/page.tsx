@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import Filters from '@/components/Filters';
 import Grid from '@/components/Grid';
 import { useSync } from '@/components/SyncContext';
 
@@ -10,8 +9,6 @@ export default function WorkflowsPage() {
   const { setStatus } = useSync();
   const [dbItems, setDbItems] = useState<any[]>([]);
   const [types, setTypes] = useState<string[]>([]);
-  const [currentFilter, setCurrentFilter] = useState('ALL');
-  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     async function loadData() {
@@ -52,19 +49,11 @@ export default function WorkflowsPage() {
         </div>
       </header>
 
-      <Filters 
-        activeTab="main" // We reuse the 'main' filter layout for simplicity
-        currentFilter={currentFilter}
-        onFilterChange={setCurrentFilter}
-        onSearchChange={setSearchQuery}
-        types={types}
-      />
-
       <Grid 
         items={dbItems}
         activeTab="workflows"
-        filter={currentFilter}
-        searchQuery={searchQuery}
+        filter="ALL"
+        searchQuery=""
       />
     </div>
   );

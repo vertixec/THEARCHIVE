@@ -88,8 +88,9 @@ export default function Card({ item, cardTitle, secondaryLabel, bottomLabel, ite
 
   return (
     <div 
-      className={`card-container perspective-1000 aspect-[3/4] cursor-pointer group ${isFlipped ? 'flipped' : ''}`}
+      className={`card-container perspective-1000 aspect-[3/4] cursor-pointer group ${isFlipped && itemType !== 'community' ? 'flipped' : ''}`}
       onClick={() => {
+        if (itemType === 'community') return;
         console.log('Card container clicked - Flipped status:', !isFlipped);
         setIsFlipped(!isFlipped);
       }}

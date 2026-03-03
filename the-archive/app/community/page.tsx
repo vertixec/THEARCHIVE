@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import Filters from '@/components/Filters';
 import Grid from '@/components/Grid';
 import { useSync } from '@/components/SyncContext';
 
@@ -10,14 +9,13 @@ export default function Community() {
   const { setStatus } = useSync();
   const [dbItems, setDbItems] = useState<any[]>([]);
   const [types, setTypes] = useState<string[]>([]);
-  const [currentFilter, setCurrentFilter] = useState('ALL');
-  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     async function loadData() {
       const { data, error } = await supabase
         .from('community_visuals')
         .select('*')
+        .order('is_featured', { ascending: false })
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -50,19 +48,11 @@ export default function Community() {
         </div>
       </header>
 
-      <Filters 
-        activeTab="community"
-        currentFilter={currentFilter}
-        onFilterChange={setCurrentFilter}
-        onSearchChange={setSearchQuery}
-        types={types}
-      />
-
       <Grid 
         items={dbItems}
         activeTab="community"
-        filter={currentFilter}
-        searchQuery={searchQuery}
+        filter="ALL"
+        searchQuery=""
       />
     </div>
   );
