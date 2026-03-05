@@ -113,7 +113,7 @@ export default function Card({
           <img 
             src={displayImg} 
             alt={cardTitle}
-            className="w-full h-full object-cover filter grayscale contrast-125 brightness-75 group-hover:grayscale-0 group-hover:brightness-100 group-hover:scale-105 transition-all duration-700 ease-out"
+            className="w-full h-full object-cover filter grayscale-0 brightness-100 md:grayscale md:contrast-125 md:brightness-75 group-hover:grayscale-0 group-hover:brightness-100 group-hover:scale-105 transition-all duration-700 ease-out"
           />
           <div className="absolute top-3 left-3 z-20">
             <span className={`${secondaryLabel === 'FEATURED' ? 'bg-acid text-black' : 'bg-black/80 text-white'} backdrop-blur-md text-[8px] font-mono px-2 py-0.5 border border-white/10 tracking-widest uppercase`}>
@@ -138,24 +138,24 @@ export default function Card({
             </button>
           </div>
 
-          <div className="absolute bottom-4 left-4 right-4 z-20">
-            <div className="font-anton text-xl text-white uppercase tracking-tighter leading-none">{cardTitle}</div>
+          <div className="absolute bottom-3 md:bottom-4 left-3 md:left-4 right-3 md:right-4 z-20">
+            <div className="font-anton text-lg md:text-xl text-white uppercase tracking-tighter leading-none">{cardTitle}</div>
             <div className="w-0 group-hover:w-full h-0.5 bg-acid transition-all duration-500 mt-2"></div>
           </div>
         </div>
 
         {/* Back */}
-        <div className="absolute inset-0 backface-hidden rotate-y-180 bg-panel border border-acid/30 p-5 flex flex-col justify-between overflow-hidden">
+        <div className="absolute inset-0 backface-hidden rotate-y-180 bg-panel border border-acid/30 p-4 md:p-5 flex flex-col justify-between overflow-hidden">
           <div className="h-full flex flex-col">
-            <div className="flex justify-between items-start font-mono text-[9px] text-gray-500 border-b border-white/10 pb-3 mb-4 uppercase tracking-tighter relative">
+            <div className="flex justify-between items-start font-mono text-[8px] md:text-[9px] text-gray-500 border-b border-white/10 pb-2 md:pb-3 mb-3 md:mb-4 uppercase tracking-tighter relative">
               <div className="flex flex-col">
                 {itemType !== 'workflow' ? (
                   <>
-                    <div className="text-acid mb-1">MODEL: {item.model || 'UNK'}</div>
+                    <div className="text-acid mb-0.5 md:mb-1">MODEL: {item.model || 'UNK'}</div>
                     <div>REF: {item.id}</div>
                   </>
                 ) : (
-                  item.tools && <div className="text-acid mb-1">TOOLS: {item.tools}</div>
+                  item.tools && <div className="text-acid mb-0.5 md:mb-1">TOOLS: {item.tools}</div>
                 )}
               </div>
               <div className="text-right flex flex-col items-end">
@@ -163,12 +163,12 @@ export default function Card({
               </div>
             </div>
             
-            <div className="flex-grow overflow-y-auto pr-2 scroll-custom">
+            <div className="flex-grow overflow-y-auto pr-1 md:pr-2 scroll-custom">
               {itemType === 'workflow' ? (
-                <div className="h-full flex flex-col justify-center items-center text-center">
-                  <div className="font-mono text-[10px] text-acid/80 uppercase tracking-widest mb-4 border-b border-acid pb-1">WORKFLOW ACCESS</div>
-                  <h3 className="font-anton text-2xl text-white uppercase mb-2 tracking-tight">{item.name}</h3>
-                  <div className="font-mono text-[10px] text-white/70 uppercase mb-6 max-w-[200px] leading-relaxed italic border-l border-acid/30 pl-3">
+                <div className="h-full flex flex-col justify-center items-center text-center px-1">
+                  <div className="font-mono text-[8px] md:text-[10px] text-acid/80 uppercase tracking-widest mb-2 md:mb-4 border-b border-acid pb-1">WORKFLOW ACCESS</div>
+                  <h3 className="font-anton text-lg md:text-2xl text-white uppercase mb-2 tracking-tight">{item.name}</h3>
+                  <div className="font-mono text-[8px] md:text-[10px] text-white/70 uppercase mb-4 md:mb-6 max-w-[180px] md:max-w-[200px] leading-tight md:leading-relaxed italic border-l border-acid/30 pl-2 md:pl-3 text-left">
                     {item.use_cases || 'NO CASE DEFINED'}
                   </div>
                   <a 
@@ -176,10 +176,10 @@ export default function Card({
                     target="_blank" 
                     rel="noopener noreferrer"
                     onClick={(e) => e.stopPropagation()}
-                    className="bg-acid text-black font-oswald text-xs px-6 py-2 rounded hover:brightness-110 transition-all flex items-center gap-2 uppercase tracking-widest font-bold"
+                    className="bg-acid text-black font-oswald text-[10px] md:text-xs px-4 md:px-6 py-1.5 md:py-2 rounded hover:brightness-110 transition-all flex items-center gap-2 uppercase tracking-widest font-bold"
                   >
                     Go To Workflow
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
                       <polyline points="15 3 21 3 21 9"></polyline>
                       <line x1="10" y1="14" x2="21" y2="3"></line>
@@ -189,7 +189,7 @@ export default function Card({
               ) : (
                 <>
                   <div className="flex items-center gap-2 mb-2">
-                    <div className="font-mono text-[10px] text-acid/80 uppercase tracking-widest border-l-2 border-acid pl-2">PROMPT:</div>
+                    <div className="font-mono text-[9px] md:text-[10px] text-acid/80 uppercase tracking-widest border-l-2 border-acid pl-2">PROMPT:</div>
                     <div className="flex items-center gap-1">
                       <button 
                         onClick={handleCopy}
@@ -218,7 +218,7 @@ export default function Card({
                       )}
                     </div>
                   </div>
-                  <p className="font-mono text-[11px] text-white leading-relaxed uppercase opacity-90">{promptContent}</p>
+                  <p className="font-mono text-[10px] md:text-[11px] text-white leading-tight md:leading-relaxed uppercase opacity-90">{promptContent}</p>
                 </>
               )}
             </div>
@@ -246,14 +246,14 @@ export default function Card({
               </div>
             )}
 
-            <div className="mt-4 pt-4 border-t border-white/10 grid grid-cols-2 gap-2">
-              <div className="bg-black/40 p-2 border border-white/5">
+            <div className="mt-3 md:mt-4 pt-3 md:pt-4 border-t border-white/10 grid grid-cols-2 gap-2">
+              <div className="bg-black/40 p-1.5 md:p-2 border border-white/5">
                 <div className="font-mono text-[7px] text-gray-500 uppercase">{bottomLabel}</div>
-                <div className="font-oswald text-[10px] text-white uppercase">{cardTitle}</div>
+                <div className="font-oswald text-[9px] md:text-[10px] text-white uppercase">{cardTitle}</div>
               </div>
-              <div className="bg-black/40 p-2 border border-white/5">
+              <div className="bg-black/40 p-1.5 md:p-2 border border-white/5">
                 <div className="font-mono text-[7px] text-gray-500 uppercase">STATUS</div>
-                <div className="font-oswald text-[10px] text-white uppercase">{secondaryLabel}</div>
+                <div className="font-oswald text-[9px] md:text-[10px] text-white uppercase">{secondaryLabel}</div>
               </div>
             </div>
           </div>
