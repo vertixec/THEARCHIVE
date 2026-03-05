@@ -148,9 +148,15 @@ export default function Card({
         <div className="absolute inset-0 backface-hidden rotate-y-180 bg-panel border border-acid/30 p-5 flex flex-col justify-between overflow-hidden">
           <div className="h-full flex flex-col">
             <div className="flex justify-between items-start font-mono text-[9px] text-gray-500 border-b border-white/10 pb-3 mb-4 uppercase tracking-tighter relative">
-              <div>
-                <div className="text-acid mb-1">MODEL: {item.model || 'UNK'}</div>
-                <div>REF: {item.id}</div>
+              <div className="flex flex-col">
+                {itemType !== 'workflow' ? (
+                  <>
+                    <div className="text-acid mb-1">MODEL: {item.model || 'UNK'}</div>
+                    <div>REF: {item.id}</div>
+                  </>
+                ) : (
+                  item.tools && <div className="text-acid mb-1">TOOLS: {item.tools}</div>
+                )}
               </div>
               <div className="text-right flex flex-col items-end">
                 <div>DATE: {date}</div>
@@ -161,7 +167,10 @@ export default function Card({
               {itemType === 'workflow' ? (
                 <div className="h-full flex flex-col justify-center items-center text-center">
                   <div className="font-mono text-[10px] text-acid/80 uppercase tracking-widest mb-4 border-b border-acid pb-1">WORKFLOW ACCESS</div>
-                  <h3 className="font-anton text-2xl text-white uppercase mb-6 tracking-tight">{item.name}</h3>
+                  <h3 className="font-anton text-2xl text-white uppercase mb-2 tracking-tight">{item.name}</h3>
+                  <div className="font-mono text-[10px] text-white/70 uppercase mb-6 max-w-[200px] leading-relaxed italic border-l border-acid/30 pl-3">
+                    {item.use_cases || 'NO CASE DEFINED'}
+                  </div>
                   <a 
                     href={item.link} 
                     target="_blank" 
