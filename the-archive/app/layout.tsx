@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Anton, JetBrains_Mono, Oswald } from "next/font/google";
+import { Anton, JetBrains_Mono, Oswald, Bebas_Neue, Space_Mono } from "next/font/google";
 import "./globals.css";
 import Loader from "@/components/Loader";
 import Navigation from "@/components/Navigation";
@@ -24,6 +24,18 @@ const oswald = Oswald({
   subsets: ["latin"],
 });
 
+const bebas = Bebas_Neue({
+  weight: "400",
+  variable: "--font-bebas",
+  subsets: ["latin"],
+});
+
+const space = Space_Mono({
+  weight: ["400", "700"],
+  variable: "--font-space",
+  subsets: ["latin"],
+});
+
 export const metadata: Metadata = {
   title: "THE ARCHIVE | MAIN",
   description: "Central repository for prompts and AI creative references.",
@@ -36,7 +48,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="scroll-smooth">
-      <body className={`${anton.variable} ${mono.variable} ${oswald.variable} antialiased selection:bg-acid selection:text-black`}>
+      <body className={`${anton.variable} ${mono.variable} ${oswald.variable} ${bebas.variable} ${space.variable} antialiased selection:bg-acid selection:text-black`}>
         <div className="film-grain"></div>
         <SyncProvider>
           <AuthProvider>

@@ -15,6 +15,7 @@ export default function Navigation({ status = "ONLINE" }: NavigationProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { user } = useAuth();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -34,6 +35,103 @@ export default function Navigation({ status = "ONLINE" }: NavigationProps) {
   };
 
   const isAuthPage = pathname === "/login";
+  const isHomePage = pathname === "/";
+
+  if (isAuthPage) {
+    return null;
+  }
+
+  if (isHomePage) {
+    return (
+      <>
+        {/* Floating Trigger */}
+        <div className="fixed top-8 left-8 z-[100] flex items-center gap-4">
+          <button
+            onClick={() => setIsMenuOpen(true)}
+            className="group flex items-center gap-3 bg-black/40 backdrop-blur-md border border-white/10 hover:border-acid px-4 py-2 transition-all duration-300 cursor-none"
+          >
+            <div className="flex flex-col gap-1 w-4">
+              <div className="h-[1px] w-full bg-white group-hover:bg-acid transition-colors"></div>
+              <div className="h-[1px] w-2/3 bg-white group-hover:bg-acid transition-colors"></div>
+              <div className="h-[1px] w-full bg-white group-hover:bg-acid transition-colors"></div>
+            </div>
+            <span className="font-space text-[10px] tracking-[0.3em] text-white/70 group-hover:text-acid font-bold">INDEX</span>
+          </button>
+        </div>
+
+        {/* Full Screen Menu Overlay */}
+        {isMenuOpen && (
+          <div className="fixed inset-0 z-[200] bg-black/95 backdrop-blur-xl flex flex-col p-8 md:p-12 select-none overflow-y-auto scroll-custom">
+            {/* Close Button */}
+            <button
+              onClick={() => setIsMenuOpen(false)}
+              className="absolute top-10 right-10 z-[210] group flex items-center gap-2 font-space text-[12px] tracking-widest text-white/50 hover:text-acid transition-all cursor-none"
+            >
+              <span className="hidden md:inline">[ CLOSE ]</span>
+              <div className="w-8 h-8 flex items-center justify-center border border-white/10 group-hover:border-acid rounded-full transition-all bg-black/50">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                  <path d="M1 1L11 11M11 1L1 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+            </button>
+
+            {/* Content Wrapper for Centering */}
+            <div className="flex-1 flex flex-col items-center justify-center min-h-[600px] py-20">
+              {/* Corner Decorators (Internal) */}
+              <div className="corner-l corner-top-left border-acid/30" />
+              <div className="corner-l corner-top-right border-acid/30" />
+              <div className="corner-l corner-bottom-left border-acid/30" />
+              <div className="corner-l corner-bottom-right border-acid/30" />
+
+              {/* Nav Links */}
+              <div className="flex flex-col gap-4 md:gap-8 text-center">
+                {[
+                  { label: "SHOWCASE", path: "/" },
+                  { label: "VISUALS", path: "/visuals" },
+                  { label: "SYSTEMS", path: "/systems" },
+                  { label: "COMMUNITY", path: "/community" },
+                  { label: "WORKFLOWS", path: "/workflows" },
+                ].map((link) => (
+                  <Link
+                    key={link.path}
+                    href={link.path}
+                    onClick={() => setIsMenuOpen(false)}
+                    className="group relative overflow-hidden h-16 md:h-24 flex items-center justify-center"
+                  >
+                    <div className="font-bebas text-5xl md:text-8xl text-white/10 group-hover:text-acid/20 transition-all duration-300 tracking-tighter uppercase whitespace-nowrap">
+                      {link.label}
+                    </div>
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                       <div className="font-bebas text-4xl md:text-7xl text-acid glitch-trigger uppercase whitespace-nowrap" data-text={link.label}>
+                         {link.label}
+                       </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+
+              {/* User Controls - Now part of flex flow */}
+              <div className="flex flex-col items-center gap-6 mt-8">
+                 <div className="flex flex-col md:flex-row items-center gap-4 md:gap-8">
+                   {user && (
+                      <button
+                        onClick={handleSignOut}
+                        className="font-space text-[10px] tracking-widest text-white/40 hover:text-danger hover:border-danger border border-white/10 px-6 py-2 transition-all cursor-none"
+                      >
+                        TERMINATE_SESSION
+                      </button>
+                   )}
+                   <div className={`font-space text-[10px] tracking-widest border border-white/10 px-6 py-2 rounded-full uppercase whitespace-nowrap ${getStatusColor()}`}>
+                     ARCHIVE_PROTOCOL_V1_{status === "ONLINE" ? "STABLE" : status}
+                   </div>
+                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </>
+    );
+  }
 
   return (
     <nav className="sticky top-0 z-50 bg-dark/95 backdrop-blur-md border-b border-white/10 h-[72px] flex justify-between items-center px-6">
@@ -51,8 +149,8 @@ export default function Navigation({ status = "ONLINE" }: NavigationProps) {
             <div className="hidden md:block w-px h-8 bg-white/20"></div>
             <div className="flex gap-6 font-oswald text-sm tracking-widest text-white uppercase h-full items-center">
               <Link
-                href="/"
-                className={`py-6 border-b-2 transition-all duration-300 hover:text-acid ${isTabActive("/") ? "text-acid border-acid" : "border-transparent"}`}
+                href="/visuals"
+                className={`py-6 border-b-2 transition-all duration-300 hover:text-acid ${isTabActive("/visuals") ? "text-acid border-acid" : "border-transparent"}`}
               >
                 VISUALS
               </Link>

@@ -99,6 +99,7 @@ export default function Card({
 
   return (
     <div 
+      id={`card-${item.id}`}
       className={`card-container perspective-1000 aspect-[3/4] cursor-pointer group ${isFlipped && itemType !== 'community' ? 'flipped' : ''}`}
       onClick={() => {
         if (itemType === 'community') return;
