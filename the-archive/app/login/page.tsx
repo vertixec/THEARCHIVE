@@ -3,10 +3,7 @@ import AuthForm from "@/components/AuthForm";
 export default function LoginPage() {
   return (
     <div className="min-h-[calc(100vh-72px)] bg-dark flex flex-col items-center justify-center p-6 relative">
-      {/* Background Decor */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-4xl h-full max-h-[600px] border-[1px] border-white/5 pointer-events-none"></div>
-      
-      <div className="relative z-10 w-full flex flex-col items-center">
+<div className="relative z-10 w-full flex flex-col items-center">
         <div className="mb-12 text-center">
           <div className="bg-acid text-black font-mono text-[10px] px-3 py-1 font-bold uppercase tracking-[0.3em] inline-block mb-4">
             Security Gate

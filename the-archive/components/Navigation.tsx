@@ -7,15 +7,27 @@ import { supabase } from "@/lib/supabaseClient";
 
 import { useAuth } from "@/components/AuthContext";
 
-interface NavigationProps {
-  status?: "ONLINE" | "OFFLINE" | "ERROR" | "SYNCING";
-}
-
-export default function Navigation({ status = "ONLINE" }: NavigationProps) {
+export default function Navigation() {
   const pathname = usePathname();
   const router = useRouter();
   const { user } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [supabaseStatus, setSupabaseStatus] = useState<"ONLINE" | "ERROR" | "SYNCING">("SYNCING");
+
+  useEffect(() => {
+    const checkHealth = async () => {
+      try {
+        const { error } = await supabase.auth.getSession();
+        setSupabaseStatus(error ? "ERROR" : "ONLINE");
+      } catch {
+        setSupabaseStatus("ERROR");
+      }
+    };
+
+    checkHealth();
+    const interval = setInterval(checkHealth, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -29,8 +41,8 @@ export default function Navigation({ status = "ONLINE" }: NavigationProps) {
   };
 
   const getStatusColor = () => {
-    if (status === "ONLINE") return "text-acid border-acid";
-    if (status === "OFFLINE") return "text-gray-500 border-white/10";
+    if (supabaseStatus === "ONLINE") return "text-acid border-acid";
+    if (supabaseStatus === "SYNCING") return "text-gray-500 border-white/10";
     return "text-danger border-danger";
   };
 
@@ -121,8 +133,8 @@ export default function Navigation({ status = "ONLINE" }: NavigationProps) {
                         TERMINATE_SESSION
                       </button>
                    )}
-                   <div className={`font-space text-[10px] tracking-widest border border-white/10 px-6 py-2 rounded-full uppercase whitespace-nowrap ${getStatusColor()}`}>
-                     ARCHIVE_PROTOCOL_V1_{status === "ONLINE" ? "STABLE" : status}
+                   <div className={`font-space text-[10px] tracking-widest border px-6 py-2 rounded-full uppercase whitespace-nowrap ${getStatusColor()}`}>
+                     VERTIX OS
                    </div>
                  </div>
               </div>
@@ -222,7 +234,7 @@ export default function Navigation({ status = "ONLINE" }: NavigationProps) {
               id="sync-indicator"
               className={`font-mono text-[10px] border px-3 py-1 rounded-full uppercase tracking-tighter ${getStatusColor()}`}
             >
-              Status: {status === "ONLINE" ? "V1 ONLINE" : status}
+              VERTIX OS
             </div>
             {user && (
               <button
@@ -253,6 +265,11 @@ export default function Navigation({ status = "ONLINE" }: NavigationProps) {
           </button>
 
           <div className="flex-1 flex flex-col items-center justify-center py-20">
+              <div className="corner-l corner-top-left border-acid/30" />
+              <div className="corner-l corner-top-right border-acid/30" />
+              <div className="corner-l corner-bottom-left border-acid/30" />
+              <div className="corner-l corner-bottom-right border-acid/30" />
+
              <div className="flex flex-col gap-6 text-center">
               {[
                 { label: "SHOWCASE", path: "/" },
@@ -282,8 +299,8 @@ export default function Navigation({ status = "ONLINE" }: NavigationProps) {
                       TERMINATE_SESSION
                     </button>
                  )}
-                 <div className={`font-space text-[10px] tracking-widest border border-white/10 px-6 py-2 rounded-full uppercase whitespace-nowrap ${getStatusColor()}`}>
-                   ARCHIVE_PROTOCOL_V1_{status === "ONLINE" ? "STABLE" : status}
+                 <div className={`font-space text-[10px] tracking-widest border px-6 py-2 rounded-full uppercase whitespace-nowrap ${getStatusColor()}`}>
+                   VERTIX OS
                  </div>
                </div>
             </div>

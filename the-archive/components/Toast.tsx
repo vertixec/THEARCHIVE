@@ -8,32 +8,55 @@ type ToastContextType = {
 
 const ToastContext = createContext<ToastContextType | undefined>(undefined);
 
+function ToastItem({ msg, onRemove }: { msg: string; onRemove: () => void }) {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    // Next frame: trigger enter transition
+    const frame = requestAnimationFrame(() => setVisible(true));
+
+    const hideTimer = setTimeout(() => {
+      setVisible(false);
+      setTimeout(onRemove, 300);
+    }, 2500);
+
+    return () => {
+      cancelAnimationFrame(frame);
+      clearTimeout(hideTimer);
+    };
+  }, []);
+
+  return (
+    <div
+      className={`bg-black border border-acid px-8 py-4 shadow-2xl transition-[opacity,transform] duration-300 ease-out ${
+        visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'
+      }`}
+    >
+      <span className="font-mono text-[10px] text-acid uppercase font-bold tracking-[0.3em]">
+        {msg}
+      </span>
+    </div>
+  );
+}
+
 export function ToastProvider({ children }: { children: ReactNode }) {
-  const [toasts, setToasts] = useState<{ id: number; msg: string; hiding: boolean }[]>([]);
+  const [toasts, setToasts] = useState<{ id: number; msg: string }[]>([]);
 
   const showToast = (msg: string) => {
     const id = Date.now();
-    setToasts((prev) => [...prev, { id, msg, hiding: false }]);
-    
-    setTimeout(() => {
-      setToasts((prev) => prev.map(t => t.id === id ? { ...t, hiding: true } : t));
-      setTimeout(() => {
-        setToasts((prev) => prev.filter((t) => t.id !== id));
-      }, 400);
-    }, 2000);
+    setToasts((prev) => [...prev, { id, msg }]);
+  };
+
+  const removeToast = (id: number) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 
   return (
     <ToastContext.Provider value={{ showToast }}>
       {children}
-      <div id="toast-container" className="fixed bottom-10 left-1/2 transform -translate-x-1/2 z-[60] flex flex-col items-center gap-2 pointer-events-none">
+      <div className="fixed bottom-10 left-0 right-0 z-[60] flex flex-col items-center gap-2 pointer-events-none">
         {toasts.map((toast) => (
-          <div 
-            key={toast.id} 
-            className={`bg-black border border-acid px-8 py-4 shadow-2xl toast-anim ${toast.hiding ? 'toast-hiding' : ''}`}
-          >
-            <span className="font-mono text-[10px] text-acid uppercase font-bold tracking-[0.3em]">{toast.msg}</span>
-          </div>
+          <ToastItem key={toast.id} msg={toast.msg} onRemove={() => removeToast(toast.id)} />
         ))}
       </div>
     </ToastContext.Provider>
