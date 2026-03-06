@@ -48,14 +48,14 @@ export default function Navigation({ status = "ONLINE" }: NavigationProps) {
         <div className="fixed top-8 left-8 z-[100] flex items-center gap-4">
           <button
             onClick={() => setIsMenuOpen(true)}
-            className="group flex items-center gap-3 bg-black/40 backdrop-blur-md border border-white/10 hover:border-acid px-4 py-2 transition-all duration-300 cursor-none"
+            className="group flex items-center gap-2 md:gap-3 bg-black/40 backdrop-blur-md border border-white/10 hover:border-acid px-2.5 py-1 md:px-4 md:py-2 transition-all duration-300 cursor-none"
           >
-            <div className="flex flex-col gap-1 w-4">
+            <div className="flex flex-col gap-[3px] w-3 md:w-4">
               <div className="h-[1px] w-full bg-white group-hover:bg-acid transition-colors"></div>
               <div className="h-[1px] w-2/3 bg-white group-hover:bg-acid transition-colors"></div>
               <div className="h-[1px] w-full bg-white group-hover:bg-acid transition-colors"></div>
             </div>
-            <span className="font-space text-[10px] tracking-[0.3em] text-white/70 group-hover:text-acid font-bold">INDEX</span>
+            <span className="font-space text-[8px] md:text-[10px] tracking-[0.25em] md:tracking-[0.3em] text-white/70 group-hover:text-acid font-bold">INDEX</span>
           </button>
         </div>
 

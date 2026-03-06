@@ -168,15 +168,15 @@ export default function HomepageShowcase() {
       
       {/* Top Center: Vertix OS Label */}
       <div className="absolute top-8 left-1/2 -translate-x-1/2 z-50 text-center">
-        <div className="text-[10px] tracking-[0.3em] text-white/50 mb-1">VERTIX OS</div>
-        <div className="text-acid font-bold tracking-[0.3em] text-xs uppercase">
+        <div className="text-[8px] md:text-[10px] tracking-[0.3em] text-white/50 mb-1">VERTIX OS</div>
+        <div className="text-acid font-bold tracking-[0.25em] md:tracking-[0.3em] text-[9px] md:text-xs uppercase">
           {new Date().toLocaleDateString('en-US', { month: 'long', day: '2-digit', year: 'numeric' })}
         </div>
       </div>
 
       {/* Top Right: Subcategory */}
-      <div className="absolute top-10 right-10 z-50">
-        <div className="border border-white/20 px-3 py-1 text-[10px] tracking-widest text-white/70 backdrop-blur-sm uppercase">
+      <div className="absolute top-8 right-8 z-50">
+        <div className="border border-white/20 px-2 py-0.5 md:px-3 md:py-1 text-[8px] md:text-[10px] tracking-widest text-white/70 backdrop-blur-sm uppercase">
           {currentAsset.category?.toUpperCase() || "VISUALS"}
         </div>
       </div>
