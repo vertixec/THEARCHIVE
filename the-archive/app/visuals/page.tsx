@@ -14,6 +14,7 @@ function VisualsContent() {
   const [types, setTypes] = useState<string[]>([]);
   const [currentFilter, setCurrentFilter] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
+  const [localHighlightId, setLocalHighlightId] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadData() {
@@ -39,13 +40,17 @@ function VisualsContent() {
         // Check for ?id=... and scroll to it
         const targetId = searchParams.get('id');
         if (targetId) {
+          setLocalHighlightId(targetId);
           setTimeout(() => {
             const element = document.getElementById(`card-${targetId}`);
             if (element) {
               element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-              element.classList.add('ring-2', 'ring-acid', 'ring-offset-4', 'ring-offset-black');
             }
           }, 500);
+          // Auto-dismiss highlight after 12 seconds
+          setTimeout(() => {
+            setLocalHighlightId(null);
+          }, 12000);
         }
       }
     }
@@ -77,6 +82,8 @@ function VisualsContent() {
         activeTab="main"
         filter={currentFilter}
         searchQuery={searchQuery}
+        highlightedId={localHighlightId || undefined}
+        onClearHighlight={() => setLocalHighlightId(null)}
       />
     </div>
   );

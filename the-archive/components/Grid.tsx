@@ -11,9 +11,11 @@ interface GridProps {
   activeTab: 'main' | 'systems' | 'community' | 'workflows';
   filter: string;
   searchQuery: string;
+  highlightedId?: string;
+  onClearHighlight?: () => void;
 }
 
-export default function Grid({ items, activeTab, filter, searchQuery }: GridProps) {
+export default function Grid({ items, activeTab, filter, searchQuery, highlightedId, onClearHighlight }: GridProps) {
   const [filteredItems, setFilteredItems] = useState<any[]>([]);
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
   const [flippedId, setFlippedId] = useState<string | null>(null);
@@ -123,6 +125,8 @@ export default function Grid({ items, activeTab, filter, searchQuery }: GridProp
             initialIsLiked={likedIds.has(item.id.toString())}
             isFlipped={flippedId === item.id.toString()}
             onFlip={() => setFlippedId(flippedId === item.id.toString() ? null : item.id.toString())}
+            highlighted={item.id.toString() === highlightedId}
+            onInteraction={onClearHighlight}
           />
         );
       })}

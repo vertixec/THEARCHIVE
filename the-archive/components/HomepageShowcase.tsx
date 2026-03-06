@@ -189,9 +189,6 @@ export default function HomepageShowcase() {
             className={`w-[2px] transition-all duration-500 ${i === currentIndex ? "h-12 bg-acid shadow-[0_0_10px_#c8ff00]" : "h-6 bg-white/20"}`}
           />
         ))}
-        <div className="mt-4 text-[10px] rotate-90 origin-left translate-x-1 tracking-[0.5em] text-white/30 whitespace-nowrap">
-          DEPTH_LEVEL_0{currentIndex + 1}
-        </div>
       </div>
 
       {/* Right Center: Navigation Dots */}
