@@ -136,9 +136,6 @@ export default function HomepageShowcase() {
         style={{ left: cursorPos.x, top: cursorPos.y }}
       />
 
-      {/* Overlays */}
-      <div className="radial-overlay" />
-
       {/* Corner Decorations */}
       <div className="corner-l corner-top-left" />
       <div className="corner-l corner-top-right" />
@@ -157,7 +154,7 @@ export default function HomepageShowcase() {
             className="absolute inset-0"
           >
             <div 
-              className="w-full h-full bg-cover bg-center brightness-[0.7]"
+              className="w-full h-full bg-cover bg-center brightness-[0.85]"
               style={{ backgroundImage: `url(${currentAsset.image_url})` }}
             />
           </motion.div>

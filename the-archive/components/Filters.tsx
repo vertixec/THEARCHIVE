@@ -37,16 +37,16 @@ export default function Filters({ activeTab, currentFilter, onFilterChange, onSe
           </div>
         </div>
         
-        <div className="relative w-full md:w-64">
-          <input 
-            type="text" 
-            onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="SEARCH RECORDS..." 
-            className="w-full bg-black border border-white/20 p-2.5 md:p-3 pl-10 font-mono text-[9px] md:text-[10px] text-acid focus:border-acid outline-none uppercase tracking-widest"
-          />
-          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="flex items-center gap-2 w-full md:w-64 bg-black border border-white/20 px-3 py-2.5 md:py-3 focus-within:border-acid transition-colors">
+          <svg className="shrink-0 w-3.5 h-3.5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
           </svg>
+          <input
+            type="text"
+            onChange={(e) => onSearchChange(e.target.value)}
+            placeholder="SEARCH RECORDS..."
+            className="w-full bg-transparent font-mono text-[9px] md:text-[10px] text-acid outline-none uppercase tracking-widest"
+          />
         </div>
       </div>
     </section>
