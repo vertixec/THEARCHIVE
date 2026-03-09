@@ -106,6 +106,28 @@ export default function Card({
     showToast("PROMPT COPIED");
   };
 
+  const handleCopyColors = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      const { getPaletteSync } = await import("colorthief");
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject();
+        const sep = displayImg.includes("?") ? "&" : "?";
+        img.src = displayImg + sep + "_cors=1";
+      });
+      const palette = getPaletteSync(img, { colorCount: 6 });
+      if (!palette) throw new Error("no palette");
+      const hexColors = palette.map((c) => c.hex().toUpperCase());
+      navigator.clipboard.writeText(hexColors.join(", "));
+      showToast("COLORS COPIED");
+    } catch {
+      showToast("COLOR EXTRACT FAILED");
+    }
+  };
+
   return (
     <div
       id={`card-${item.id}`}
@@ -268,6 +290,32 @@ export default function Card({
                           <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
                         </svg>
                       </button>
+
+                      {itemType === "visual" && (
+                        <button
+                          onClick={handleCopyColors}
+                          className="text-acid/50 hover:text-acid transition-colors p-1"
+                          title="Copy Color Palette"
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <circle cx="13.5" cy="6.5" r="2.5"></circle>
+                            <circle cx="19" cy="12" r="2.5"></circle>
+                            <circle cx="13.5" cy="17.5" r="2.5"></circle>
+                            <circle cx="5" cy="12" r="2.5"></circle>
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10c1.1 0 2-.9 2-2v-.5c0-.55-.22-1.05-.59-1.41a.996.996 0 0 1 0-1.18C13.78 16.55 14 16.05 14 15.5V15c0-1.1.9-2 2-2h1.5c2.76 0 5-2.24 5-5 0-4.42-4.03-8-9-8z"></path>
+                          </svg>
+                        </button>
+                      )}
 
                       {itemType === "system" && instructions && (
                         <div className="relative">
