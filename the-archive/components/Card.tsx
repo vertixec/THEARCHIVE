@@ -35,6 +35,13 @@ export default function Card({
   const { user } = useAuth();
   const [isProcessing, setIsProcessing] = useState(false);
   const [showTooltip, setShowTooltip] = useState(false);
+  const [showMoodboardMenu, setShowMoodboardMenu] = useState(false);
+  const [showBoardsList, setShowBoardsList] = useState(false);
+  const [moodboards, setMoodboards] = useState<{ id: string; name: string }[]>([]);
+  const [loadingBoards, setLoadingBoards] = useState(false);
+  const [showCreateInput, setShowCreateInput] = useState(false);
+  const [newBoardName, setNewBoardName] = useState('');
+  const [isCreatingBoard, setIsCreatingBoard] = useState(false);
 
   useEffect(() => {
     setIsLiked(initialIsLiked);
@@ -99,6 +106,52 @@ export default function Card({
     item.image_url ||
     "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=500";
   const instructions = item.instructions || "";
+
+  const fetchBoards = async () => {
+    if (!user) return;
+    setLoadingBoards(true);
+    const { data } = await supabase
+      .from('boards')
+      .select('id, name')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+    setMoodboards(data || []);
+    setLoadingBoards(false);
+  };
+
+  const handleAddToBoard = async (boardId: string, boardName: string) => {
+    if (!user) return;
+    const { error } = await supabase.from('board_items').upsert(
+      { board_id: boardId, item_id: item.id, item_type: 'visual', image_url: item.image_url || null },
+      { onConflict: 'board_id,item_id,item_type' }
+    );
+    showToast(error ? 'SYNC ERROR' : `ADDED TO ${boardName}`);
+    setShowMoodboardMenu(false);
+    setShowCreateInput(false);
+    setNewBoardName('');
+  };
+
+  const handleCreateAndAdd = async () => {
+    if (!newBoardName.trim() || !user || isCreatingBoard) return;
+    setIsCreatingBoard(true);
+    try {
+      const { data, error } = await supabase
+        .from('boards')
+        .insert({ user_id: user.id, name: newBoardName.trim().toUpperCase() })
+        .select('id, name')
+        .single();
+      if (!error && data) {
+        await handleAddToBoard(data.id, data.name);
+      } else {
+        showToast('SYNC ERROR');
+        setShowMoodboardMenu(false);
+      }
+    } finally {
+      setNewBoardName('');
+      setShowCreateInput(false);
+      setIsCreatingBoard(false);
+    }
+  };
 
   const handleCopy = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -258,44 +311,16 @@ export default function Card({
                 </div>
               ) : (
                 <>
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="font-mono text-[9px] md:text-[10px] text-acid/80 uppercase tracking-widest border-l-2 border-acid pl-2">
-                      PROMPT:
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={handleCopy}
-                        className="text-acid/50 hover:text-acid transition-colors p-1"
-                        title="Copy Prompt"
-                      >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="14"
-                          height="14"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <rect
-                            x="9"
-                            y="9"
-                            width="13"
-                            height="13"
-                            rx="2"
-                            ry="2"
-                          ></rect>
-                          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                        </svg>
-                      </button>
-
-                      {itemType === "visual" && (
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="font-mono text-[9px] md:text-[10px] text-acid/80 uppercase tracking-widest border-l-2 border-acid pl-2">
+                        PROMPT:
+                      </div>
+                      <div className="flex items-center gap-1">
                         <button
-                          onClick={handleCopyColors}
+                          onClick={handleCopy}
                           className="text-acid/50 hover:text-acid transition-colors p-1"
-                          title="Copy Color Palette"
+                          title="Copy Prompt"
                         >
                           <svg
                             xmlns="http://www.w3.org/2000/svg"
@@ -308,16 +333,38 @@ export default function Card({
                             strokeLinecap="round"
                             strokeLinejoin="round"
                           >
-                            <circle cx="13.5" cy="6.5" r="2.5"></circle>
-                            <circle cx="19" cy="12" r="2.5"></circle>
-                            <circle cx="13.5" cy="17.5" r="2.5"></circle>
-                            <circle cx="5" cy="12" r="2.5"></circle>
-                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10c1.1 0 2-.9 2-2v-.5c0-.55-.22-1.05-.59-1.41a.996.996 0 0 1 0-1.18C13.78 16.55 14 16.05 14 15.5V15c0-1.1.9-2 2-2h1.5c2.76 0 5-2.24 5-5 0-4.42-4.03-8-9-8z"></path>
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
                           </svg>
                         </button>
-                      )}
 
-                      {itemType === "system" && instructions && (
+                        {itemType === "visual" && (
+                          <button
+                            onClick={handleCopyColors}
+                            className="text-acid/50 hover:text-acid transition-colors p-1"
+                            title="Copy Color Palette"
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              width="14"
+                              height="14"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <circle cx="13.5" cy="6.5" r="2.5"></circle>
+                              <circle cx="19" cy="12" r="2.5"></circle>
+                              <circle cx="13.5" cy="17.5" r="2.5"></circle>
+                              <circle cx="5" cy="12" r="2.5"></circle>
+                              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10c1.1 0 2-.9 2-2v-.5c0-.55-.22-1.05-.59-1.41a.996.996 0 0 1 0-1.18C13.78 16.55 14 16.05 14 15.5V15c0-1.1.9-2 2-2h1.5c2.76 0 5-2.24 5-5 0-4.42-4.03-8-9-8z"></path>
+                            </svg>
+                          </button>
+                        )}
+
+                        {itemType === "system" && instructions && (
                         <div className="relative">
                           <button
                             onClick={(e) => {
@@ -333,7 +380,27 @@ export default function Card({
                           </button>
                         </div>
                       )}
+                      </div>
                     </div>
+                    {itemType === "visual" && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowMoodboardMenu(m => !m);
+                          setShowBoardsList(false);
+                          setShowCreateInput(false);
+                          setNewBoardName('');
+                        }}
+                        className={`transition-colors p-1 shrink-0 ${showMoodboardMenu ? 'text-acid' : 'text-acid/50 hover:text-acid'}`}
+                        title="Add to MoodBoard"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                          <line x1="3" y1="6" x2="21" y2="6" />
+                          <line x1="3" y1="12" x2="21" y2="12" />
+                          <line x1="3" y1="18" x2="21" y2="18" />
+                        </svg>
+                      </button>
+                    )}
                   </div>
                   <p className="font-mono text-[10px] md:text-[11px] text-white leading-tight md:leading-relaxed uppercase opacity-90">
                     {promptContent}
@@ -384,6 +451,116 @@ export default function Card({
               </div>
             </div>
           </div>
+
+          {/* MoodBoard dropdown */}
+          {itemType === 'visual' && showMoodboardMenu && (
+            <>
+              {/* Backdrop to close on outside click */}
+              <div
+                className="absolute inset-0 z-[98]"
+                onClick={(e) => { e.stopPropagation(); setShowMoodboardMenu(false); setShowCreateInput(false); setNewBoardName(''); }}
+              />
+              {/* Dropdown panel */}
+              <div
+                className="absolute top-[52px] right-4 bg-[#0d0d0d] border border-white/20 w-[172px] z-[100] shadow-2xl"
+                onClick={e => e.stopPropagation()}
+              >
+                {!showBoardsList ? (
+                  /* Step 1: main menu options */
+                  <>
+                    <button
+                      onClick={() => { fetchBoards(); setShowBoardsList(true); }}
+                      className="w-full text-left px-3 py-2.5 font-mono text-[9px] text-white/60 hover:bg-white/5 hover:text-white uppercase tracking-widest flex items-center gap-2 transition-colors border-b border-white/5"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" />
+                        <rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" />
+                      </svg>
+                      Add to MoodBoard
+                    </button>
+                    <button
+                      onClick={() => { setShowBoardsList(true); setShowCreateInput(true); }}
+                      className="w-full text-left px-3 py-2.5 font-mono text-[9px] text-acid/70 hover:text-acid hover:bg-acid/5 uppercase tracking-widest flex items-center gap-2 transition-colors"
+                    >
+                      <span className="text-acid font-bold text-sm leading-none">⊕</span>
+                      Create MoodBoard
+                    </button>
+                  </>
+                ) : (
+                  /* Step 2: boards list */
+                  <>
+                    <div className="px-3 py-1.5 border-b border-white/10">
+                      <span className="font-mono text-[8px] text-acid/60 uppercase tracking-widest">Moodboards</span>
+                    </div>
+
+                    <div className="max-h-36 overflow-y-auto scroll-custom">
+                      {loadingBoards ? (
+                        <div className="px-3 py-2.5 font-mono text-[9px] text-white/30 uppercase tracking-widest">Loading...</div>
+                      ) : moodboards.length === 0 ? (
+                        <div className="px-3 py-2.5 font-mono text-[9px] text-white/20 uppercase tracking-widest">No boards yet</div>
+                      ) : (
+                        moodboards.map(board => (
+                          <button
+                            key={board.id}
+                            onClick={() => handleAddToBoard(board.id, board.name)}
+                            className="w-full text-left px-3 py-2 font-mono text-[9px] text-white/60 hover:bg-white/5 hover:text-white uppercase tracking-widest flex items-center gap-2 transition-colors border-b border-white/5 last:border-0"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" />
+                              <rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" />
+                            </svg>
+                            <span className="truncate">{board.name}</span>
+                          </button>
+                        ))
+                      )}
+                    </div>
+
+                    <div className="border-t border-white/10">
+                      {!showCreateInput ? (
+                        <button
+                          onClick={() => setShowCreateInput(true)}
+                          className="w-full text-left px-3 py-2.5 font-mono text-[9px] text-acid/70 hover:text-acid hover:bg-acid/5 uppercase tracking-widest flex items-center gap-2 transition-colors"
+                        >
+                          <span className="text-acid font-bold text-sm leading-none">⊕</span>
+                          Create MoodBoard
+                        </button>
+                      ) : (
+                        <div className="px-3 py-2 flex flex-col gap-1.5">
+                          <input
+                            autoFocus
+                            value={newBoardName}
+                            onChange={e => setNewBoardName(e.target.value.toUpperCase())}
+                            onKeyDown={e => {
+                              e.stopPropagation();
+                              if (e.key === 'Enter') handleCreateAndAdd();
+                              if (e.key === 'Escape') { setShowCreateInput(false); setNewBoardName(''); }
+                            }}
+                            onClick={e => e.stopPropagation()}
+                            placeholder="BOARD NAME..."
+                            maxLength={40}
+                            className="bg-black border border-acid/50 focus:border-acid px-2 py-1 font-mono text-[9px] text-acid uppercase tracking-widest outline-none w-full placeholder:text-acid/20"
+                          />
+                          <div className="flex gap-1">
+                            <button
+                              onClick={handleCreateAndAdd}
+                              disabled={isCreatingBoard || !newBoardName.trim()}
+                              className="flex-1 py-1 bg-acid text-black font-mono text-[8px] uppercase tracking-widest disabled:opacity-40 hover:bg-acid/80 transition-colors"
+                            >
+                              {isCreatingBoard ? '...' : 'Create'}
+                            </button>
+                            <button
+                              onClick={() => { setShowCreateInput(false); setNewBoardName(''); }}
+                              className="px-2 py-1 font-mono text-[8px] text-white/40 hover:text-white border border-white/10 hover:border-white/20 transition-colors"
+                            >✕</button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

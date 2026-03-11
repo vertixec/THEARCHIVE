@@ -117,7 +117,7 @@ export default function MoodboardContent({ initialBoards }: Props) {
     <div id="view-content">
       {/* Header */}
       <header className="pt-12 pb-10 px-6 text-center">
-        <h1 className="font-anton text-5xl md:text-7xl text-white uppercase tracking-tighter leading-[0.85] mb-4">
+        <h1 className="font-anton text-5xl md:text-7xl text-white uppercase tracking-tighter leading-[1.05] mb-4">
           Set the aesthetic.<br />Own the direction.
         </h1>
         <p className="font-mono text-xs text-acid mb-3">
