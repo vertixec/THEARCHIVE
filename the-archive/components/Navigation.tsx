@@ -103,6 +103,7 @@ export default function Navigation() {
                   { label: "SYSTEMS", path: "/systems" },
                   { label: "COMMUNITY", path: "/community" },
                   { label: "WORKFLOWS", path: "/workflows" },
+                  { label: "MOODBOARD", path: "/moodboard" },
                 ].map((link) => (
                   <Link
                     key={link.path}
@@ -185,6 +186,12 @@ export default function Navigation() {
                   className={`py-6 border-b-2 transition-all duration-300 hover:text-acid ${isTabActive("/workflows") ? "text-acid border-acid" : "border-transparent"}`}
                 >
                   WORKFLOWS
+                </Link>
+                <Link
+                  href="/moodboard"
+                  className={`py-6 border-b-2 transition-all duration-300 hover:text-acid ${isTabActive("/moodboard") ? "text-acid border-acid" : "border-transparent"}`}
+                >
+                  MOODBOARD
                 </Link>
               </div>
             </>
@@ -277,6 +284,7 @@ export default function Navigation() {
                 { label: "SYSTEMS", path: "/systems" },
                 { label: "COMMUNITY", path: "/community" },
                 { label: "WORKFLOWS", path: "/workflows" },
+                { label: "MOODBOARD", path: "/moodboard" },
               ].map((link) => (
                 <Link
                   key={link.path}

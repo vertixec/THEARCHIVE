@@ -13,9 +13,12 @@ interface GridProps {
   searchQuery: string;
   highlightedId?: string;
   onClearHighlight?: () => void;
+  selectionMode?: boolean;
+  selectedIds?: Set<string>;
+  onSelectItem?: (id: string, imageUrl: string | null) => void;
 }
 
-export default function Grid({ items, activeTab, filter, searchQuery, highlightedId, onClearHighlight }: GridProps) {
+export default function Grid({ items, activeTab, filter, searchQuery, highlightedId, onClearHighlight, selectionMode, selectedIds, onSelectItem }: GridProps) {
   const [filteredItems, setFilteredItems] = useState<any[]>([]);
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
   const [flippedId, setFlippedId] = useState<string | null>(null);
@@ -114,20 +117,47 @@ export default function Grid({ items, activeTab, filter, searchQuery, highlighte
 
         const itemType = activeTab === 'main' ? 'visual' : activeTab === 'systems' ? 'system' : activeTab === 'community' ? 'community' : activeTab === 'workflows' ? 'workflow' : 'visual';
 
+        const isSelected = selectionMode && selectedIds?.has(item.id.toString());
+
         return (
-          <Card 
-            key={item.id}
-            item={item}
-            cardTitle={cardTitle}
-            secondaryLabel={secondaryLabel}
-            bottomLabel={bottomLabel}
-            itemType={itemType}
-            initialIsLiked={likedIds.has(item.id.toString())}
-            isFlipped={flippedId === item.id.toString()}
-            onFlip={() => setFlippedId(flippedId === item.id.toString() ? null : item.id.toString())}
-            highlighted={item.id.toString() === highlightedId}
-            onInteraction={onClearHighlight}
-          />
+          <div key={item.id} className="relative">
+            <Card
+              item={item}
+              cardTitle={cardTitle}
+              secondaryLabel={secondaryLabel}
+              bottomLabel={bottomLabel}
+              itemType={itemType}
+              initialIsLiked={likedIds.has(item.id.toString())}
+              isFlipped={!selectionMode && flippedId === item.id.toString()}
+              onFlip={() => {
+                if (selectionMode) return;
+                setFlippedId(flippedId === item.id.toString() ? null : item.id.toString());
+              }}
+              highlighted={item.id.toString() === highlightedId}
+              onInteraction={onClearHighlight}
+            />
+            {selectionMode && (
+              <div
+                className="absolute inset-0 z-40 cursor-pointer"
+                onClick={() => onSelectItem?.(item.id.toString(), item.image_url ?? null)}
+              >
+                {/* Checkbox */}
+                <div className={`absolute top-2 left-2 w-5 h-5 border-2 flex items-center justify-center transition-all shadow-md ${
+                  isSelected ? 'bg-[#c8ff00] border-[#c8ff00]' : 'bg-black/60 backdrop-blur-sm border-white/60 hover:border-[#c8ff00]'
+                }`}>
+                  {isSelected && (
+                    <svg className="w-3 h-3 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                </div>
+                {/* Selected border highlight */}
+                {isSelected && (
+                  <div className="absolute inset-0 border-2 border-[#c8ff00] pointer-events-none" />
+                )}
+              </div>
+            )}
+          </div>
         );
       })}
     </main>
