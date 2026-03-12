@@ -98,12 +98,12 @@ export default function Navigation() {
               {/* Nav Links */}
               <div className="flex flex-col gap-4 md:gap-8 text-center">
                 {[
-                  { label: "SHOWCASE", path: "/" },
                   { label: "VISUALS", path: "/visuals" },
                   { label: "SYSTEMS", path: "/systems" },
                   { label: "COMMUNITY", path: "/community" },
                   { label: "WORKFLOWS", path: "/workflows" },
                   { label: "MOODBOARD", path: "/moodboard" },
+                  { label: "FAVORITES", path: "/favorites" },
                 ].map((link) => (
                   <Link
                     key={link.path}
@@ -279,12 +279,12 @@ export default function Navigation() {
 
              <div className="flex flex-col gap-6 text-center">
               {[
-                { label: "SHOWCASE", path: "/" },
                 { label: "VISUALS", path: "/visuals" },
                 { label: "SYSTEMS", path: "/systems" },
                 { label: "COMMUNITY", path: "/community" },
                 { label: "WORKFLOWS", path: "/workflows" },
                 { label: "MOODBOARD", path: "/moodboard" },
+                { label: "FAVORITES", path: "/favorites" },
               ].map((link) => (
                 <Link
                   key={link.path}
