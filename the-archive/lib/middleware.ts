@@ -58,11 +58,13 @@ export async function updateSession(request: NextRequest) {
 
   // Protect routes: Redirect to /login if not authenticated
   const isAuthPage = request.nextUrl.pathname.startsWith('/login')
-  const isPublicAsset = request.nextUrl.pathname.startsWith('/_next') || 
+  const isAuthCallback = request.nextUrl.pathname.startsWith('/auth')
+  const isInactivePage = request.nextUrl.pathname === '/inactive-membership'
+  const isPublicAsset = request.nextUrl.pathname.startsWith('/_next') ||
                         request.nextUrl.pathname.includes('.') ||
                         request.nextUrl.pathname === '/favicon.ico'
 
-  if (!user && !isAuthPage && !isPublicAsset) {
+  if (!user && !isAuthPage && !isAuthCallback && !isPublicAsset) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
@@ -73,6 +75,36 @@ export async function updateSession(request: NextRequest) {
     const url = request.nextUrl.clone()
     url.pathname = '/'
     return NextResponse.redirect(url)
+  }
+
+  // Check membership status for authenticated users on protected routes
+  if (user && !isAuthPage && !isAuthCallback && !isInactivePage && !isPublicAsset) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('status')
+      .eq('id', user.id)
+      .single()
+
+    if (profile?.status === 'inactive') {
+      const url = request.nextUrl.clone()
+      url.pathname = '/inactive-membership'
+      return NextResponse.redirect(url)
+    }
+  }
+
+  // Redirect active members away from the inactive page
+  if (user && isInactivePage) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('status')
+      .eq('id', user.id)
+      .single()
+
+    if (profile?.status !== 'inactive') {
+      const url = request.nextUrl.clone()
+      url.pathname = '/'
+      return NextResponse.redirect(url)
+    }
   }
 
   return response

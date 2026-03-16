@@ -47,9 +47,10 @@ export default function Navigation() {
   };
 
   const isAuthPage = pathname === "/login";
+  const isInactivePage = pathname === "/inactive-membership";
   const isHomePage = pathname === "/";
 
-  if (isAuthPage) {
+  if (isAuthPage || isInactivePage) {
     return null;
   }
 
