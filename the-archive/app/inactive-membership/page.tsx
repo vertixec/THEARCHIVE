@@ -1,12 +1,80 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
 const VERTIX_OS_URL = process.env.NEXT_PUBLIC_VERTIX_OS_URL ?? "#";
-
 const SUPPORT_EMAIL = "vertix.ia@gmail.com";
+
+function TVStatic() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    // Low resolution for chunky CRT pixel look
+    const W = 320;
+    const H = 180;
+    canvas.width = W;
+    canvas.height = H;
+
+    let animId: number;
+    let lastTime = 0;
+    const FPS = 24;
+    const interval = 1000 / FPS;
+
+    const draw = (timestamp: number) => {
+      animId = requestAnimationFrame(draw);
+      if (timestamp - lastTime < interval) return;
+      lastTime = timestamp;
+
+      const imageData = ctx.createImageData(W, H);
+      const data = imageData.data;
+
+      for (let i = 0; i < data.length; i += 4) {
+        // Occasionally add a bright flash pixel for realism
+        const v = Math.random() < 0.04
+          ? 255
+          : Math.floor(Math.random() * 180);
+        data[i]     = v;
+        data[i + 1] = v;
+        data[i + 2] = v;
+        data[i + 3] = Math.floor(Math.random() * 200 + 30);
+      }
+
+      // Horizontal band sweep — a brighter rolling line
+      const bandY = Math.floor((Date.now() / 40) % H);
+      for (let x = 0; x < W; x++) {
+        const idx = (bandY * W + x) * 4;
+        data[idx]     = 255;
+        data[idx + 1] = 255;
+        data[idx + 2] = 255;
+        data[idx + 3] = Math.floor(Math.random() * 80 + 20);
+      }
+
+      ctx.putImageData(imageData, 0, 0);
+    };
+
+    animId = requestAnimationFrame(draw);
+    return () => cancelAnimationFrame(animId);
+  }, []);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      className="absolute inset-0 w-full h-full pointer-events-none"
+      style={{
+        imageRendering: "pixelated",
+        opacity: 0.18,
+        mixBlendMode: "screen",
+      }}
+    />
+  );
+}
 
 export default function InactiveMembershipPage() {
   const router = useRouter();
@@ -25,8 +93,27 @@ export default function InactiveMembershipPage() {
 
   return (
     <div className="min-h-screen bg-dark flex flex-col items-center justify-center text-white relative overflow-hidden">
+      {/* TV static */}
+      <TVStatic />
+
+      {/* Scanlines overlay */}
+      <div
+        className="absolute inset-0 pointer-events-none z-[1]"
+        style={{
+          backgroundImage: "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.35) 2px, rgba(0,0,0,0.35) 4px)",
+        }}
+      />
+
+      {/* Vignette */}
+      <div
+        className="absolute inset-0 pointer-events-none z-[2]"
+        style={{
+          background: "radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.75) 100%)",
+        }}
+      />
+
       {/* Grain overlay */}
-      <div className="film-grain pointer-events-none" />
+      <div className="film-grain pointer-events-none z-[3]" />
 
       {/* Content */}
       <div className="relative z-10 flex flex-col items-center text-center px-6 gap-8">
@@ -83,7 +170,7 @@ export default function InactiveMembershipPage() {
       </div>
 
       {/* Footer */}
-      <p className="absolute bottom-8 font-space text-[9px] tracking-[0.3em] text-white/20 uppercase">
+      <p className="absolute bottom-8 font-space text-[9px] tracking-[0.3em] text-white/20 uppercase z-10">
         THE ARCHIVE — RESTRICTED ACCESS
       </p>
     </div>
