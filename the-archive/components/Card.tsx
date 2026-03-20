@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useToast } from "./Toast";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "./AuthContext";
@@ -40,6 +40,7 @@ export default function Card({
   const [showBoardsList, setShowBoardsList] = useState(false);
   const [moodboards, setMoodboards] = useState<{ id: string; name: string }[]>([]);
   const [loadingBoards, setLoadingBoards] = useState(false);
+  const hasFetchedBoards = useRef(false);
   const [showCreateInput, setShowCreateInput] = useState(false);
   const [newBoardName, setNewBoardName] = useState('');
   const [isCreatingBoard, setIsCreatingBoard] = useState(false);
@@ -109,7 +110,7 @@ export default function Card({
   const instructions = item.instructions || "";
 
   const fetchBoards = async () => {
-    if (!user) return;
+    if (!user || hasFetchedBoards.current) return;
     setLoadingBoards(true);
     const { data } = await supabase
       .from('boards')
@@ -117,6 +118,7 @@ export default function Card({
       .eq('user_id', user.id)
       .order('created_at', { ascending: false });
     setMoodboards(data || []);
+    hasFetchedBoards.current = true;
     setLoadingBoards(false);
   };
 
@@ -142,6 +144,9 @@ export default function Card({
         .select('id, name')
         .single();
       if (!error && data) {
+        // Reset cache so the new board appears next time the list is opened
+        hasFetchedBoards.current = false;
+        setMoodboards([]);
         await handleAddToBoard(data.id, data.name);
       } else {
         showToast('SYNC ERROR');

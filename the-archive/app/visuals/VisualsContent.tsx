@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Filters from '@/components/Filters';
 import Grid from '@/components/Grid';
@@ -18,25 +18,31 @@ export default function VisualsContent({ initialItems, hasMore: initialHasMore }
   const [allItems, setAllItems] = useState<Visual[]>(initialItems);
   const [hasMore, setHasMore] = useState(initialHasMore);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const isLoadingRef = useRef(false);
   const [currentFilter, setCurrentFilter] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [localHighlightId, setLocalHighlightId] = useState<string | null>(null);
 
   const loadMore = async () => {
-    if (isLoadingMore || !hasMore) return;
+    if (isLoadingRef.current || !hasMore) return;
+    isLoadingRef.current = true;
     setIsLoadingMore(true);
-    const { data } = await supabase
-      .from('prompts')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .range(allItems.length, allItems.length + PAGE_SIZE - 1);
-    if (data && data.length > 0) {
-      setAllItems(prev => [...prev, ...data]);
-      setHasMore(data.length === PAGE_SIZE);
-    } else {
-      setHasMore(false);
+    try {
+      const { data } = await supabase
+        .from('prompts')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .range(allItems.length, allItems.length + PAGE_SIZE - 1);
+      if (data && data.length > 0) {
+        setAllItems(prev => [...prev, ...data]);
+        setHasMore(data.length === PAGE_SIZE);
+      } else {
+        setHasMore(false);
+      }
+    } finally {
+      isLoadingRef.current = false;
+      setIsLoadingMore(false);
     }
-    setIsLoadingMore(false);
   };
 
   // Moodboard selection mode

@@ -1,12 +1,14 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from './Toast';
 
 type Mode = 'login' | 'register' | 'forgot';
 
 export default function AuthForm() {
+  const router = useRouter();
   const [mode, setMode] = useState<Mode>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -22,7 +24,7 @@ export default function AuthForm() {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         showToast('ACCESS GRANTED');
-        window.location.href = '/';
+        router.push('/');
       } else if (mode === 'register') {
         const { data, error } = await supabase.auth.signUp({
           email,
