@@ -61,7 +61,7 @@ export default function Grid({ items, activeTab, filter, searchQuery, highlighte
 
     const filtered = items.filter(item => {
       // For workflows, we don't really have a strict type filter yet, so we'll treat all as matches if filter is ALL
-      const itemTypeValue = (item[typeField] || (activeTab === 'workflows' ? item.name : 'GENERAL')).toString().trim().toUpperCase();
+      const itemTypeValue = (item[typeField] ?? (activeTab === 'workflows' ? item.name : 'GENERAL') ?? 'GENERAL').toString().trim().toUpperCase();
       const matchesType = filter === 'ALL' || itemTypeValue === filter;
       
       const searchStr = (
