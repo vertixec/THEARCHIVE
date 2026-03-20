@@ -7,6 +7,7 @@ import { ToastProvider } from "@/components/Toast";
 import { SyncProvider } from "@/components/SyncContext";
 import { AuthProvider } from "@/components/AuthContext";
 import AppContent from "@/components/AppContent";
+import ErrorBoundary from "@/components/ErrorBoundary";
 
 const anton = Anton({
   weight: "400",
@@ -50,13 +51,15 @@ export default function RootLayout({
     <html lang="en" className="scroll-smooth">
       <body className={`${anton.variable} ${mono.variable} ${oswald.variable} ${bebas.variable} ${space.variable} antialiased selection:bg-acid selection:text-black`}>
         <div className="film-grain"></div>
-        <SyncProvider>
-          <AuthProvider>
-            <ToastProvider>
-              <AppContent>{children}</AppContent>
-            </ToastProvider>
-          </AuthProvider>
-        </SyncProvider>
+        <ErrorBoundary>
+          <SyncProvider>
+            <AuthProvider>
+              <ToastProvider>
+                <AppContent>{children}</AppContent>
+              </ToastProvider>
+            </AuthProvider>
+          </SyncProvider>
+        </ErrorBoundary>
       </body>
     </html>
   );

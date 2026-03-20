@@ -6,15 +6,38 @@ import Filters from '@/components/Filters';
 import Grid from '@/components/Grid';
 import { useSync } from '@/components/SyncContext';
 import { supabase } from '@/lib/supabaseClient';
+import type { Visual } from '@/lib/types';
 
-export default function VisualsContent({ initialItems }: { initialItems: any[] }) {
+const PAGE_SIZE = 60;
+
+export default function VisualsContent({ initialItems, hasMore: initialHasMore }: { initialItems: Visual[]; hasMore: boolean }) {
   const { setStatus } = useSync();
   const searchParams = useSearchParams();
   const router = useRouter();
 
+  const [allItems, setAllItems] = useState<Visual[]>(initialItems);
+  const [hasMore, setHasMore] = useState(initialHasMore);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [currentFilter, setCurrentFilter] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [localHighlightId, setLocalHighlightId] = useState<string | null>(null);
+
+  const loadMore = async () => {
+    if (isLoadingMore || !hasMore) return;
+    setIsLoadingMore(true);
+    const { data } = await supabase
+      .from('prompts')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .range(allItems.length, allItems.length + PAGE_SIZE - 1);
+    if (data && data.length > 0) {
+      setAllItems(prev => [...prev, ...data]);
+      setHasMore(data.length === PAGE_SIZE);
+    } else {
+      setHasMore(false);
+    }
+    setIsLoadingMore(false);
+  };
 
   // Moodboard selection mode
   const moodboardId = searchParams.get('moodboardId');
@@ -24,7 +47,7 @@ export default function VisualsContent({ initialItems }: { initialItems: any[] }
   const [selectedItems, setSelectedItems] = useState<Map<string, string | null>>(new Map());
   const [isConfirming, setIsConfirming] = useState(false);
 
-  const types = [...new Set(initialItems.map(item => {
+  const types = [...new Set(allItems.map(item => {
     const val = item.volume || 'GENERAL';
     return val.toString().trim().toUpperCase();
   }))].sort() as string[];
@@ -112,7 +135,7 @@ export default function VisualsContent({ initialItems }: { initialItems: any[] }
       />
 
       <Grid
-        items={initialItems}
+        items={allItems}
         activeTab="main"
         filter={currentFilter}
         searchQuery={searchQuery}
@@ -122,6 +145,18 @@ export default function VisualsContent({ initialItems }: { initialItems: any[] }
         selectedIds={new Set(selectedItems.keys())}
         onSelectItem={handleSelectItem}
       />
+
+      {hasMore && !isSelectionMode && (
+        <div className="flex justify-center py-10">
+          <button
+            onClick={loadMore}
+            disabled={isLoadingMore}
+            className="font-mono text-[10px] uppercase tracking-widest border border-white/20 hover:border-acid/60 text-white/50 hover:text-acid px-8 py-3 transition-all disabled:opacity-40"
+          >
+            {isLoadingMore ? 'LOADING...' : `LOAD MORE — ${allItems.length} LOADED`}
+          </button>
+        </div>
+      )}
 
       {/* Floating confirm bar */}
       {isSelectionMode && (

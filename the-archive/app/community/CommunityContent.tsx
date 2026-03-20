@@ -1,15 +1,40 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import Grid from '@/components/Grid';
 import { useSync } from '@/components/SyncContext';
+import { supabase } from '@/lib/supabaseClient';
+import type { CommunityVisual } from '@/lib/types';
 
-export default function CommunityContent({ initialItems }: { initialItems: any[] }) {
+const PAGE_SIZE = 60;
+
+export default function CommunityContent({ initialItems, hasMore: initialHasMore }: { initialItems: CommunityVisual[]; hasMore: boolean }) {
   const { setStatus } = useSync();
+  const [allItems, setAllItems] = useState<CommunityVisual[]>(initialItems);
+  const [hasMore, setHasMore] = useState(initialHasMore);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   useEffect(() => {
     setStatus('ONLINE');
   }, [setStatus]);
+
+  const loadMore = async () => {
+    if (isLoadingMore || !hasMore) return;
+    setIsLoadingMore(true);
+    const { data } = await supabase
+      .from('community_visuals')
+      .select('*')
+      .order('is_featured', { ascending: false })
+      .order('created_at', { ascending: false })
+      .range(allItems.length, allItems.length + PAGE_SIZE - 1);
+    if (data && data.length > 0) {
+      setAllItems(prev => [...prev, ...data]);
+      setHasMore(data.length === PAGE_SIZE);
+    } else {
+      setHasMore(false);
+    }
+    setIsLoadingMore(false);
+  };
 
   return (
     <div id="view-content">
@@ -24,11 +49,23 @@ export default function CommunityContent({ initialItems }: { initialItems: any[]
       </header>
 
       <Grid
-        items={initialItems}
+        items={allItems}
         activeTab="community"
         filter="ALL"
         searchQuery=""
       />
+
+      {hasMore && (
+        <div className="flex justify-center py-10">
+          <button
+            onClick={loadMore}
+            disabled={isLoadingMore}
+            className="font-mono text-[10px] uppercase tracking-widest border border-white/20 hover:border-acid/60 text-white/50 hover:text-acid px-8 py-3 transition-all disabled:opacity-40"
+          >
+            {isLoadingMore ? 'LOADING...' : `LOAD MORE — ${allItems.length} LOADED`}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

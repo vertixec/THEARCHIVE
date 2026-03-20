@@ -2,13 +2,14 @@ import { useState, useEffect } from "react";
 import { useToast } from "./Toast";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "./AuthContext";
+import type { AnyItem, ItemType } from "@/lib/types";
 
 interface AssetCardProps {
-  item: any;
+  item: AnyItem;
   cardTitle: string;
   secondaryLabel: string;
   bottomLabel: string;
-  itemType: "visual" | "system" | "community" | "workflow";
+  itemType: ItemType;
   initialIsLiked?: boolean;
   onToggle?: (itemId: string, itemType: string, newIsLiked: boolean) => void;
   isFlipped?: boolean;
@@ -162,7 +163,7 @@ export default function Card({
   const handleCopyColors = async (e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      const { getPaletteSync } = await import("colorthief");
+      const { getPalette } = await import("colorthief");
       const img = new Image();
       img.crossOrigin = "anonymous";
       await new Promise<void>((resolve, reject) => {
@@ -171,7 +172,7 @@ export default function Card({
         const sep = displayImg.includes("?") ? "&" : "?";
         img.src = displayImg + sep + "_cors=1";
       });
-      const palette = getPaletteSync(img, { colorCount: 6 });
+      const palette = await getPalette(img, { colorCount: 6 });
       if (!palette) throw new Error("no palette");
       const hexColors = palette.map((c) => c.hex().toUpperCase());
       navigator.clipboard.writeText(hexColors.join(", "));
@@ -496,8 +497,6 @@ export default function Card({
                     <div className="max-h-36 overflow-y-auto scroll-custom">
                       {loadingBoards ? (
                         <div className="px-3 py-2.5 font-mono text-[9px] text-white/30 uppercase tracking-widest">Loading...</div>
-                      ) : moodboards.length === 0 ? (
-                        <div className="px-3 py-2.5 font-mono text-[9px] text-white/20 uppercase tracking-widest">No boards yet</div>
                       ) : (
                         moodboards.map(board => (
                           <button

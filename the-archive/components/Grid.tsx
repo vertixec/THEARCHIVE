@@ -3,11 +3,11 @@
 import { useState, useEffect } from 'react';
 import Card from './Card';
 import { supabase } from '@/lib/supabaseClient';
-
 import { useAuth } from './AuthContext';
+import type { AnyItem } from '@/lib/types';
 
 interface GridProps {
-  items: any[];
+  items: AnyItem[];
   activeTab: 'main' | 'systems' | 'community' | 'workflows';
   filter: string;
   searchQuery: string;
@@ -19,7 +19,7 @@ interface GridProps {
 }
 
 export default function Grid({ items, activeTab, filter, searchQuery, highlightedId, onClearHighlight, selectionMode, selectedIds, onSelectItem }: GridProps) {
-  const [filteredItems, setFilteredItems] = useState<any[]>([]);
+  const [filteredItems, setFilteredItems] = useState<AnyItem[]>([]);
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
   const [flippedId, setFlippedId] = useState<string | null>(null);
   const { user } = useAuth();
