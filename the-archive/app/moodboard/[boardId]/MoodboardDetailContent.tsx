@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { useSync } from '@/components/SyncContext';
+import { useToast } from '@/components/Toast';
 
 interface Board {
   id: string;
@@ -26,7 +27,6 @@ interface Props {
   items: BoardItem[];
 }
 
-// Deterministic span pattern for cinematic masonry feel
 function getItemSpan(index: number): 'tall' | 'normal' {
   const pattern = [true, false, false, false, true, false, false, true, false, false, false, false];
   return pattern[index % pattern.length] ? 'tall' : 'normal';
@@ -34,11 +34,22 @@ function getItemSpan(index: number): 'tall' | 'normal' {
 
 export default function MoodboardDetailContent({ board, items: initialItems }: Props) {
   const { setStatus } = useSync();
+  const { showToast } = useToast();
   const router = useRouter();
   const [items, setItems] = useState<BoardItem[]>(initialItems);
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [lightboxImg, setLightboxImg] = useState<string | null>(null);
+  // Upload state
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Link modal state
+  const [showLinkModal, setShowLinkModal] = useState(false);
+  const [linkUrl, setLinkUrl] = useState('');
+  const [isAddingLink, setIsAddingLink] = useState(false);
+  const [linkError, setLinkError] = useState('');
 
   useEffect(() => { setStatus('ONLINE'); }, [setStatus]);
 
@@ -49,6 +60,16 @@ export default function MoodboardDetailContent({ board, items: initialItems }: P
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [lightboxImg]);
+
+  // Close link modal on Escape
+  useEffect(() => {
+    if (!showLinkModal) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { setShowLinkModal(false); setLinkUrl(''); setLinkError(''); }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [showLinkModal]);
 
   const imageItems = items.filter(i => i.image_url);
   const nonImageItems = items.filter(i => !i.image_url);
@@ -62,6 +83,10 @@ export default function MoodboardDetailContent({ board, items: initialItems }: P
 
     if (!error) {
       setItems(prev => prev.filter(i => i.id !== boardItemId));
+      // Clean up storage for uploaded files
+      if (itemType === 'upload') {
+        await supabase.storage.from('moodboard-uploads').remove([itemId]);
+      }
     }
     setRemovingId(null);
   }
@@ -75,8 +100,141 @@ export default function MoodboardDetailContent({ board, items: initialItems }: P
     else setIsDeleting(false);
   }
 
+  async function handleUploadFiles(files: FileList) {
+    if (!files.length) return;
+
+    // Get user at call time — never rely on async state
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    setIsUploading(true);
+    const newItems: BoardItem[] = [];
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      setUploadProgress(`${i + 1} / ${files.length}`);
+
+      if (!file.type.startsWith('image/')) continue;
+      if (file.size > 15 * 1024 * 1024) continue; // 15MB limit
+
+      const ext = file.name.split('.').pop() ?? 'jpg';
+      const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      const storagePath = `${user.id}/${board.id}/${fileName}`;
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('moodboard-uploads')
+        .upload(storagePath, file, { cacheControl: '3600' });
+
+      if (uploadError || !uploadData) {
+        console.error('Storage upload error:', uploadError);
+        continue;
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('moodboard-uploads')
+        .getPublicUrl(storagePath);
+
+      const newId = crypto.randomUUID();
+      const { error: insertError } = await supabase
+        .from('board_items')
+        .insert({
+          id: newId,
+          board_id: board.id,
+          item_id: storagePath,
+          item_type: 'upload',
+          image_url: publicUrl,
+        });
+
+      if (insertError) {
+        console.error('DB insert error:', insertError);
+        continue;
+      }
+
+      newItems.push({
+        id: newId,
+        board_id: board.id,
+        item_id: storagePath,
+        item_type: 'upload',
+        image_url: publicUrl,
+        created_at: new Date().toISOString(),
+      });
+    }
+
+    setItems(prev => [...newItems, ...prev]);
+    setIsUploading(false);
+    setUploadProgress('');
+    if (fileInputRef.current) fileInputRef.current.value = '';
+
+    if (newItems.length > 0) {
+      showToast(`${newItems.length} image${newItems.length > 1 ? 's' : ''} added`);
+      router.refresh();
+    } else {
+      showToast('Upload failed — try again');
+    }
+  }
+
+  async function handleAddFromLink() {
+    const url = linkUrl.trim();
+    if (!url) return;
+
+    setLinkError('');
+
+    try {
+      new URL(url);
+    } catch {
+      setLinkError('Please enter a valid URL.');
+      return;
+    }
+
+    setIsAddingLink(true);
+
+    const newId = crypto.randomUUID();
+    const itemId = crypto.randomUUID();
+
+    const { error } = await supabase
+      .from('board_items')
+      .insert({
+        id: newId,
+        board_id: board.id,
+        item_id: itemId,
+        item_type: 'link',
+        image_url: url,
+      });
+
+    if (error) {
+      console.error('Link insert error:', error);
+      setLinkError(error.message);
+      setIsAddingLink(false);
+      return;
+    }
+
+    setItems(prev => [{
+      id: newId,
+      board_id: board.id,
+      item_id: itemId,
+      item_type: 'link',
+      image_url: url,
+      created_at: new Date().toISOString(),
+    }, ...prev]);
+    setLinkUrl('');
+    setShowLinkModal(false);
+    setIsAddingLink(false);
+    showToast('Image added from link');
+    router.refresh();
+  }
+
   return (
     <div id="view-content" className="min-h-screen">
+
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        className="hidden"
+        onChange={(e) => e.target.files && handleUploadFiles(e.target.files)}
+      />
 
       {/* Top bar */}
       <div className="sticky top-[72px] z-40 bg-black/95 backdrop-blur-md border-b border-white/10 px-4 md:px-8 py-3 flex items-center gap-4">
@@ -96,15 +254,7 @@ export default function MoodboardDetailContent({ board, items: initialItems }: P
           {items.length} {items.length === 1 ? 'item' : 'items'}
         </span>
 
-        <div className="ml-auto flex items-center gap-3">
-          <Link
-            href={`/visuals?moodboardId=${board.id}&moodboardName=${encodeURIComponent(board.name)}`}
-            className="flex items-center gap-2 border border-white/20 hover:border-acid/50 hover:text-white text-white/60 font-mono text-[10px] uppercase tracking-widest px-3 py-1.5 transition-all"
-          >
-            <span className="text-acid font-bold text-sm leading-none">⊕</span>
-            Add Images
-          </Link>
-
+        <div className="ml-auto">
           <button
             onClick={handleDeleteBoard}
             disabled={isDeleting}
@@ -125,9 +275,69 @@ export default function MoodboardDetailContent({ board, items: initialItems }: P
         </h1>
       </header>
 
+      {/* Action cards */}
+      <div className="px-4 md:px-8 pb-10 grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-3xl mx-auto">
+
+        {/* Upload Images */}
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          disabled={isUploading}
+          className="group flex flex-col gap-2 bg-white/[0.03] border border-white/10 hover:border-white/25 hover:bg-white/[0.06] p-4 text-left transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <div className="flex items-center gap-2">
+            <svg className="w-4 h-4 text-acid/60 group-hover:text-acid transition-colors flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+            </svg>
+            <span className="font-mono text-[11px] text-white/70 group-hover:text-white uppercase tracking-widest transition-colors">
+              {isUploading ? `Uploading ${uploadProgress}` : 'Upload Images'}
+            </span>
+          </div>
+          <p className="font-mono text-[9px] text-white/25 leading-relaxed">
+            Upload images from your computer to add to your moodboard.
+          </p>
+        </button>
+
+        {/* Add from Link */}
+        <button
+          onClick={() => setShowLinkModal(true)}
+          className="group flex flex-col gap-2 bg-white/[0.03] border border-white/10 hover:border-white/25 hover:bg-white/[0.06] p-4 text-left transition-all"
+        >
+          <div className="flex items-center gap-2">
+            <svg className="w-4 h-4 text-acid/60 group-hover:text-acid transition-colors flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
+            </svg>
+            <span className="font-mono text-[11px] text-white/70 group-hover:text-white uppercase tracking-widest transition-colors">
+              Add from Link
+            </span>
+          </div>
+          <p className="font-mono text-[9px] text-white/25 leading-relaxed">
+            Add images from around the web to your moodboard.
+          </p>
+        </button>
+
+        {/* From Archive */}
+        <Link
+          href={`/visuals?moodboardId=${board.id}&moodboardName=${encodeURIComponent(board.name)}`}
+          className="group flex flex-col gap-2 bg-white/[0.03] border border-white/10 hover:border-white/25 hover:bg-white/[0.06] p-4 text-left transition-all"
+        >
+          <div className="flex items-center gap-2">
+            <svg className="w-4 h-4 text-acid/60 group-hover:text-acid transition-colors flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3 18h12M13.5 3.75H6.75A2.25 2.25 0 004.5 6v12" />
+            </svg>
+            <span className="font-mono text-[11px] text-white/70 group-hover:text-white uppercase tracking-widest transition-colors">
+              Add from Archive
+            </span>
+          </div>
+          <p className="font-mono text-[9px] text-white/25 leading-relaxed">
+            Select images from the visuals archive to add to your moodboard.
+          </p>
+        </Link>
+
+      </div>
+
       {/* Empty state */}
-      {items.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-32 px-4">
+      {items.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-20 px-4">
           <div className="w-16 h-16 border border-white/10 flex items-center justify-center mb-6">
             <svg className="w-7 h-7 text-white/20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3 18h12M13.5 3.75H6.75A2.25 2.25 0 004.5 6v12" />
@@ -136,20 +346,15 @@ export default function MoodboardDetailContent({ board, items: initialItems }: P
           <div className="font-anton text-3xl text-white/20 uppercase tracking-tighter mb-3">
             Board is empty
           </div>
-          <p className="font-mono text-[10px] text-white/30 uppercase tracking-widest mb-8">
-            Pull references from the archive to define your visual language.
+          <p className="font-mono text-[10px] text-white/25 uppercase tracking-widest">
+            Use the options above to start building your visual language.
           </p>
-          <Link
-            href={`/visuals?moodboardId=${board.id}&moodboardName=${encodeURIComponent(board.name)}`}
-            className="flex items-center gap-2 bg-acid text-black font-mono text-[10px] uppercase tracking-widest px-5 py-2.5 hover:bg-acid/80 transition-colors"
-          >
-            <span className="font-bold text-sm leading-none">⊕</span>
-            Browse Visuals Archive
-          </Link>
         </div>
-      ) : (
+      )}
+
+      {/* Image grid */}
+      {items.length > 0 && (
         <>
-          {/* Cinematic image grid */}
           {imageItems.length > 0 && (
             <div
               className="px-1 md:px-2 pb-2"
@@ -209,7 +414,7 @@ export default function MoodboardDetailContent({ board, items: initialItems }: P
             </div>
           )}
 
-          {/* Non-image items (systems, workflows, etc.) */}
+          {/* Non-image items */}
           {nonImageItems.length > 0 && (
             <div className="px-4 md:px-8 pt-8 pb-12">
               <div className="border-t border-white/10 pt-6 mb-4">
@@ -266,6 +471,57 @@ export default function MoodboardDetailContent({ board, items: initialItems }: P
           />
         </div>
       )}
+
+      {/* Add from Link modal */}
+      {showLinkModal && (
+        <div
+          className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-md flex items-center justify-center p-4"
+          onClick={() => { setShowLinkModal(false); setLinkUrl(''); setLinkError(''); }}
+        >
+          <div
+            className="bg-black border border-white/15 p-6 w-full max-w-md"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="font-anton text-2xl text-white uppercase tracking-tighter mb-1">
+              Add from Link
+            </h3>
+            <p className="font-mono text-[9px] text-white/30 uppercase tracking-widest mb-5">
+              Paste an image URL to add it to your board
+            </p>
+
+            <input
+              type="url"
+              value={linkUrl}
+              onChange={(e) => { setLinkUrl(e.target.value); setLinkError(''); }}
+              placeholder="https://example.com/image.jpg"
+              className="w-full bg-white/[0.04] border border-white/15 text-white font-mono text-xs px-3 py-2.5 focus:outline-none focus:border-acid/40 placeholder:text-white/20"
+              onKeyDown={(e) => e.key === 'Enter' && handleAddFromLink()}
+              autoFocus
+            />
+
+            {linkError && (
+              <p className="font-mono text-[9px] text-red-400/70 mt-2">{linkError}</p>
+            )}
+
+            <div className="flex gap-2 justify-end mt-5">
+              <button
+                onClick={() => { setShowLinkModal(false); setLinkUrl(''); setLinkError(''); }}
+                className="font-mono text-[10px] text-white/40 hover:text-white uppercase tracking-widest px-4 py-2 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAddFromLink}
+                disabled={!linkUrl.trim() || isAddingLink}
+                className="font-mono text-[10px] bg-acid text-black uppercase tracking-widest px-4 py-2 hover:bg-acid/80 transition-colors disabled:opacity-40"
+              >
+                {isAddingLink ? 'Adding...' : 'Add to Board'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
