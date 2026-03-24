@@ -49,17 +49,17 @@ export default function FavoritesContent({ initialItems }: Props) {
   return (
     <div id="view-content">
       {/* Header */}
-      <header className="pt-12 pb-6 px-6 bg-panel/30">
-        <div className="w-full text-left">
-          <div className="flex items-center justify-between mb-4">
-            <span className="bg-acid text-black font-mono text-[10px] px-2 py-0.5 font-bold uppercase tracking-widest text-shadow">
+      <header className="pt-12 pb-6 px-6 bg-panel/30 text-center">
+        <div className="w-full">
+          <div className="flex items-center justify-center mb-4">
+            <span className="bg-acid text-black font-mono text-[10px] px-2 py-0.5 font-bold uppercase tracking-widest text-shadow mx-auto">
               USER DATASHORE
             </span>
           </div>
-          <h1 id="view-title" className="font-anton text-6xl md:text-8xl text-white uppercase tracking-tighter leading-[0.8] mb-4">
+          <h1 id="view-title" className="font-anton text-5xl sm:text-6xl md:text-9xl text-white uppercase tracking-tighter leading-[0.9] md:leading-[0.8] mb-4">
             Saved Assets
           </h1>
-          <p id="view-desc" className="font-mono text-xs text-white/60 border-l border-acid pl-4 max-w-lg uppercase tracking-wider">
+          <p id="view-desc" className="font-mono text-xs text-white/60 max-w-lg mx-auto uppercase tracking-wider">
             Your curated collection of prompts and references.
           </p>
         </div>

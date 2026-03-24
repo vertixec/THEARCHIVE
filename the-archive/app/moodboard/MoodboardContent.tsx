@@ -266,27 +266,27 @@ export default function MoodboardContent({ initialBoards }: Props) {
 
               {/* Mosaic or empty state */}
               {board.itemCount === 0 ? (
-                <div className="aspect-[4/3] flex items-center justify-center border-b border-white/10 bg-white/[0.02]">
+                <Link href={`/moodboard/${board.id}`} className="aspect-[4/3] flex items-center justify-center border-b border-white/10 bg-white/[0.02] hover:bg-white/[0.04] transition-colors">
                   <span className="font-mono text-[9px] text-white/20 uppercase tracking-widest">
                     Add an image to get started
                   </span>
-                </div>
+                </Link>
               ) : (
-                <div className="grid grid-cols-3 aspect-[4/3] border-b border-white/10 overflow-hidden">
+                <Link href={`/moodboard/${board.id}`} className="grid grid-cols-3 aspect-[4/3] border-b border-white/10 overflow-hidden">
                   {[0, 1, 2, 3, 4, 5].map(i => (
                     board.mosaicImages[i] ? (
                       <div key={i} className="overflow-hidden border-[0.5px] border-black">
                         <img
                           src={board.mosaicImages[i]!}
                           alt=""
-                          className="w-full h-full object-cover"
+                          className="w-full h-full object-cover transition-all duration-500 group-hover:brightness-110"
                         />
                       </div>
                     ) : (
                       <div key={i} className="bg-white/[0.03] border-[0.5px] border-black" />
                     )
                   ))}
-                </div>
+                </Link>
               )}
 
               {/* Card footer */}
