@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import Filters from '@/components/Filters';
 import Grid from '@/components/Grid';
 import { useSync } from '@/components/SyncContext';
+import { useToast } from '@/components/Toast';
 import { supabase } from '@/lib/supabaseClient';
 import type { Visual } from '@/lib/types';
 
@@ -12,6 +13,7 @@ const PAGE_SIZE = 60;
 
 export default function VisualsContent({ initialItems, hasMore: initialHasMore }: { initialItems: Visual[]; hasMore: boolean }) {
   const { setStatus } = useSync();
+  const { showToast } = useToast();
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -28,17 +30,20 @@ export default function VisualsContent({ initialItems, hasMore: initialHasMore }
     isLoadingRef.current = true;
     setIsLoadingMore(true);
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('prompts')
         .select('*')
         .order('created_at', { ascending: false })
         .range(allItems.length, allItems.length + PAGE_SIZE - 1);
+      if (error) throw error;
       if (data && data.length > 0) {
         setAllItems(prev => [...prev, ...data]);
         setHasMore(data.length === PAGE_SIZE);
       } else {
         setHasMore(false);
       }
+    } catch {
+      showToast('ERROR LOADING MORE ITEMS');
     } finally {
       isLoadingRef.current = false;
       setIsLoadingMore(false);

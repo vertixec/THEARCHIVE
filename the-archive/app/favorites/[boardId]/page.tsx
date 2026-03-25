@@ -17,6 +17,7 @@ export default async function BoardPage({ params }: Props) {
     .from('boards')
     .select('*')
     .eq('id', boardId)
+    .eq('user_id', user.id)
     .single();
 
   if (boardError || !board) notFound();

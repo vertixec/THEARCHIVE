@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Grid from '@/components/Grid';
 import { useSync } from '@/components/SyncContext';
+import { useToast } from '@/components/Toast';
 import { supabase } from '@/lib/supabaseClient';
 import type { Workflow } from '@/lib/types';
 
@@ -10,29 +11,39 @@ const PAGE_SIZE = 60;
 
 export default function WorkflowsContent({ initialItems, hasMore: initialHasMore }: { initialItems: Workflow[]; hasMore: boolean }) {
   const { setStatus } = useSync();
+  const { showToast } = useToast();
   const [allItems, setAllItems] = useState<Workflow[]>(initialItems);
   const [hasMore, setHasMore] = useState(initialHasMore);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const isLoadingRef = useRef(false);
 
   useEffect(() => {
     setStatus('ONLINE');
   }, [setStatus]);
 
   const loadMore = async () => {
-    if (isLoadingMore || !hasMore) return;
+    if (isLoadingRef.current || !hasMore) return;
+    isLoadingRef.current = true;
     setIsLoadingMore(true);
-    const { data } = await supabase
-      .from('workflows')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .range(allItems.length, allItems.length + PAGE_SIZE - 1);
-    if (data && data.length > 0) {
-      setAllItems(prev => [...prev, ...data]);
-      setHasMore(data.length === PAGE_SIZE);
-    } else {
-      setHasMore(false);
+    try {
+      const { data, error } = await supabase
+        .from('workflows')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .range(allItems.length, allItems.length + PAGE_SIZE - 1);
+      if (error) throw error;
+      if (data && data.length > 0) {
+        setAllItems(prev => [...prev, ...data]);
+        setHasMore(data.length === PAGE_SIZE);
+      } else {
+        setHasMore(false);
+      }
+    } catch {
+      showToast('ERROR LOADING MORE ITEMS');
+    } finally {
+      isLoadingRef.current = false;
+      setIsLoadingMore(false);
     }
-    setIsLoadingMore(false);
   };
 
   return (

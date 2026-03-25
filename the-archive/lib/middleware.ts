@@ -77,15 +77,16 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // Check membership status for authenticated users on protected routes
+  // Check membership status and role for authenticated users on protected routes
   if (user && !isAuthPage && !isAuthCallback && !isInactivePage && !isPublicAsset) {
     const { data: profile } = await supabase
       .from('profiles')
-      .select('status')
+      .select('status, role')
       .eq('id', user.id)
       .single()
 
-    if (profile?.status === 'inactive') {
+    const isActiveMember = profile?.status === 'active' && ['member', 'admin'].includes(profile?.role)
+    if (!isActiveMember) {
       const url = request.nextUrl.clone()
       url.pathname = '/inactive-membership'
       return NextResponse.redirect(url)
@@ -96,11 +97,12 @@ export async function updateSession(request: NextRequest) {
   if (user && isInactivePage) {
     const { data: profile } = await supabase
       .from('profiles')
-      .select('status')
+      .select('status, role')
       .eq('id', user.id)
       .single()
 
-    if (profile?.status !== 'inactive') {
+    const isActiveMember = profile?.status === 'active' && ['member', 'admin'].includes(profile?.role)
+    if (isActiveMember) {
       const url = request.nextUrl.clone()
       url.pathname = '/'
       return NextResponse.redirect(url)

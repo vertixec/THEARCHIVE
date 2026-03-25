@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Grid from '@/components/Grid';
 import { useSync } from '@/components/SyncContext';
+import { useToast } from '@/components/Toast';
 import { supabase } from '@/lib/supabaseClient';
 import type { CommunityVisual } from '@/lib/types';
 
@@ -10,6 +11,7 @@ const PAGE_SIZE = 60;
 
 export default function CommunityContent({ initialItems, hasMore: initialHasMore }: { initialItems: CommunityVisual[]; hasMore: boolean }) {
   const { setStatus } = useSync();
+  const { showToast } = useToast();
   const [allItems, setAllItems] = useState<CommunityVisual[]>(initialItems);
   const [hasMore, setHasMore] = useState(initialHasMore);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -24,18 +26,21 @@ export default function CommunityContent({ initialItems, hasMore: initialHasMore
     isLoadingRef.current = true;
     setIsLoadingMore(true);
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('community_visuals')
         .select('*')
         .order('is_featured', { ascending: false })
         .order('created_at', { ascending: false })
         .range(allItems.length, allItems.length + PAGE_SIZE - 1);
+      if (error) throw error;
       if (data && data.length > 0) {
         setAllItems(prev => [...prev, ...data]);
         setHasMore(data.length === PAGE_SIZE);
       } else {
         setHasMore(false);
       }
+    } catch {
+      showToast('ERROR LOADING MORE ITEMS');
     } finally {
       isLoadingRef.current = false;
       setIsLoadingMore(false);

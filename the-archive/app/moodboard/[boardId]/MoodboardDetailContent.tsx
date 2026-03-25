@@ -103,6 +103,12 @@ export default function MoodboardDetailContent({ board, items: initialItems }: P
   async function handleUploadFiles(files: FileList) {
     if (!files.length) return;
 
+    const MAX_FILES = 10;
+    if (files.length > MAX_FILES) {
+      showToast(`MAX ${MAX_FILES} FILES AT ONCE`);
+      return;
+    }
+
     // Get user at call time — never rely on async state
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
@@ -180,7 +186,11 @@ export default function MoodboardDetailContent({ board, items: initialItems }: P
     setLinkError('');
 
     try {
-      new URL(url);
+      const parsed = new URL(url);
+      if (!['http:', 'https:'].includes(parsed.protocol)) {
+        setLinkError('Only http and https URLs are allowed.');
+        return;
+      }
     } catch {
       setLinkError('Please enter a valid URL.');
       return;
