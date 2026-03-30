@@ -10,6 +10,7 @@ type Mode = 'login' | 'register' | 'forgot';
 export default function AuthForm() {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>('login');
+  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -29,7 +30,10 @@ export default function AuthForm() {
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
-          options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+          options: {
+            emailRedirectTo: `${window.location.origin}/auth/callback`,
+            data: { full_name: fullName, display_name: fullName },
+          },
         });
         if (error) throw error;
         // Supabase silently "succeeds" for existing emails but returns empty identities
@@ -38,7 +42,8 @@ export default function AuthForm() {
           setMode('login');
           return;
         }
-        showToast('VERIFICATION EMAIL SENT');
+        showToast('CHECK YOUR INBOX FOR AN EMAIL FROM SUPABASE AND CONFIRM THE LINK (MAY BE IN SPAM)');
+        setMode('login');
       } else {
         // forgot mode
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
@@ -79,6 +84,23 @@ export default function AuthForm() {
       )}
 
       <form onSubmit={handleAuth} className="space-y-6">
+        {/* Name field — only in register mode */}
+        {mode === 'register' && (
+          <div>
+            <label className="block font-mono text-[10px] text-gray-500 uppercase tracking-widest mb-2">
+              Full Name
+            </label>
+            <input
+              type="text"
+              required
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              className="w-full bg-black border border-white/20 p-3 font-mono text-xs text-acid focus:border-acid outline-none transition-all uppercase"
+              placeholder="YOUR NAME"
+            />
+          </div>
+        )}
+
         {/* Email field — always visible */}
         <div>
           <label className="block font-mono text-[10px] text-gray-500 uppercase tracking-widest mb-2">
