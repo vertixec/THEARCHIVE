@@ -96,15 +96,18 @@ export default function Grid({ items, activeTab, filter, searchQuery, highlighte
       {filteredItems.map((item) => {
         let cardTitle = 'ASSET';
         let secondaryLabel = 'VOL';
+        let secondaryLabelName = 'STATUS';
         let bottomLabel = 'CATEGORY';
 
         if(activeTab === 'main') {
           cardTitle = item.category || 'ASSET';
           secondaryLabel = item.volume || 'VOL';
-          bottomLabel = 'CATEGORY';
+          secondaryLabelName = 'CATEGORY';
+          bottomLabel = 'VOLUME';
         } else if(activeTab === 'systems') {
           cardTitle = item.title || 'SYSTEM';
           secondaryLabel = item.prompt_type || 'TYPE';
+          secondaryLabelName = 'TYPE';
           bottomLabel = 'IDENTIFIER';
         } else if(activeTab === 'community') {
           cardTitle = item.author || 'COMMUNITY';
@@ -125,6 +128,7 @@ export default function Grid({ items, activeTab, filter, searchQuery, highlighte
               item={item}
               cardTitle={cardTitle}
               secondaryLabel={secondaryLabel}
+              secondaryLabelName={secondaryLabelName}
               bottomLabel={bottomLabel}
               itemType={itemType}
               initialIsLiked={likedIds.has(item.id.toString())}

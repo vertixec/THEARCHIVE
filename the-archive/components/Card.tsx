@@ -8,6 +8,7 @@ interface AssetCardProps {
   item: AnyItem;
   cardTitle: string;
   secondaryLabel: string;
+  secondaryLabelName?: string;
   bottomLabel: string;
   itemType: ItemType;
   initialIsLiked?: boolean;
@@ -22,6 +23,7 @@ export default function Card({
   item,
   cardTitle,
   secondaryLabel,
+  secondaryLabelName = 'STATUS',
   bottomLabel,
   itemType,
   initialIsLiked = false,
@@ -449,7 +451,7 @@ export default function Card({
               </div>
               <div className="bg-black/40 p-1.5 md:p-2 border border-white/5">
                 <div className="font-mono text-[7px] text-gray-500 uppercase">
-                  STATUS
+                  {secondaryLabelName}
                 </div>
                 <div className="font-oswald text-[9px] md:text-[10px] text-white uppercase">
                   {secondaryLabel}
