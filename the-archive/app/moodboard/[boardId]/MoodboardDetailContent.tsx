@@ -464,7 +464,7 @@ export default function MoodboardDetailContent({ board, items: initialItems }: P
       {/* Lightbox */}
       {lightboxImg && (
         <div
-          className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex items-center justify-center p-4 md:p-8"
+          className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 md:p-8"
           onClick={() => setLightboxImg(null)}
         >
           <button
