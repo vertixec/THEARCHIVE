@@ -7,6 +7,39 @@ import { supabase } from '@/lib/supabaseClient';
 import { useSync } from '@/components/SyncContext';
 import { useToast } from '@/components/Toast';
 
+// ── Export helpers ──────────────────────────────────────────────────────────
+
+async function loadImageForCanvas(src: string): Promise<{ img: HTMLImageElement; blobUrl: string } | null> {
+  try {
+    const resp = await fetch(src, { mode: 'cors' });
+    if (!resp.ok) return null;
+    const blob = await resp.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => resolve({ img, blobUrl });
+      img.onerror = () => { URL.revokeObjectURL(blobUrl); resolve(null); };
+      img.src = blobUrl;
+    });
+  } catch {
+    return null;
+  }
+}
+
+function drawCornerMarker(
+  ctx: CanvasRenderingContext2D,
+  x: number, y: number,
+  corner: 'tl' | 'tr' | 'bl' | 'br',
+  size: number, thickness: number, color: string
+) {
+  ctx.fillStyle = color;
+  const s = size, t = thickness;
+  if (corner === 'tl') { ctx.fillRect(x, y, s, t); ctx.fillRect(x, y, t, s); }
+  if (corner === 'tr') { ctx.fillRect(x - s, y, s, t); ctx.fillRect(x - t, y, t, s); }
+  if (corner === 'bl') { ctx.fillRect(x, y - t, s, t); ctx.fillRect(x, y - s, t, s); }
+  if (corner === 'br') { ctx.fillRect(x - s, y - t, s, t); ctx.fillRect(x - t, y - s, t, s); }
+}
+
 interface Board {
   id: string;
   name: string;
@@ -39,6 +72,7 @@ export default function MoodboardDetailContent({ board, items: initialItems }: P
   const [items, setItems] = useState<BoardItem[]>(initialItems);
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [lightboxImg, setLightboxImg] = useState<string | null>(null);
   // Upload state
   const [isUploading, setIsUploading] = useState(false);
@@ -233,6 +267,177 @@ export default function MoodboardDetailContent({ board, items: initialItems }: P
     router.refresh();
   }
 
+  async function handleExport() {
+    const imagesToExport = imageItems; // all images, no limit
+    if (!imagesToExport.length) { showToast('No images to export'); return; }
+    setIsExporting(true);
+
+    try {
+      const CANVAS_W = 2400;
+      const COLS = 4;
+      const GAP = 3;
+      const COL_W = Math.floor((CANVAS_W - GAP * (COLS - 1)) / COLS);
+      const BASE_ROW_H = 330;
+      const TITLE_ZONE = 340;
+      const ACCENT = '#C8FF00';
+      const INSET = 28;
+      const PAD = 52;
+
+      // ── Load images first ────────────────────────────────────────────────
+      const loadResults = await Promise.all(
+        imagesToExport.map(item => loadImageForCanvas(item.image_url!))
+      );
+
+      // ── Pre-calculate masonry layout to know total height ────────────────
+      const colHeights = new Array(COLS).fill(0);
+      const placements: { x: number; y: number; w: number; h: number }[] = [];
+
+      for (let i = 0; i < imagesToExport.length; i++) {
+        const isTall = getItemSpan(i) === 'tall';
+        const cellH = isTall ? BASE_ROW_H * 2 + GAP : BASE_ROW_H;
+        const minH = Math.min(...colHeights);
+        const col = colHeights.indexOf(minH);
+        const x = col * (COL_W + GAP);
+        const y = minH + (minH > 0 ? GAP : 0);
+        placements.push({ x, y, w: COL_W, h: cellH });
+        colHeights[col] = y + cellH;
+      }
+
+      const gridH = Math.max(...colHeights);
+      const CANVAS_H = gridH + TITLE_ZONE;
+
+      // ── Create canvas ────────────────────────────────────────────────────
+      const canvas = document.createElement('canvas');
+      canvas.width = CANVAS_W;
+      canvas.height = CANVAS_H;
+      const ctx = canvas.getContext('2d')!;
+
+      // ── Background ──────────────────────────────────────────────────────
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+      // ── Draw images ──────────────────────────────────────────────────────
+      const blobUrls: string[] = [];
+
+      for (let i = 0; i < imagesToExport.length; i++) {
+        const result = loadResults[i];
+        const { x, y, w, h } = placements[i];
+
+        if (result) {
+          blobUrls.push(result.blobUrl);
+          const { img } = result;
+          const srcAR = img.naturalWidth / img.naturalHeight;
+          const dstAR = w / h;
+          let sx = 0, sy = 0, sw = img.naturalWidth, sh = img.naturalHeight;
+          if (srcAR > dstAR) { sw = sh * dstAR; sx = (img.naturalWidth - sw) / 2; }
+          else { sh = sw / dstAR; sy = (img.naturalHeight - sh) / 2; }
+          ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h);
+        } else {
+          ctx.fillStyle = '#0d0d0d';
+          ctx.fillRect(x, y, w, h);
+          ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+        }
+      }
+
+      // ── Cinematic gradient (bottom of grid into title zone) ───────────────
+      const gradStart = Math.max(gridH - 400, gridH * 0.65);
+      const grad = ctx.createLinearGradient(0, gradStart, 0, CANVAS_H);
+      grad.addColorStop(0, 'rgba(0,0,0,0)');
+      grad.addColorStop(0.4, 'rgba(0,0,0,0.75)');
+      grad.addColorStop(1, 'rgba(0,0,0,0.98)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, gradStart, CANVAS_W, CANVAS_H - gradStart);
+
+      // ── Title zone solid fill (below grid) ────────────────────────────────
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, gridH, CANVAS_W, TITLE_ZONE);
+
+      // ── Top vignette ─────────────────────────────────────────────────────
+      const topGrad = ctx.createLinearGradient(0, 0, 0, 200);
+      topGrad.addColorStop(0, 'rgba(0,0,0,0.55)');
+      topGrad.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = topGrad;
+      ctx.fillRect(0, 0, CANVAS_W, 200);
+
+      // ── Scanlines ────────────────────────────────────────────────────────
+      ctx.fillStyle = 'rgba(0,0,0,0.10)';
+      for (let scanY = 0; scanY < CANVAS_H; scanY += 2) ctx.fillRect(0, scanY, CANVAS_W, 1);
+
+      // ── Corner markers (tight to edges) ──────────────────────────────────
+      drawCornerMarker(ctx, INSET, INSET, 'tl', 50, 3, ACCENT);
+      drawCornerMarker(ctx, CANVAS_W - INSET, INSET, 'tr', 50, 3, ACCENT);
+      drawCornerMarker(ctx, INSET, CANVAS_H - INSET, 'bl', 50, 3, ACCENT);
+      drawCornerMarker(ctx, CANVAS_W - INSET, CANVAS_H - INSET, 'br', 50, 3, ACCENT);
+
+      // ── Wait for fonts ───────────────────────────────────────────────────
+      await document.fonts.ready;
+
+      // ── Top-right: date ──────────────────────────────────────────────────
+      const now = new Date();
+      const dateStr = `${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')}.${String(now.getFullYear()).slice(2)}`;
+      ctx.font = '22px "Space Mono", monospace';
+      ctx.fillStyle = 'rgba(200,255,0,0.55)';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'top';
+      ctx.fillText(dateStr, CANVAS_W - PAD, PAD);
+
+      // ── Accent line above board name ─────────────────────────────────────
+      ctx.fillStyle = ACCENT;
+      ctx.fillRect(PAD, CANVAS_H - 280, 72, 3);
+
+      // ── Board name (adaptive font size) ──────────────────────────────────
+      const MAX_NAME_W = CANVAS_W - PAD * 2;
+      let fontSize = 240;
+      ctx.font = `bold ${fontSize}px "Bebas Neue", "Impact", sans-serif`;
+      while (ctx.measureText(board.name.toUpperCase()).width > MAX_NAME_W && fontSize > 80) {
+        fontSize -= 8;
+        ctx.font = `bold ${fontSize}px "Bebas Neue", "Impact", sans-serif`;
+      }
+      ctx.fillStyle = '#FFFFFF';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'alphabetic';
+      // anchor everything to the top of the corner's horizontal bar
+      const cornerInnerTop = CANVAS_H - INSET - 3;
+      const labelBottom = cornerInnerTop - 16;   // 16px gap above corner line
+      const nameBottom  = labelBottom - 80;       // breathing room above label
+
+      ctx.fillText(board.name.toUpperCase(), PAD, nameBottom);
+
+      // ── Bottom-left: MOODBOARD label ──────────────────────────────────────
+      ctx.font = '22px "Space Mono", monospace';
+      ctx.fillStyle = 'rgba(200,255,0,0.65)';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText('MOODBOARD', PAD, labelBottom);
+
+      // ── Image count (bottom right) ────────────────────────────────────────
+      ctx.fillStyle = 'rgba(255,255,255,0.2)';
+      ctx.textAlign = 'right';
+      ctx.fillText(`${imageItems.length} IMAGES`, CANVAS_W - PAD, labelBottom);
+
+      // ── Download ─────────────────────────────────────────────────────────
+      canvas.toBlob((blob) => {
+        if (!blob) return;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${board.name.toLowerCase().replace(/\s+/g, '-')}-moodboard.png`;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }, 'image/png');
+
+      blobUrls.forEach(u => URL.revokeObjectURL(u));
+      showToast('Moodboard exported');
+    } catch (err) {
+      console.error('Export error:', err);
+      showToast('Export failed — try again');
+    } finally {
+      setIsExporting(false);
+    }
+  }
+
   return (
     <div id="view-content" className="min-h-screen">
 
@@ -264,7 +469,34 @@ export default function MoodboardDetailContent({ board, items: initialItems }: P
           {items.length} {items.length === 1 ? 'item' : 'items'}
         </span>
 
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-3">
+
+          {/* Export button */}
+          <button
+            onClick={handleExport}
+            disabled={isExporting || imageItems.length === 0}
+            className="flex items-center gap-1.5 font-mono text-[10px] text-acid/40 hover:text-acid uppercase tracking-widest transition-colors disabled:opacity-25 disabled:cursor-not-allowed"
+            title="Export as PNG"
+          >
+            {isExporting ? (
+              <>
+                <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                <span>Exporting</span>
+              </>
+            ) : (
+              <>
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                </svg>
+                <span>Export PNG</span>
+              </>
+            )}
+          </button>
+
+          <div className="w-px h-4 bg-white/10" />
+
           <button
             onClick={handleDeleteBoard}
             disabled={isDeleting}
