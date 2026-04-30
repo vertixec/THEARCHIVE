@@ -5,6 +5,7 @@ export type ProfileRow = {
   email: string | null;
   full_name: string | null;
   username: string | null;
+  avatar_url: string | null;
   is_public: boolean;
   status: string | null;
   role: string | null;

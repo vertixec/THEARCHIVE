@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
@@ -30,6 +30,11 @@ export default function ProfileContent({
   const router = useRouter();
   const { showToast } = useToast();
   const [, startTransition] = useTransition();
+
+  // Avatar
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(profile.avatar_url ?? null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Edit form state
   const [fullName, setFullName] = useState(profile.full_name ?? '');
@@ -148,6 +153,42 @@ export default function ProfileContent({
     router.push('/login');
   }
 
+  async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { showToast('INVALID FILE TYPE'); return; }
+    if (file.size > 5 * 1024 * 1024) { showToast('MAX FILE SIZE: 5MB'); return; }
+
+    setUploadingAvatar(true);
+    const ext = file.name.split('.').pop()?.toLowerCase() ?? 'jpg';
+    const path = `${profile.id}/avatar.${ext}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('avatars')
+      .upload(path, file, { upsert: true });
+
+    if (uploadError) {
+      showToast('UPLOAD FAILED');
+      setUploadingAvatar(false);
+      return;
+    }
+
+    const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path);
+
+    const { error: updateError } = await supabase
+      .from('profiles')
+      .update({ avatar_url: publicUrl })
+      .eq('id', profile.id);
+
+    setUploadingAvatar(false);
+
+    if (updateError) { showToast('SAVE FAILED'); return; }
+
+    setAvatarUrl(`${publicUrl}?t=${Date.now()}`);
+    showToast('AVATAR UPDATED');
+    startTransition(() => router.refresh());
+  }
+
   async function handleDeleteAccount() {
     setDeleteError(null);
     if (deleteConfirm.toLowerCase() !== (profile.username ?? profile.email ?? '').toLowerCase()) {
@@ -191,10 +232,34 @@ export default function ProfileContent({
     <div id="view-content" className="min-h-screen pb-20">
       {/* Header hero */}
       <header className="px-6 md:px-12 pt-12 pb-10 border-b border-white/10">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row md:items-end gap-6 md:gap-10">
-          <Avatar name={displayName} size="lg" />
-          <div className="flex-1 min-w-0">
-            <h1 className="font-bebas text-5xl md:text-7xl text-white uppercase tracking-tighter leading-none">
+        <div className="max-w-6xl mx-auto flex flex-col items-center text-center gap-6">
+          <div className="relative group/avatar shrink-0">
+            <Avatar name={displayName} size="lg" src={avatarUrl} />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadingAvatar}
+              className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover/avatar:opacity-100 transition-opacity disabled:cursor-wait"
+              title="UPLOAD PHOTO"
+            >
+              {uploadingAvatar ? (
+                <span className="font-mono text-[9px] text-white uppercase tracking-widest">...</span>
+              ) : (
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-white">
+                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+              )}
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleAvatarUpload}
+            />
+          </div>
+          <div className="min-w-0">
+            <h1 className="font-bebas text-7xl md:text-9xl text-white uppercase tracking-tighter leading-none">
               {displayName}
             </h1>
             <p className="font-space text-[11px] text-white/50 uppercase tracking-[0.25em] mt-3">
@@ -227,7 +292,7 @@ export default function ProfileContent({
       </header>
 
       {/* Grid bloques */}
-      <div className="max-w-6xl mx-auto px-6 md:px-12 mt-10 grid grid-cols-1 lg:grid-cols-2 gap-px bg-white/10 border border-white/10">
+      <div className="max-w-6xl mx-auto px-6 md:px-12 mt-10 grid grid-cols-1 lg:grid-cols-2">
 
         {/* EDIT INFO */}
         <Block title="EDIT INFO">
@@ -535,7 +600,7 @@ export default function ProfileContent({
 
 function Stat({ label, value }: { label: string; value: number }) {
   return (
-    <div className="bg-dark p-6 flex flex-col gap-1">
+    <div className="bg-dark p-6 flex flex-col items-center gap-1 text-center">
       <span className="font-bebas text-5xl md:text-6xl text-white leading-none tracking-tighter">
         {value.toLocaleString()}
       </span>
