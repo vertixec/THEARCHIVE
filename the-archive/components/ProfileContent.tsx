@@ -423,22 +423,6 @@ export default function ProfileContent({
             </ul>
           )}
 
-          <div className="border-t border-white/5 pt-5">
-            <div className="flex items-baseline justify-between mb-2">
-              <span className="font-mono text-[10px] text-white/50 uppercase tracking-widest">
-                PROFILE COMPLETION
-              </span>
-              <span className="font-mono text-[10px] text-acid uppercase tracking-widest">
-                {metrics.completion_pct}%
-              </span>
-            </div>
-            <div className="h-1 bg-white/5 relative overflow-hidden">
-              <div
-                className="absolute inset-y-0 left-0 bg-acid transition-all duration-500"
-                style={{ width: `${metrics.completion_pct}%` }}
-              />
-            </div>
-          </div>
         </Block>
 
         {/* ACCOUNT */}
