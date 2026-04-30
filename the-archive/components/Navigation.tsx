@@ -133,7 +133,6 @@ export default function Navigation() {
                     <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-white/20 group-hover:text-acid transition-all duration-300">
                       <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
                     </svg>
-                    <span className="font-space text-[9px] tracking-[0.25em] text-white/20 group-hover:text-acid uppercase transition-colors">LIKES</span>
                   </Link>
                   {user && (
                     <Link
@@ -146,7 +145,6 @@ export default function Navigation() {
                         <circle cx="12" cy="8" r="4"/>
                         <path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/>
                       </svg>
-                      <span className="font-space text-[9px] tracking-[0.25em] text-white/20 group-hover:text-acid uppercase transition-colors">PROFILE</span>
                     </Link>
                   )}
                 </div>
@@ -358,7 +356,6 @@ export default function Navigation() {
                   <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-white/30 group-hover:text-acid transition-all duration-300">
                     <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
                   </svg>
-                  <span className="font-space text-[9px] tracking-[0.25em] text-white/30 group-hover:text-acid uppercase transition-colors">LIKES</span>
                 </Link>
                 {user && (
                   <Link
@@ -371,7 +368,6 @@ export default function Navigation() {
                       <circle cx="12" cy="8" r="4"/>
                       <path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/>
                     </svg>
-                    <span className="font-space text-[9px] tracking-[0.25em] text-white/30 group-hover:text-acid uppercase transition-colors">PROFILE</span>
                   </Link>
                 )}
               </div>
