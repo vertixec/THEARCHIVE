@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import type { Generation, GenerationUsage } from '@/lib/types';
+import { useAuth } from './AuthContext';
 import { useGenerate } from './GenerateContext';
 import { useToast } from './Toast';
 
@@ -28,6 +29,7 @@ export default function GeneratePanel() {
     setReferenceImageUrl,
     setGenerationType,
   } = useGenerate();
+  const { user } = useAuth();
   const { showToast } = useToast();
   const [isGenerating, setIsGenerating] = useState(false);
   const [results, setResults] = useState<Generation[]>([]);
@@ -63,9 +65,10 @@ export default function GeneratePanel() {
   }, []);
 
   useEffect(() => {
+    if (!isOpen || !user) return;
     loadUsage();
     loadResults();
-  }, [loadResults, loadUsage]);
+  }, [isOpen, loadResults, loadUsage, user]);
 
   useEffect(() => {
     const nextModels = generationType === 'image' ? IMAGE_MODELS : VIDEO_MODELS;
