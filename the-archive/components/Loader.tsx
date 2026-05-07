@@ -3,10 +3,16 @@
 import { useEffect, useState } from 'react';
 
 export default function Loader() {
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState(0);
 
   useEffect(() => {
+    const hasShownLoader = sessionStorage.getItem('archive-loader-shown') === 'true';
+    if (hasShownLoader) return;
+
+    sessionStorage.setItem('archive-loader-shown', 'true');
+    setLoading(true);
+
     const timer = setTimeout(() => {
       setProgress(100);
       setTimeout(() => {

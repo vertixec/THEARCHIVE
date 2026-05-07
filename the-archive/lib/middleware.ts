@@ -70,20 +70,17 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // Redirect to / if authenticated and trying to access /login
-  if (user && isAuthPage) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/'
-    return NextResponse.redirect(url)
-  }
-
   // Check membership status and role for authenticated users on protected routes
   if (user && !isAuthPage && !isAuthCallback && !isInactivePage && !isPublicAsset) {
-    const { data: profile } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('status, role')
       .eq('id', user.id)
-      .single()
+      .maybeSingle()
+
+    if (profileError) {
+      return response
+    }
 
     const isActiveMember = profile?.status === 'active' && ['member', 'admin'].includes(profile?.role)
     if (!isActiveMember) {
@@ -95,11 +92,15 @@ export async function updateSession(request: NextRequest) {
 
   // Redirect active members away from the inactive page
   if (user && isInactivePage) {
-    const { data: profile } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('status, role')
       .eq('id', user.id)
-      .single()
+      .maybeSingle()
+
+    if (profileError) {
+      return response
+    }
 
     const isActiveMember = profile?.status === 'active' && ['member', 'admin'].includes(profile?.role)
     if (isActiveMember) {

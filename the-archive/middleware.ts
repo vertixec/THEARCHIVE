@@ -10,11 +10,10 @@ export const config = {
     /*
      * Match all request paths except for the ones starting with:
      * - api (API routes return their own JSON auth errors)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
+     * - _next (Next internals, HMR/Fast Refresh, static files, image optimization)
      * - favicon.ico (favicon file)
      * Feel free to modify this pattern to include more paths.
      */
-    '/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!api|_next|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }

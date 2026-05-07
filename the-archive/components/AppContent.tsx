@@ -1,6 +1,7 @@
 'use client';
 
 import Loader from "@/components/Loader";
+import BottomDock from "@/components/BottomDock";
 import Navigation from "@/components/Navigation";
 
 export default function AppContent({ children }: { children: React.ReactNode }) {
@@ -9,6 +10,7 @@ export default function AppContent({ children }: { children: React.ReactNode }) 
       <Loader />
       <Navigation />
       {children}
+      <BottomDock />
     </>
   );
 }

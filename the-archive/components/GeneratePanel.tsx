@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import type { Generation, GenerationUsage } from '@/lib/types';
 import { useAuth } from './AuthContext';
@@ -29,6 +30,7 @@ export default function GeneratePanel() {
     setReferenceImageUrl,
     setGenerationType,
   } = useGenerate();
+  const pathname = usePathname();
   const { user } = useAuth();
   const { showToast } = useToast();
   const [isGenerating, setIsGenerating] = useState(false);
@@ -69,6 +71,10 @@ export default function GeneratePanel() {
     loadUsage();
     loadResults();
   }, [isOpen, loadResults, loadUsage, user]);
+
+  useEffect(() => {
+    if (pathname === '/' && isOpen) closePanel();
+  }, [closePanel, isOpen, pathname]);
 
   useEffect(() => {
     const nextModels = generationType === 'image' ? IMAGE_MODELS : VIDEO_MODELS;
