@@ -6,11 +6,13 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
 import { useAuth } from "@/components/AuthContext";
+import { useGenerate } from "@/components/GenerateContext";
 
 export default function Navigation() {
   const pathname = usePathname();
   const router = useRouter();
   const { user } = useAuth();
+  const { togglePanel, isOpen } = useGenerate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [supabaseStatus, setSupabaseStatus] = useState<"ONLINE" | "ERROR" | "SYNCING">("SYNCING");
 
@@ -241,6 +243,22 @@ export default function Navigation() {
 
         {/* Right Side: Favorites and Status */}
         <div className="flex items-center gap-3 md:gap-10 ml-auto items-center">
+          {!isAuthPage && (
+            <button
+              type="button"
+              onClick={togglePanel}
+              className={`flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest px-2 md:px-3 py-1.5 border transition-all ${
+                isOpen
+                  ? 'border-acid text-acid bg-acid/10'
+                  : 'border-white/20 text-white/60 hover:text-acid hover:border-acid/50'
+              }`}
+              title="Generate"
+            >
+              <span>⚡</span>
+              <span className="hidden md:inline">Generate</span>
+            </button>
+          )}
+
           {!isAuthPage && (
             <Link
               href="/favorites"

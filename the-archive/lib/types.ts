@@ -39,6 +39,25 @@ export interface Workflow {
   tools: string;
 }
 
+export interface Generation {
+  id: string;
+  user_id: string;
+  created_at: string;
+  prompt: string;
+  model: string;
+  generation_type: 'image' | 'video';
+  result_url: string | null;
+  reference_image_url: string | null;
+  is_saved: boolean;
+}
+
+export interface GenerationUsage {
+  image_count: number;
+  video_count: number;
+  image_limit: number;
+  video_limit: number;
+}
+
 // Union type used in Card and Grid where any item type can arrive
 export type AnyItem = (Visual | SystemPrompt | CommunityVisual | Workflow) & {
   _itemType?: ItemType;

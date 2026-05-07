@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import { Anton, JetBrains_Mono, Oswald, Bebas_Neue, Space_Mono } from "next/font/google";
 import "./globals.css";
-import Loader from "@/components/Loader";
-import Navigation from "@/components/Navigation";
 import { ToastProvider } from "@/components/Toast";
 import { SyncProvider } from "@/components/SyncContext";
 import { AuthProvider } from "@/components/AuthContext";
 import AppContent from "@/components/AppContent";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import { GenerateProvider } from "@/components/GenerateContext";
+import GeneratePanel from "@/components/GeneratePanel";
 
 const anton = Anton({
   weight: "400",
@@ -55,7 +55,12 @@ export default function RootLayout({
           <SyncProvider>
             <AuthProvider>
               <ToastProvider>
-                <AppContent>{children}</AppContent>
+                <GenerateProvider>
+                  <div className="relative flex min-h-screen flex-col">
+                    <AppContent>{children}</AppContent>
+                    <GeneratePanel />
+                  </div>
+                </GenerateProvider>
               </ToastProvider>
             </AuthProvider>
           </SyncProvider>

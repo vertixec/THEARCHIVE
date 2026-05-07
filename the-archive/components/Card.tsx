@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useToast } from "./Toast";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "./AuthContext";
+import { useGenerate } from "./GenerateContext";
 import type { AnyItem, ItemType } from "@/lib/types";
 
 interface AssetCardProps {
@@ -34,6 +35,7 @@ export default function Card({
   onInteraction,
 }: AssetCardProps) {
   const { showToast } = useToast();
+  const { openPanel } = useGenerate();
   const [isLiked, setIsLiked] = useState(initialIsLiked);
   const { user } = useAuth();
   const [isProcessing, setIsProcessing] = useState(false);
@@ -345,6 +347,22 @@ export default function Card({
                             <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
                           </svg>
                         </button>
+
+                        {(itemType === "visual" || itemType === "system") && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openPanel(
+                                item.prompt_text || '',
+                                itemType === 'visual' ? item.image_url || null : null
+                              );
+                            }}
+                            className="text-acid/50 hover:text-acid transition-colors p-1"
+                            title="Generate with this prompt"
+                          >
+                            <span className="font-mono text-[10px]">⚡</span>
+                          </button>
+                        )}
 
                         {itemType === "visual" && (
                           <button
