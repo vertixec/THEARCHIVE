@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import type { Generation, GenerationUsage } from '@/lib/types';
 import { useAuth } from './AuthContext';
-import { useGenerate } from './GenerateContext';
+import { useGenerate, MAX_REFERENCE_IMAGES } from './GenerateContext';
 import { useToast } from './Toast';
 
 const IMAGE_MODELS = [
@@ -23,11 +23,12 @@ export default function GeneratePanel() {
   const {
     isOpen,
     prompt,
-    referenceImageUrl,
+    referenceImageUrls,
     generationType,
     closePanel,
     setPrompt,
-    setReferenceImageUrl,
+    addReferenceImageUrl,
+    removeReferenceImageUrl,
     setGenerationType,
   } = useGenerate();
   const pathname = usePathname();
@@ -38,6 +39,8 @@ export default function GeneratePanel() {
   const [usage, setUsage] = useState<GenerationUsage | null>(null);
   const [selectedModel, setSelectedModel] = useState(IMAGE_MODELS[0].id);
   const [error, setError] = useState<string | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [isUploadingRef, setIsUploadingRef] = useState(false);
 
   const models = useMemo(() => (generationType === 'image' ? IMAGE_MODELS : VIDEO_MODELS), [generationType]);
   const used = generationType === 'image' ? usage?.image_count ?? 0 : usage?.video_count ?? 0;
@@ -95,7 +98,7 @@ export default function GeneratePanel() {
           prompt,
           model: selectedModel,
           generationType,
-          referenceImageUrl,
+          referenceImageUrls,
         }),
       });
 
@@ -134,6 +137,76 @@ export default function GeneratePanel() {
     }
   };
 
+  const isAtReferenceLimit = referenceImageUrls.length >= MAX_REFERENCE_IMAGES;
+
+  const uploadReferenceFile = useCallback(async (file: File) => {
+    if (!user) {
+      showToast('LOGIN REQUIRED');
+      return;
+    }
+    if (!file.type.startsWith('image/')) {
+      showToast('IMAGE FILES ONLY');
+      return;
+    }
+    if (file.size > 15 * 1024 * 1024) {
+      showToast('MAX 15MB');
+      return;
+    }
+
+    setIsUploadingRef(true);
+    try {
+      const ext = file.name.split('.').pop() ?? 'jpg';
+      const path = `${user.id}/generate-refs/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      const { error: uploadError } = await supabase.storage
+        .from('moodboard-uploads')
+        .upload(path, file, { cacheControl: '3600' });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage.from('moodboard-uploads').getPublicUrl(path);
+      const added = addReferenceImageUrl(publicUrl);
+      showToast(added ? 'REFERENCE READY' : `MAX ${MAX_REFERENCE_IMAGES} REFERENCES`);
+    } catch {
+      showToast('UPLOAD FAILED');
+    } finally {
+      setIsUploadingRef(false);
+    }
+  }, [addReferenceImageUrl, showToast, user]);
+
+  const handleReferenceDrop = useCallback(async (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setIsDragOver(false);
+
+    if (isAtReferenceLimit) {
+      showToast(`MAX ${MAX_REFERENCE_IMAGES} REFERENCES`);
+      return;
+    }
+
+    const file = event.dataTransfer.files?.[0];
+    if (file) {
+      await uploadReferenceFile(file);
+      return;
+    }
+
+    const uriList = event.dataTransfer.getData('text/uri-list');
+    const plain = event.dataTransfer.getData('text/plain');
+    const html = event.dataTransfer.getData('text/html');
+
+    let url = (uriList || plain || '').split('\n').find((line) => line.trim() && !line.startsWith('#'))?.trim();
+    if (!url && html) {
+      const match = html.match(/<img[^>]+src=["']([^"']+)["']/i);
+      if (match) url = match[1];
+    }
+
+    if (url && /^https?:\/\//i.test(url)) {
+      const added = addReferenceImageUrl(url);
+      showToast(added ? 'REFERENCE READY' : `MAX ${MAX_REFERENCE_IMAGES} REFERENCES`);
+    } else {
+      showToast('DROP AN IMAGE');
+    }
+  }, [addReferenceImageUrl, isAtReferenceLimit, showToast, uploadReferenceFile]);
+
   const toggleSaved = async (generation: Generation) => {
     const nextSaved = !generation.is_saved;
     setResults((current) => current.map((item) => (item.id === generation.id ? { ...item, is_saved: nextSaved } : item)));
@@ -155,45 +228,105 @@ export default function GeneratePanel() {
     <>
       {isOpen && <div className="fixed inset-0 z-[45] bg-black/40 backdrop-blur-[1px] md:hidden" onClick={closePanel} />}
       <aside
-        className={`fixed right-0 top-0 z-50 h-dvh w-full max-w-full md:w-80 bg-panel border-l border-white/10 shadow-2xl transform transition-transform duration-300 ease-out ${
+        className={`fixed right-0 top-0 z-50 h-dvh w-full max-w-full md:w-[480px] bg-black/[0.18] backdrop-blur-2xl border-l border-white/10 shadow-[0_18px_70px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.10)] transform transition-transform duration-300 ease-out ${
           isOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
         aria-hidden={!isOpen}
       >
         <div className="flex h-full flex-col">
-          <header className="h-[72px] shrink-0 border-b border-white/10 px-4 flex items-center justify-between">
+          <header className="h-[88px] shrink-0 border-b border-white/10 px-5 flex items-center justify-between">
             <div>
-              <h2 className="font-anton text-2xl uppercase tracking-tight text-white">GENERATE</h2>
-              <p className="font-mono text-[9px] uppercase tracking-widest text-acid/70">FAL CREATIVE ENGINE</p>
+              <h2 className="font-anton text-4xl md:text-5xl uppercase tracking-tight text-white leading-none">GENERATE</h2>
+              <p className="font-mono text-[9px] uppercase tracking-widest text-acid/70 mt-1">CREATIVE ENGINE</p>
             </div>
             <button
               type="button"
               onClick={closePanel}
               className="h-9 w-9 border border-white/15 text-white/50 hover:text-acid hover:border-acid/60 transition-colors flex items-center justify-center"
-              title="Close"
+              title="Collapse panel"
+              aria-label="Collapse panel"
             >
-              <span className="font-mono text-lg leading-none">X</span>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <polyline points="13 17 18 12 13 7" />
+                <polyline points="6 17 11 12 6 7" />
+              </svg>
             </button>
           </header>
 
           <div className="flex-1 overflow-y-auto scroll-custom px-4 py-5 space-y-5">
             <section>
-              <div className="font-mono text-[9px] text-white/40 uppercase tracking-widest mb-2">Reference image</div>
-              {referenceImageUrl ? (
-                <div className="relative aspect-video border border-white/10 bg-black overflow-hidden">
-                  <img src={referenceImageUrl} alt="Generation reference" className="h-full w-full object-cover" />
-                  <button
-                    type="button"
-                    onClick={() => setReferenceImageUrl(null)}
-                    className="absolute right-2 top-2 bg-black/80 border border-white/20 px-2 py-1 font-mono text-[8px] uppercase tracking-widest text-white/60 hover:text-acid hover:border-acid/60 transition-colors"
-                  >
-                    Clear
-                  </button>
+              <div className="flex items-center justify-between mb-2">
+                <div className="font-mono text-[9px] text-white/40 uppercase tracking-widest">Reference images</div>
+                <div className="font-mono text-[9px] text-acid/60 uppercase tracking-widest">
+                  {referenceImageUrls.length}/{MAX_REFERENCE_IMAGES}
+                </div>
+              </div>
+
+              {referenceImageUrls.length > 0 ? (
+                <div className="grid grid-cols-3 gap-2">
+                  {referenceImageUrls.map((url, index) => (
+                    <div key={`${url}-${index}`} className="relative aspect-square border border-white/10 bg-black overflow-hidden">
+                      <img src={url} alt={`Reference ${index + 1}`} className="h-full w-full object-cover pointer-events-none" />
+                      <button
+                        type="button"
+                        onClick={() => removeReferenceImageUrl(index)}
+                        className="absolute right-1 top-1 h-5 w-5 bg-black/80 border border-white/20 font-mono text-[10px] leading-none uppercase text-white/60 hover:text-acid hover:border-acid/60 transition-colors flex items-center justify-center"
+                        title="Remove"
+                        aria-label="Remove reference"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+
+                  {!isAtReferenceLimit && (
+                    <div
+                      onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragOver(true); }}
+                      onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragOver(true); }}
+                      onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragOver(false); }}
+                      onDrop={handleReferenceDrop}
+                      className={`relative aspect-square border border-dashed flex items-center justify-center text-center transition-colors ${
+                        isDragOver ? 'border-acid bg-acid/10' : 'border-white/15 bg-black/40 hover:border-white/25'
+                      }`}
+                    >
+                      <span className={`font-mono text-[8px] uppercase tracking-widest leading-tight px-1 ${
+                        isDragOver ? 'text-acid' : 'text-white/30'
+                      }`}>
+                        {isUploadingRef ? 'Uploading...' : isDragOver ? 'Drop here' : '+ Add'}
+                      </span>
+                    </div>
+                  )}
                 </div>
               ) : (
-                <div className="min-h-24 border border-dashed border-white/15 bg-black/40 flex items-center justify-center px-4 text-center">
-                  <span className="font-mono text-[9px] uppercase tracking-widest leading-relaxed text-white/30">
-                    Drop a visual here or click generate on any card
+                <div
+                  onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragOver(true); }}
+                  onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragOver(true); }}
+                  onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragOver(false); }}
+                  onDrop={handleReferenceDrop}
+                  className={`min-h-32 border border-dashed flex items-center justify-center px-4 text-center transition-colors ${
+                    isDragOver
+                      ? 'border-acid bg-acid/10'
+                      : 'border-white/15 bg-black/40 hover:border-white/25'
+                  }`}
+                >
+                  <span className={`font-mono text-[9px] uppercase tracking-widest leading-relaxed ${
+                    isDragOver ? 'text-acid' : 'text-white/30'
+                  }`}>
+                    {isUploadingRef
+                      ? 'Uploading...'
+                      : isDragOver
+                      ? 'Release to use as reference'
+                      : `Drag up to ${MAX_REFERENCE_IMAGES} images here or click generate on any card`}
                   </span>
                 </div>
               )}

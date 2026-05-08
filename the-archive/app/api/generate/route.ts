@@ -43,9 +43,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { prompt, model, generationType, referenceImageUrl } = await req.json();
+  const { prompt, model, generationType, referenceImageUrl, referenceImageUrls } = await req.json();
   const cleanPrompt = typeof prompt === 'string' ? prompt.trim() : '';
   const type = generationType === 'video' ? 'video' : 'image';
+
+  const referenceList: string[] = Array.isArray(referenceImageUrls)
+    ? referenceImageUrls.filter((url: unknown): url is string => typeof url === 'string' && url.length > 0)
+    : typeof referenceImageUrl === 'string' && referenceImageUrl.length > 0
+      ? [referenceImageUrl]
+      : [];
 
   if (!cleanPrompt) {
     return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
@@ -76,7 +82,7 @@ export async function POST(req: NextRequest) {
 
   fal.config({ credentials: apiKey });
 
-  const hasReference = typeof referenceImageUrl === 'string' && referenceImageUrl.length > 0;
+  const hasReference = referenceList.length > 0;
   const modelId = typeof model === 'string' ? model : '';
   const endpoint =
     type === 'video'
@@ -88,9 +94,9 @@ export async function POST(req: NextRequest) {
   const input: Record<string, unknown> = { prompt: cleanPrompt };
   if (type === 'image' && hasReference) {
     if (endpoint.includes('/edit')) {
-      input.image_urls = [referenceImageUrl];
+      input.image_urls = referenceList;
     } else {
-      input.image_url = referenceImageUrl;
+      input.image_url = referenceList[0];
     }
   }
 
@@ -127,7 +133,7 @@ export async function POST(req: NextRequest) {
       model: modelId || (type === 'image' ? 'gpt-image-2' : 'kling-1.6'),
       generation_type: type,
       result_url: resultUrl,
-      reference_image_url: hasReference ? referenceImageUrl : null,
+      reference_image_url: hasReference ? referenceList[0] : null,
     })
     .select()
     .single();
