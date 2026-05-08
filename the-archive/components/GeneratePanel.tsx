@@ -1,9 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
-import type { Generation, GenerationUsage } from '@/lib/types';
+import type { GenerationUsage } from '@/lib/types';
 import { useAuth } from './AuthContext';
 import { useGenerate, MAX_REFERENCE_IMAGES } from './GenerateContext';
 import { useToast } from './Toast';
@@ -32,10 +32,10 @@ export default function GeneratePanel() {
     setGenerationType,
   } = useGenerate();
   const pathname = usePathname();
+  const router = useRouter();
   const { user } = useAuth();
   const { showToast } = useToast();
   const [isGenerating, setIsGenerating] = useState(false);
-  const [results, setResults] = useState<Generation[]>([]);
   const [usage, setUsage] = useState<GenerationUsage | null>(null);
   const [selectedModel, setSelectedModel] = useState(IMAGE_MODELS[0].id);
   const [error, setError] = useState<string | null>(null);
@@ -59,21 +59,10 @@ export default function GeneratePanel() {
     }
   }, []);
 
-  const loadResults = useCallback(async () => {
-    const { data } = await supabase
-      .from('generations')
-      .select('id, user_id, created_at, prompt, model, generation_type, result_url, reference_image_url, is_saved')
-      .order('created_at', { ascending: false })
-      .limit(10);
-
-    setResults((data as Generation[]) || []);
-  }, []);
-
   useEffect(() => {
     if (!isOpen || !user) return;
     loadUsage();
-    loadResults();
-  }, [isOpen, loadResults, loadUsage, user]);
+  }, [isOpen, loadUsage, user]);
 
   useEffect(() => {
     if (pathname === '/' && isOpen) closePanel();
@@ -120,7 +109,6 @@ export default function GeneratePanel() {
         throw new Error(payload.error || 'Generation failed');
       }
 
-      setResults((current) => [payload.generation as Generation, ...current].slice(0, 10));
       setUsage((current) => {
         if (!current) return current;
         return generationType === 'image'
@@ -128,6 +116,8 @@ export default function GeneratePanel() {
           : { ...current, video_count: current.video_count + 1 };
       });
       showToast('GENERATION READY');
+      closePanel();
+      router.push('/creations');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Generation failed';
       setError(message);
@@ -192,6 +182,7 @@ export default function GeneratePanel() {
     const uriList = event.dataTransfer.getData('text/uri-list');
     const plain = event.dataTransfer.getData('text/plain');
     const html = event.dataTransfer.getData('text/html');
+    const draggedPrompt = event.dataTransfer.getData('application/x-vertix-prompt');
 
     let url = (uriList || plain || '').split('\n').find((line) => line.trim() && !line.startsWith('#'))?.trim();
     if (!url && html) {
@@ -201,28 +192,12 @@ export default function GeneratePanel() {
 
     if (url && /^https?:\/\//i.test(url)) {
       const added = addReferenceImageUrl(url);
+      if (added && draggedPrompt) setPrompt(draggedPrompt);
       showToast(added ? 'REFERENCE READY' : `MAX ${MAX_REFERENCE_IMAGES} REFERENCES`);
     } else {
       showToast('DROP AN IMAGE');
     }
-  }, [addReferenceImageUrl, isAtReferenceLimit, showToast, uploadReferenceFile]);
-
-  const toggleSaved = async (generation: Generation) => {
-    const nextSaved = !generation.is_saved;
-    setResults((current) => current.map((item) => (item.id === generation.id ? { ...item, is_saved: nextSaved } : item)));
-    const { error: saveError } = await supabase
-      .from('generations')
-      .update({ is_saved: nextSaved })
-      .eq('id', generation.id);
-
-    if (saveError) {
-      setResults((current) => current.map((item) => (item.id === generation.id ? generation : item)));
-      showToast('SYNC ERROR');
-      return;
-    }
-
-    showToast(nextSaved ? 'SAVED' : 'UNSAVED');
-  };
+  }, [addReferenceImageUrl, isAtReferenceLimit, setPrompt, showToast, uploadReferenceFile]);
 
   return (
     <>
@@ -340,30 +315,47 @@ export default function GeneratePanel() {
                 id="generate-prompt"
                 value={prompt}
                 onChange={(event) => setPrompt(event.target.value)}
-                rows={8}
+                rows={12}
                 className="w-full resize-none bg-black border border-white/10 focus:border-acid outline-none p-3 font-mono text-[10px] leading-relaxed uppercase text-white placeholder:text-white/20"
                 placeholder="Describe the image or video..."
               />
             </section>
 
-            <section className="grid grid-cols-2 gap-2">
-              {(['image', 'video'] as const).map((type) => (
-                <button
-                  key={type}
-                  type="button"
-                  onClick={() => setGenerationType(type)}
-                  className={`border px-3 py-2 font-mono text-[10px] uppercase tracking-widest transition-colors ${
-                    generationType === type
-                      ? 'bg-acid text-black border-acid'
-                      : 'border-white/15 text-white/50 hover:border-acid/50 hover:text-acid'
-                  }`}
-                >
-                  {type === 'image' ? 'IMG' : 'VID'}
-                </button>
-              ))}
+            <section className="flex justify-center">
+              <div className="flex items-center gap-2 rounded-[30px] border border-white/10 bg-black/[0.18] px-4 py-2 backdrop-blur-2xl shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+                {(['image', 'video'] as const).map((type) => (
+                  <button
+                    key={type}
+                    type="button"
+                    onClick={() => setGenerationType(type)}
+                    title={type === 'image' ? 'Image' : 'Video'}
+                    aria-label={type === 'image' ? 'Image' : 'Video'}
+                    className={`h-12 w-12 flex items-center justify-center rounded-2xl transition-all duration-200 ease-out ${
+                      generationType === type
+                        ? 'bg-acid text-black shadow-[0_0_22px_rgba(200,255,0,0.35)]'
+                        : 'bg-white/[0.04] text-white/70 hover:bg-acid hover:text-black'
+                    }`}
+                  >
+                    {type === 'image' ? (
+                      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="4" y="5" width="16" height="14" rx="2" />
+                        <circle cx="9" cy="10" r="1.5" />
+                        <path d="m7 17 4-4 3 3 2-2 3 3" />
+                      </svg>
+                    ) : (
+                      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="4" y="6" width="12" height="12" rx="2" />
+                        <path d="m16 10 4-2.5v9L16 14" />
+                        <path d="M8 3v3" />
+                        <path d="M12 3v3" />
+                      </svg>
+                    )}
+                  </button>
+                ))}
+              </div>
             </section>
 
-            <section>
+            <section className="flex flex-col items-center">
               <label htmlFor="generate-model" className="font-mono text-[9px] text-white/40 uppercase tracking-widest mb-2 block">
                 Model
               </label>
@@ -371,7 +363,7 @@ export default function GeneratePanel() {
                 id="generate-model"
                 value={selectedModel}
                 onChange={(event) => setSelectedModel(event.target.value)}
-                className="w-full bg-black border border-white/10 focus:border-acid outline-none p-3 font-mono text-[10px] uppercase tracking-widest text-acid"
+                className="w-full max-w-[280px] bg-black border border-white/10 focus:border-acid outline-none p-3 font-mono text-[10px] uppercase tracking-widest text-acid text-center"
               >
                 {models.map((model) => (
                   <option key={model.id} value={model.id}>
@@ -381,12 +373,8 @@ export default function GeneratePanel() {
               </select>
             </section>
 
-            <div className="font-mono text-[9px] uppercase tracking-widest text-acid">
-              {remaining}/{limit} {generationType === 'image' ? 'images' : 'videos'} remaining this month
-            </div>
-
             {error && (
-              <div className="border border-danger/30 bg-danger/5 px-3 py-2 font-mono text-[9px] uppercase tracking-widest text-danger">
+              <div className="rounded-2xl border border-danger/30 bg-danger/5 px-3 py-2 font-mono text-[9px] uppercase tracking-widest text-danger">
                 {error}
               </div>
             )}
@@ -395,48 +383,22 @@ export default function GeneratePanel() {
               type="button"
               onClick={handleGenerate}
               disabled={!canGenerate}
-              className="w-full bg-acid text-black font-oswald text-sm uppercase tracking-[0.25em] py-3 hover:bg-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              className="generate-shine relative overflow-hidden w-full rounded-lg bg-acid text-black font-oswald text-sm uppercase tracking-[0.25em] py-3 hover:bg-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
             >
-              {isGenerating ? 'Generating...' : 'Generate'}
+              <span className="relative z-10 flex items-center justify-center gap-2">
+                <span>{isGenerating ? 'Generating...' : 'Generate'}</span>
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+                  <path d="M13 2 3 14h7l-1 8 11-13h-7l1-7z" />
+                </svg>
+              </span>
             </button>
-
-            <section>
-              <div className="font-mono text-[9px] text-white/40 uppercase tracking-widest mb-3">Latest results</div>
-              <div className="grid grid-cols-2 gap-2">
-                {results.map((generation) => (
-                  <div key={generation.id} className="border border-white/10 bg-black/40">
-                    <div className="aspect-square bg-black overflow-hidden">
-                      {generation.generation_type === 'video' ? (
-                        <video src={generation.result_url || ''} className="h-full w-full object-cover" muted playsInline controls />
-                      ) : (
-                        <img src={generation.result_url || ''} alt={generation.prompt} className="h-full w-full object-cover" />
-                      )}
-                    </div>
-                    <div className="grid grid-cols-2 border-t border-white/10">
-                      <a
-                        href={generation.result_url || '#'}
-                        download
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-center border-r border-white/10 py-2 font-mono text-[8px] uppercase tracking-widest text-white/50 hover:text-acid"
-                      >
-                        Down
-                      </a>
-                      <button
-                        type="button"
-                        onClick={() => toggleSaved(generation)}
-                        className={`py-2 font-mono text-[8px] uppercase tracking-widest ${
-                          generation.is_saved ? 'text-acid' : 'text-white/50 hover:text-acid'
-                        }`}
-                      >
-                        Save
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
           </div>
+
+          <footer className="shrink-0 border-t border-white/10 px-5 py-4 text-center">
+            <div className="font-mono text-[9px] uppercase tracking-widest text-acid">
+              {remaining}/{limit} {generationType === 'image' ? 'images' : 'videos'} remaining this month
+            </div>
+          </footer>
         </div>
       </aside>
     </>

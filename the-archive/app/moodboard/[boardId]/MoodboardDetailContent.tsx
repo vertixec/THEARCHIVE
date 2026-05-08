@@ -53,6 +53,7 @@ interface BoardItem {
   item_type: string;
   image_url: string | null;
   created_at: string;
+  prompt_text?: string | null;
 }
 
 interface Props {
@@ -619,11 +620,21 @@ export default function MoodboardDetailContent({ board, items: initialItems }: P
                     <img
                       src={item.image_url!}
                       alt=""
+                      draggable
+                      onDragStart={(e) => {
+                        if (item.image_url) {
+                          e.dataTransfer.setData('text/uri-list', item.image_url);
+                          e.dataTransfer.setData('text/plain', item.image_url);
+                        }
+                        if (item.prompt_text) {
+                          e.dataTransfer.setData('application/x-vertix-prompt', item.prompt_text);
+                        }
+                      }}
                       className="w-full h-full object-cover transition-all duration-700 grayscale brightness-75 contrast-110 group-hover:grayscale-0 group-hover:brightness-100 group-hover:scale-105"
                     />
 
                     {/* Dark overlay */}
-                    <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-all duration-500" />
+                    <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-all duration-500 pointer-events-none" />
 
                     {/* Remove button */}
                     <button

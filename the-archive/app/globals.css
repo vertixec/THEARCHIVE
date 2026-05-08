@@ -228,6 +228,44 @@
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
+/* Generate Button Shine + Glow */
+@keyframes generate-shine-sweep {
+  0% { transform: translateX(-150%) skewX(-25deg); }
+  60%, 100% { transform: translateX(320%) skewX(-25deg); }
+}
+
+@keyframes generate-shine-glow {
+  0%, 100% { box-shadow: 0 0 12px rgba(200, 255, 0, 0.35); }
+  50% { box-shadow: 0 0 26px rgba(200, 255, 0, 0.65); }
+}
+
+.generate-shine {
+  animation: generate-shine-glow 2.4s ease-in-out infinite;
+}
+
+.generate-shine::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 40%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.7), transparent);
+  animation: generate-shine-sweep 2.8s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.generate-shine:disabled,
+.generate-shine:disabled::before {
+  animation: none;
+  box-shadow: none;
+}
+
+.generate-shine:disabled::before {
+  display: none;
+}
+
 /* Custom Cursor */
 .custom-cursor {
   position: fixed;

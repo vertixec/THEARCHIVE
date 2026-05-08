@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/components/AuthContext';
 import { useSync } from '@/components/SyncContext';
+import { useGenerate } from '@/components/GenerateContext';
 
 interface MoodboardWithMosaic {
   id: string;
@@ -21,6 +22,7 @@ interface Props {
 export default function MoodboardContent({ initialBoards }: Props) {
   const { setStatus } = useSync();
   const { user } = useAuth();
+  const { isOpen: isGeneratePanelOpen } = useGenerate();
 
   const [boards, setBoards] = useState<MoodboardWithMosaic[]>(initialBoards);
   const [filter, setFilter] = useState<'ALL' | 'SELECTED'>('ALL');
@@ -279,6 +281,8 @@ export default function MoodboardContent({ initialBoards }: Props) {
                         <img
                           src={board.mosaicImages[i]!}
                           alt=""
+                          draggable={!isGeneratePanelOpen}
+                          onDragStart={isGeneratePanelOpen ? (e) => e.preventDefault() : undefined}
                           className="w-full h-full object-cover transition-all duration-500 group-hover:brightness-110"
                         />
                       </div>

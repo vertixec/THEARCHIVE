@@ -28,5 +28,26 @@ export default async function MoodboardDetailPage({ params }: Props) {
     .eq('board_id', boardId)
     .order('created_at', { ascending: false });
 
-  return <MoodboardDetailContent board={board} items={items || []} />;
+  const itemsList = items || [];
+  const visualIds = itemsList
+    .filter((i) => i.item_type === 'visual')
+    .map((i) => i.item_id);
+
+  const promptMap = new Map<string, string>();
+  if (visualIds.length > 0) {
+    const { data: prompts } = await supabase
+      .from('prompts')
+      .select('id, prompt_text')
+      .in('id', visualIds);
+    for (const p of prompts || []) {
+      if (p.prompt_text) promptMap.set(p.id, p.prompt_text);
+    }
+  }
+
+  const enrichedItems = itemsList.map((i) => ({
+    ...i,
+    prompt_text: i.item_type === 'visual' ? promptMap.get(i.item_id) ?? null : null,
+  }));
+
+  return <MoodboardDetailContent board={board} items={enrichedItems} />;
 }

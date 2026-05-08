@@ -147,6 +147,10 @@ export default function BottomDock() {
   if (!user || hiddenRoutes) return null;
 
   const openGenerator = (type: 'image' | 'video') => {
+    if (isOpen && generationType === type) {
+      closePanel();
+      return;
+    }
     setGenerationType(type);
     openPanel();
   };
