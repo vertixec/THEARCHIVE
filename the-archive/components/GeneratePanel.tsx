@@ -234,7 +234,7 @@ export default function GeneratePanel() {
         aria-hidden={!isOpen}
       >
         <div className="flex h-full flex-col">
-          <header className="h-[88px] shrink-0 border-b border-white/10 px-5 flex items-center justify-between">
+          <header className="shrink-0 border-b border-white/10 px-5 pt-14 pb-5 flex items-end justify-between">
             <div>
               <h2 className="font-anton text-4xl md:text-5xl uppercase tracking-tight text-white leading-none">GENERATE</h2>
               <p className="font-mono text-[9px] uppercase tracking-widest text-acid/70 mt-1">CREATIVE ENGINE</p>

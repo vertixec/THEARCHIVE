@@ -40,7 +40,7 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
 
   const openPanel = useCallback((newPrompt = '', references: string | string[] | null = null) => {
     if (newPrompt) setPrompt(newPrompt);
-    setReferenceImageUrls(normalizeReferences(references));
+    if (references !== null) setReferenceImageUrls(normalizeReferences(references));
     setIsOpen(true);
   }, []);
 
