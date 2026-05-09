@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabaseClient';
 import type { Generation } from '@/lib/types';
 import { useAuth } from '@/components/AuthContext';
 import { useToast } from '@/components/Toast';
+import { useGenerate } from '@/components/GenerateContext';
 import Avatar from '@/components/Avatar';
 
 type ProfileSummary = {
@@ -30,10 +31,12 @@ function FloatingAssetButton({
   title,
   children,
   onClick,
+  active = false,
 }: {
   title: string;
   children: React.ReactNode;
-  onClick: () => void;
+  onClick: (event: React.MouseEvent<HTMLButtonElement>) => void;
+  active?: boolean;
 }) {
   return (
     <button
@@ -41,7 +44,31 @@ function FloatingAssetButton({
       onClick={onClick}
       title={title}
       aria-label={title}
-      className="flex h-10 min-w-10 items-center justify-center gap-2 rounded-full border border-white/10 bg-black/55 px-3 text-white/80 shadow-[0_14px_40px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-xl transition-colors hover:border-acid/70 hover:bg-acid hover:text-black"
+      className={`flex h-10 min-w-10 items-center justify-center gap-2 rounded-full border bg-black/55 px-3 shadow-[0_14px_40px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-xl transition-colors hover:border-acid/70 hover:bg-acid hover:text-black ${
+        active ? 'border-acid/50 text-acid' : 'border-white/10 text-white/80'
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function CardActionButton({
+  title,
+  children,
+  onClick,
+}: {
+  title: string;
+  children: React.ReactNode;
+  onClick: (event: React.MouseEvent<HTMLButtonElement>) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      aria-label={title}
+      className="p-1 text-acid/50 transition-colors hover:text-acid"
     >
       {children}
     </button>
@@ -51,6 +78,7 @@ function FloatingAssetButton({
 export default function CreationsContent() {
   const { user, loading: authLoading } = useAuth();
   const { showToast } = useToast();
+  const { openPanel } = useGenerate();
   const [items, setItems] = useState<Generation[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -87,17 +115,17 @@ export default function CreationsContent() {
     showToast('PROMPT COPIED');
   }, [selectedItem, showToast]);
 
-  const downloadAsset = useCallback(async () => {
-    if (!selectedItem?.result_url) return;
+  const downloadItem = useCallback(async (item: Generation) => {
+    if (!item.result_url) return;
 
     try {
-      const response = await fetch(selectedItem.result_url);
+      const response = await fetch(item.result_url);
       if (!response.ok) throw new Error('Download failed');
       const blob = await response.blob();
       const objectUrl = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = objectUrl;
-      link.download = filenameFor(selectedItem);
+      link.download = filenameFor(item);
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -105,44 +133,64 @@ export default function CreationsContent() {
       showToast('DOWNLOAD STARTED');
     } catch {
       const link = document.createElement('a');
-      link.href = selectedItem.result_url;
-      link.download = filenameFor(selectedItem);
+      link.href = item.result_url;
+      link.download = filenameFor(item);
       link.target = '_blank';
       link.rel = 'noreferrer';
       link.click();
       showToast('DOWNLOAD STARTED');
     }
-  }, [selectedItem, showToast]);
+  }, [showToast]);
 
-  const toggleSaved = useCallback(async () => {
-    if (!selectedItem || !user) return;
-    const nextSaved = !selectedItem.is_saved;
-    setItems((current) => current.map((item) => (item.id === selectedItem.id ? { ...item, is_saved: nextSaved } : item)));
+  const downloadAsset = useCallback(async () => {
+    if (!selectedItem) return;
+    await downloadItem(selectedItem);
+  }, [downloadItem, selectedItem]);
 
-    const { error: generationError } = await supabase.from('generations').update({ is_saved: nextSaved }).eq('id', selectedItem.id);
+  const toggleSavedItem = useCallback(async (item: Generation) => {
+    if (!user) return;
+    const nextSaved = !item.is_saved;
+    setItems((current) => current.map((entry) => (entry.id === item.id ? { ...entry, is_saved: nextSaved } : entry)));
+
+    const { error: generationError } = await supabase.from('generations').update({ is_saved: nextSaved }).eq('id', item.id);
     const { error: deleteLikeError } = await supabase
       .from('user_likes')
       .delete()
       .eq('user_id', user.id)
-      .eq('item_id', selectedItem.id)
+      .eq('item_id', item.id)
       .eq('item_type', 'generation');
 
     const { error: insertLikeError } = nextSaved
       ? await supabase.from('user_likes').insert({
         user_id: user.id,
-        item_id: selectedItem.id,
+        item_id: item.id,
         item_type: 'generation',
       })
       : { error: null };
 
     if (generationError || deleteLikeError || insertLikeError) {
-      setItems((current) => current.map((item) => (item.id === selectedItem.id ? { ...item, is_saved: !nextSaved } : item)));
+      setItems((current) => current.map((entry) => (entry.id === item.id ? { ...entry, is_saved: !nextSaved } : entry)));
       showToast(insertLikeError ? 'FAVORITES SYNC FAILED' : 'SAVE FAILED');
       return;
     }
 
     showToast(nextSaved ? 'ADDED TO FAVORITES' : 'REMOVED FROM FAVORITES');
-  }, [selectedItem, showToast, user]);
+  }, [showToast, user]);
+
+  const toggleSaved = useCallback(async () => {
+    if (!selectedItem) return;
+    await toggleSavedItem(selectedItem);
+  }, [selectedItem, toggleSavedItem]);
+
+  const sendPromptToGenerate = useCallback((item: Generation) => {
+    openPanel(item.prompt, item.reference_image_url ?? null);
+    showToast('PROMPT SENT TO GENERATE');
+  }, [openPanel, showToast]);
+
+  const copyItemPrompt = useCallback(async (item: Generation) => {
+    await navigator.clipboard.writeText(item.prompt);
+    showToast('PROMPT COPIED');
+  }, [showToast]);
 
   useEffect(() => {
     if (authLoading || !user) return;
@@ -250,27 +298,86 @@ export default function CreationsContent() {
         {!isLoading && !error && items.length > 0 && (
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4 xl:grid-cols-5">
             {items.map((item) => (
-              <button
+              <div
                 key={item.id}
-                type="button"
+                role="button"
+                tabIndex={0}
                 onClick={() => openAsset(item)}
-                className="group overflow-hidden border border-white/10 bg-panel text-left transition-colors hover:border-acid/50"
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    openAsset(item);
+                  }
+                }}
+                className="group relative cursor-pointer overflow-hidden border border-white/10 bg-panel text-left transition-colors hover:border-acid/50 focus:outline-none focus-visible:border-acid"
               >
-                <div className="aspect-square overflow-hidden bg-black">
+                <div className="relative aspect-square overflow-hidden bg-black">
                   {item.generation_type === 'video' ? (
                     <video src={item.result_url || ''} className="h-full w-full object-cover" muted playsInline />
                   ) : (
                     <img src={item.result_url || ''} alt={item.prompt} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
                   )}
+
+                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100" />
+
+                  <div className="absolute right-2 top-2 flex items-center gap-1.5 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100">
+                    <FloatingAssetButton
+                      title={item.is_saved ? 'Remove favorite' : 'Save favorite'}
+                      active={item.is_saved}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        toggleSavedItem(item);
+                      }}
+                    >
+                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill={item.is_saved ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 21s-7-4.4-9-10a5 5 0 0 1 9-4 5 5 0 0 1 9 4c-2 5.6-9 10-9 10Z" />
+                      </svg>
+                    </FloatingAssetButton>
+                    <FloatingAssetButton
+                      title="Download"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        downloadItem(item);
+                      }}
+                    >
+                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 4v10M8 10l4 4 4-4M5 20h14" />
+                      </svg>
+                    </FloatingAssetButton>
+                  </div>
                 </div>
                 <div className="border-t border-white/10 p-3">
                   <div className="mb-2 flex items-center justify-between gap-2">
-                    <span className="font-mono text-[8px] uppercase tracking-widest text-acid">{item.generation_type}</span>
+                    <div className="flex items-center gap-1">
+                      <CardActionButton
+                        title="Copy prompt"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          copyItemPrompt(item);
+                        }}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                        </svg>
+                      </CardActionButton>
+                      <CardActionButton
+                        title="Generate with this prompt"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          sendPromptToGenerate(item);
+                        }}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                        </svg>
+                      </CardActionButton>
+                    </div>
                     <span className="truncate font-mono text-[8px] uppercase tracking-widest text-white/30">{item.model}</span>
                   </div>
                   <p className="line-clamp-3 font-mono text-[9px] uppercase leading-relaxed text-white/55">{item.prompt}</p>
                 </div>
-              </button>
+              </div>
             ))}
           </div>
         )}
@@ -314,7 +421,7 @@ export default function CreationsContent() {
                 )}
 
                 <div className="absolute right-4 top-4 flex items-center gap-2 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100">
-                  <FloatingAssetButton title={selectedItem.is_saved ? 'Remove favorite' : 'Save favorite'} onClick={toggleSaved}>
+                  <FloatingAssetButton title={selectedItem.is_saved ? 'Remove favorite' : 'Save favorite'} active={selectedItem.is_saved} onClick={toggleSaved}>
                     <svg viewBox="0 0 24 24" className="h-4 w-4" fill={selectedItem.is_saved ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M12 21s-7-4.4-9-10a5 5 0 0 1 9-4 5 5 0 0 1 9 4c-2 5.6-9 10-9 10Z" />
                     </svg>

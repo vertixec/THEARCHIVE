@@ -208,11 +208,7 @@ export default function GeneratePanel() {
         aria-hidden={!isOpen}
       >
         <div className="flex h-full flex-col">
-          <header className="shrink-0 border-b border-white/10 px-5 pt-14 pb-5 flex items-end justify-between">
-            <div>
-              <h2 className="font-anton text-4xl md:text-5xl uppercase tracking-tight text-white leading-none">GENERATE</h2>
-              <p className="font-mono text-[9px] uppercase tracking-widest text-acid/70 mt-1">CREATIVE ENGINE</p>
-            </div>
+          <header className="shrink-0 border-b border-white/10 px-5 pt-14 pb-5 grid grid-cols-[2.25rem_1fr_2.25rem] items-end gap-3">
             <button
               type="button"
               onClick={closePanel}
@@ -231,10 +227,15 @@ export default function GeneratePanel() {
                 strokeLinecap="round"
                 strokeLinejoin="round"
               >
-                <polyline points="13 17 18 12 13 7" />
-                <polyline points="6 17 11 12 6 7" />
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <path d="M9 3v18" />
               </svg>
             </button>
+            <div className="text-center">
+              <h2 className="font-anton text-4xl md:text-5xl uppercase tracking-tight text-white leading-none">GENERATE</h2>
+              <p className="font-mono text-[9px] uppercase tracking-widest text-acid/70 mt-1">CREATIVE ENGINE</p>
+            </div>
+            <div aria-hidden="true" />
           </header>
 
           <div className="flex-1 overflow-y-auto scroll-custom px-4 py-5 space-y-5">
