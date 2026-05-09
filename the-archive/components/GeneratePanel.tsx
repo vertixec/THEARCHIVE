@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import type { GenerationUsage } from '@/lib/types';
 import { useAuth } from './AuthContext';
@@ -30,9 +30,9 @@ export default function GeneratePanel() {
     addReferenceImageUrl,
     removeReferenceImageUrl,
     setGenerationType,
+    markNewCreation,
   } = useGenerate();
   const pathname = usePathname();
-  const router = useRouter();
   const { user } = useAuth();
   const { showToast } = useToast();
   const [isGenerating, setIsGenerating] = useState(false);
@@ -116,8 +116,7 @@ export default function GeneratePanel() {
           : { ...current, video_count: current.video_count + 1 };
       });
       showToast('GENERATION READY');
-      closePanel();
-      router.push('/creations');
+      markNewCreation();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Generation failed';
       setError(message);

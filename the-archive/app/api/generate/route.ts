@@ -13,6 +13,7 @@ const IMAGE_MODELS: Record<string, string> = {
 
 const IMAGE_EDIT_MODELS: Record<string, string> = {
   'gpt-image-2': 'openai/gpt-image-2/edit',
+  'flux-pro': 'fal-ai/flux-pro/v1.1/redux',
   'nano-banana-pro': 'fal-ai/nano-banana-pro/edit',
 };
 
@@ -27,6 +28,17 @@ type FalResult = {
     video?: { url?: string };
   };
 };
+
+function getErrorMessage(error: unknown) {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  return 'Generation failed';
+}
+
+function getFalErrorBody(error: unknown) {
+  if (typeof error !== 'object' || error === null || !('body' in error)) return null;
+  return (error as { body?: unknown }).body ?? null;
+}
 
 export async function POST(req: NextRequest) {
   const apiKey = process.env.FAL_API_KEY || process.env.FAL_KEY;
@@ -93,7 +105,7 @@ export async function POST(req: NextRequest) {
 
   const input: Record<string, unknown> = { prompt: cleanPrompt };
   if (type === 'image' && hasReference) {
-    if (endpoint.includes('/edit')) {
+    if (endpoint.includes('/edit') || endpoint.includes('/image-to-image')) {
       input.image_urls = referenceList;
     } else {
       input.image_url = referenceList[0];
@@ -106,8 +118,15 @@ export async function POST(req: NextRequest) {
     resultUrl = result.data?.images?.[0]?.url || result.data?.video?.url || '';
     if (!resultUrl) throw new Error('No result URL from FAL');
   } catch (error) {
-    console.error('FAL.ai error:', error);
-    return NextResponse.json({ error: 'Generation failed' }, { status: 500 });
+    const falBody = getFalErrorBody(error);
+    const falDetail = falBody ? JSON.stringify(falBody) : getErrorMessage(error);
+    console.error('FAL.ai error:', {
+      endpoint,
+      input,
+      message: getErrorMessage(error),
+      body: falBody,
+    });
+    return NextResponse.json({ error: `Generation failed: ${falDetail}` }, { status: 500 });
   }
 
   const nextUsage = {

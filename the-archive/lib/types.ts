@@ -1,4 +1,4 @@
-export type ItemType = 'visual' | 'system' | 'community' | 'workflow';
+export type ItemType = 'visual' | 'system' | 'community' | 'workflow' | 'generation';
 
 export interface Visual {
   id: string;
@@ -59,7 +59,7 @@ export interface GenerationUsage {
 }
 
 // Union type used in Card and Grid where any item type can arrive
-export type AnyItem = (Visual | SystemPrompt | CommunityVisual | Workflow) & {
+export type AnyItem = (Visual | SystemPrompt | CommunityVisual | Workflow | Generation) & {
   _itemType?: ItemType;
   _likeCount?: number;
   // Optional fields accessed generically across item types
@@ -77,4 +77,7 @@ export type AnyItem = (Visual | SystemPrompt | CommunityVisual | Workflow) & {
   use_cases?: string;
   link?: string;
   tools?: string;
+  prompt?: string;
+  result_url?: string | null;
+  generation_type?: 'image' | 'video';
 };

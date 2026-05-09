@@ -91,6 +91,7 @@ function DockLink({
   active,
   title,
   hovered,
+  hasNotification,
   children,
   onHover,
 }: {
@@ -98,6 +99,7 @@ function DockLink({
   active?: boolean;
   title: string;
   hovered?: boolean;
+  hasNotification?: boolean;
   children: React.ReactNode;
   onHover: (title: string | null) => void;
 }) {
@@ -118,6 +120,12 @@ function DockLink({
         } ${hovered ? '-translate-y-3 scale-[1.28]' : 'scale-100'}`}
       >
         {children}
+        {hasNotification && !active && (
+          <span className="absolute right-1.5 top-1.5 flex h-3 w-3">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-acid opacity-70" />
+            <span className="relative inline-flex h-3 w-3 rounded-full border border-black bg-acid shadow-[0_0_14px_rgba(200,255,0,0.8)]" />
+          </span>
+        )}
       </Link>
     </div>
   );
@@ -136,13 +144,17 @@ export default function BottomDock() {
   const pathname = usePathname();
   const [hoveredAction, setHoveredAction] = useState<string | null>(null);
   const { user } = useAuth();
-  const { closePanel, openPanel, setGenerationType, generationType, isOpen } = useGenerate();
+  const { closePanel, openPanel, setGenerationType, generationType, isOpen, hasNewCreation, clearNewCreation } = useGenerate();
 
   const hiddenRoutes = pathname === '/' || pathname === '/login' || pathname === '/inactive-membership' || pathname.startsWith('/auth');
 
   useEffect(() => {
     if (pathname === '/') closePanel();
   }, [closePanel, pathname]);
+
+  useEffect(() => {
+    if (pathname.startsWith('/creations')) clearNewCreation();
+  }, [clearNewCreation, pathname]);
 
   if (!user || hiddenRoutes) return null;
 
@@ -172,7 +184,14 @@ export default function BottomDock() {
         <DockButton title="Generate Video" active={isOpen && generationType === 'video'} hovered={hoveredAction === 'Generate Video'} onHover={setHoveredAction} onClick={() => openGenerator('video')}>
           <VideoIcon />
         </DockButton>
-        <DockLink href="/creations" title="Creations" active={pathname.startsWith('/creations')} hovered={hoveredAction === 'Creations'} onHover={setHoveredAction}>
+        <DockLink
+          href="/creations"
+          title="Creations"
+          active={pathname.startsWith('/creations')}
+          hovered={hoveredAction === 'Creations'}
+          hasNotification={hasNewCreation}
+          onHover={setHoveredAction}
+        >
           <CreationsIcon />
         </DockLink>
       </div>

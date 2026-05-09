@@ -3,16 +3,21 @@
 import { useState, useEffect } from 'react';
 import Card from '@/components/Card';
 import { useSync } from '@/components/SyncContext';
-import { supabase } from '@/lib/supabaseClient';
+import type { AnyItem, ItemType } from '@/lib/types';
+
+type FavoriteItem = AnyItem & {
+  id: string | number;
+  _itemType: ItemType;
+};
 
 interface Props {
-  initialItems: any[];
+  initialItems: FavoriteItem[];
 }
 
 export default function FavoritesContent({ initialItems }: Props) {
   const { setStatus } = useSync();
 
-  const [likedItems, setLikedItems] = useState<any[]>(initialItems);
+  const [likedItems, setLikedItems] = useState<FavoriteItem[]>(initialItems);
   const [currentSource, setCurrentSource] = useState('ALL');
   const [flippedId, setFlippedId] = useState<string | null>(null);
 
@@ -24,6 +29,7 @@ export default function FavoritesContent({ initialItems }: Props) {
     { id: 'system', label: 'SYSTEMS' },
     { id: 'community', label: 'COMMUNITY' },
     { id: 'workflow', label: 'WORKFLOWS' },
+    { id: 'generation', label: 'CREATIONS' },
   ];
 
   const filteredItems = currentSource === 'ALL'
@@ -36,13 +42,14 @@ export default function FavoritesContent({ initialItems }: Props) {
     }
   };
 
-  function getCardLabels(item: any) {
+  function getCardLabels(item: FavoriteItem) {
     const activeTab = item._itemType;
     let cardTitle = 'ASSET', secondaryLabel = 'VOL', bottomLabel = 'CATEGORY';
     if (activeTab === 'visual')    { cardTitle = item.category || 'ASSET'; secondaryLabel = item.volume || 'VOL'; bottomLabel = 'CATEGORY'; }
     if (activeTab === 'system')    { cardTitle = item.title || 'SYSTEM'; secondaryLabel = item.prompt_type || 'TYPE'; bottomLabel = 'IDENTIFIER'; }
     if (activeTab === 'community') { cardTitle = item.author || 'COMMUNITY'; secondaryLabel = item.is_featured ? 'FEATURED' : 'MEMBER'; bottomLabel = 'AUTHOR'; }
     if (activeTab === 'workflow')  { cardTitle = item.name || 'WORKFLOW'; secondaryLabel = 'ACCESS'; bottomLabel = 'TYPE'; }
+    if (activeTab === 'generation') { cardTitle = 'CREATION'; secondaryLabel = item.generation_type || 'IMAGE'; bottomLabel = 'MODEL'; }
     return { cardTitle, secondaryLabel, bottomLabel };
   }
 

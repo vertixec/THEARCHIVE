@@ -11,6 +11,7 @@ interface GenerateState {
   prompt: string;
   referenceImageUrls: string[];
   generationType: GenerationType;
+  hasNewCreation: boolean;
 }
 
 interface GenerateContextType extends GenerateState {
@@ -21,6 +22,8 @@ interface GenerateContextType extends GenerateState {
   addReferenceImageUrl: (url: string) => boolean;
   removeReferenceImageUrl: (index: number) => void;
   setGenerationType: (type: GenerationType) => void;
+  markNewCreation: () => void;
+  clearNewCreation: () => void;
   togglePanel: () => void;
 }
 
@@ -37,6 +40,7 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
   const [prompt, setPrompt] = useState('');
   const [referenceImageUrls, setReferenceImageUrls] = useState<string[]>([]);
   const [generationType, setGenerationType] = useState<GenerationType>('image');
+  const [hasNewCreation, setHasNewCreation] = useState(false);
 
   const openPanel = useCallback((newPrompt = '', references: string | string[] | null = null) => {
     if (newPrompt) setPrompt(newPrompt);
@@ -46,6 +50,8 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
 
   const closePanel = useCallback(() => setIsOpen(false), []);
   const togglePanel = useCallback(() => setIsOpen((current) => !current), []);
+  const markNewCreation = useCallback(() => setHasNewCreation(true), []);
+  const clearNewCreation = useCallback(() => setHasNewCreation(false), []);
 
   const addReferenceImageUrl = useCallback((url: string) => {
     if (!url) return false;
@@ -70,6 +76,7 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
         prompt,
         referenceImageUrls,
         generationType,
+        hasNewCreation,
         openPanel,
         closePanel,
         togglePanel,
@@ -78,6 +85,8 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
         addReferenceImageUrl,
         removeReferenceImageUrl,
         setGenerationType,
+        markNewCreation,
+        clearNewCreation,
       }}
     >
       {children}
