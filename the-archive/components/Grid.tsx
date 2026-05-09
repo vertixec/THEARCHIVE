@@ -1,16 +1,18 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Card from './Card';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from './AuthContext';
 import type { AnyItem } from '@/lib/types';
+import type { SortMode } from './Filters';
 
 interface GridProps {
   items: AnyItem[];
   activeTab: 'main' | 'systems' | 'community' | 'workflows';
   filter: string;
   searchQuery: string;
+  sortMode?: SortMode;
   highlightedId?: string;
   onClearHighlight?: () => void;
   selectionMode?: boolean;
@@ -18,18 +20,38 @@ interface GridProps {
   onSelectItem?: (id: string, imageUrl: string | null) => void;
 }
 
-export default function Grid({ items, activeTab, filter, searchQuery, highlightedId, onClearHighlight, selectionMode, selectedIds, onSelectItem }: GridProps) {
-  const [filteredItems, setFilteredItems] = useState<AnyItem[]>([]);
+export default function Grid({ items, activeTab, filter, searchQuery, sortMode = 'newest', highlightedId, onClearHighlight, selectionMode, selectedIds, onSelectItem }: GridProps) {
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
+  const [likeCounts, setLikeCounts] = useState<Map<string, number>>(new Map());
   const [flippedId, setFlippedId] = useState<string | null>(null);
   const { user } = useAuth();
 
+  const itemType = activeTab === 'main' ? 'visual' : activeTab === 'systems' ? 'system' : activeTab === 'community' ? 'community' : 'workflow';
+
+  const handleLikeToggle = (itemId: string, _itemType: string, newIsLiked: boolean) => {
+    setLikedIds(current => {
+      const next = new Set(current);
+      if (newIsLiked) next.add(itemId);
+      else next.delete(itemId);
+      return next;
+    });
+
+    setLikeCounts(current => {
+      const next = new Map(current);
+      const nextCount = Math.max(0, (next.get(itemId) ?? 0) + (newIsLiked ? 1 : -1));
+      if (nextCount === 0) next.delete(itemId);
+      else next.set(itemId, nextCount);
+      return next;
+    });
+  };
+
   useEffect(() => {
     let isMounted = true;
-    const itemType = activeTab === 'main' ? 'visual' : activeTab === 'systems' ? 'system' : activeTab === 'community' ? 'community' : 'workflow';
-
     async function fetchLikes() {
-      if (!user || !isMounted) return;
+      if (!user || !isMounted) {
+        setLikedIds(new Set());
+        return;
+      }
 
       const { data } = await supabase
         .from('user_likes')
@@ -44,16 +66,57 @@ export default function Grid({ items, activeTab, filter, searchQuery, highlighte
 
     fetchLikes();
 
-    if (!user) {
-      setLikedIds(new Set());
-    }
-
     return () => {
       isMounted = false;
     }
-  }, [activeTab, user]);
+  }, [itemType, user]);
 
   useEffect(() => {
+    let isMounted = true;
+    const itemIds = items.map(item => item.id.toString());
+
+    async function fetchLikeCounts() {
+      if (itemIds.length === 0) {
+        setLikeCounts(new Map());
+        return;
+      }
+
+      const providedCounts = items.reduce((counts, item) => {
+        if (typeof item._likeCount === 'number') {
+          counts.set(item.id.toString(), item._likeCount);
+        }
+        return counts;
+      }, new Map<string, number>());
+
+      if (providedCounts.size === itemIds.length) {
+        setLikeCounts(providedCounts);
+        return;
+      }
+
+      const { data } = await supabase
+        .from('user_likes')
+        .select('item_id')
+        .eq('item_type', itemType)
+        .in('item_id', itemIds);
+
+      if (!isMounted) return;
+
+      const counts = new Map(providedCounts);
+      (data ?? []).forEach(like => {
+        const id = like.item_id.toString();
+        counts.set(id, (counts.get(id) ?? 0) + 1);
+      });
+      setLikeCounts(counts);
+    }
+
+    fetchLikeCounts();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [items, itemType]);
+
+  const filteredItems = useMemo(() => {
     let typeField: 'volume' | 'prompt_type' | 'author' | 'name' = 'volume';
     if (activeTab === 'systems') typeField = 'prompt_type';
     if (activeTab === 'community') typeField = 'author';
@@ -79,9 +142,15 @@ export default function Grid({ items, activeTab, filter, searchQuery, highlighte
       return matchesType && matchesSearch;
     });
 
-    setFilteredItems(filtered);
-    setFlippedId(null); // Reset flipped state on filter/tab change
-  }, [items, activeTab, filter, searchQuery]);
+    return filtered.sort((a, b) => {
+      if (sortMode === 'popular') {
+        const likesDelta = (likeCounts.get(b.id.toString()) ?? 0) - (likeCounts.get(a.id.toString()) ?? 0);
+        if (likesDelta !== 0) return likesDelta;
+      }
+
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+  }, [items, activeTab, filter, searchQuery, sortMode, likeCounts]);
 
   if (filteredItems.length === 0) {
     return (
@@ -118,8 +187,6 @@ export default function Grid({ items, activeTab, filter, searchQuery, highlighte
           bottomLabel = 'TYPE';
         }
 
-        const itemType = activeTab === 'main' ? 'visual' : activeTab === 'systems' ? 'system' : activeTab === 'community' ? 'community' : activeTab === 'workflows' ? 'workflow' : 'visual';
-
         const isSelected = selectionMode && selectedIds?.has(item.id.toString());
 
         return (
@@ -132,6 +199,9 @@ export default function Grid({ items, activeTab, filter, searchQuery, highlighte
               bottomLabel={bottomLabel}
               itemType={itemType}
               initialIsLiked={likedIds.has(item.id.toString())}
+              likeCount={likeCounts.get(item.id.toString()) ?? 0}
+              showLikeCount={sortMode === 'popular'}
+              onToggle={handleLikeToggle}
               isFlipped={!selectionMode && flippedId === item.id.toString()}
               onFlip={() => {
                 if (selectionMode) return;

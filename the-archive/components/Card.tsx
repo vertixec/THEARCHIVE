@@ -13,6 +13,8 @@ interface AssetCardProps {
   bottomLabel: string;
   itemType: ItemType;
   initialIsLiked?: boolean;
+  likeCount?: number;
+  showLikeCount?: boolean;
   onToggle?: (itemId: string, itemType: string, newIsLiked: boolean) => void;
   isFlipped?: boolean;
   onFlip?: () => void;
@@ -28,6 +30,8 @@ export default function Card({
   bottomLabel,
   itemType,
   initialIsLiked = false,
+  likeCount = 0,
+  showLikeCount = false,
   onToggle,
   isFlipped = false,
   onFlip,
@@ -37,6 +41,7 @@ export default function Card({
   const { showToast } = useToast();
   const { openPanel } = useGenerate();
   const [isLiked, setIsLiked] = useState(initialIsLiked);
+  const [displayLikeCount, setDisplayLikeCount] = useState(likeCount);
   const { user } = useAuth();
   const [isProcessing, setIsProcessing] = useState(false);
   const [showTooltip, setShowTooltip] = useState(false);
@@ -52,6 +57,10 @@ export default function Card({
   useEffect(() => {
     setIsLiked(initialIsLiked);
   }, [initialIsLiked]);
+
+  useEffect(() => {
+    setDisplayLikeCount(likeCount);
+  }, [likeCount]);
 
   const toggleLike = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -69,6 +78,7 @@ export default function Card({
 
     // Optimistic Update
     setIsLiked(!previousLikedState);
+    setDisplayLikeCount(current => Math.max(0, current + (!previousLikedState ? 1 : -1)));
     showToast(!previousLikedState ? "ADDED TO LIKES" : "REMOVED FROM LIKES");
     if (onToggle) onToggle(item.id, itemType, !previousLikedState);
 
@@ -91,9 +101,10 @@ export default function Card({
 
         if (error) throw error;
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error("Like toggle error:", error);
       setIsLiked(previousLikedState);
+      setDisplayLikeCount(current => Math.max(0, current + (previousLikedState ? 1 : -1)));
       if (onToggle) onToggle(item.id, itemType, previousLikedState);
       showToast("SYNC ERROR");
     } finally {
@@ -249,7 +260,28 @@ export default function Card({
             </button>
           </div>
 
-          <div className="absolute bottom-3 md:bottom-4 left-3 md:left-4 right-3 md:right-4 z-20">
+          {showLikeCount && (
+            <div className="absolute bottom-3 right-3 z-30 flex items-center gap-1.5 border border-acid/40 bg-black/70 px-2.5 py-1.5 font-mono text-[9px] uppercase tracking-widest text-acid shadow-xl backdrop-blur-md">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="pointer-events-none"
+                aria-hidden="true"
+              >
+                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path>
+              </svg>
+              <span>{displayLikeCount}</span>
+            </div>
+          )}
+
+          <div className={`absolute bottom-3 md:bottom-4 left-3 md:left-4 ${showLikeCount ? 'right-20' : 'right-3 md:right-4'} z-20`}>
             <div className="font-anton text-lg md:text-xl text-white uppercase tracking-tighter leading-none">
               {cardTitle}
             </div>

@@ -8,6 +8,7 @@ import { useSync } from '@/components/SyncContext';
 import { useToast } from '@/components/Toast';
 import { supabase } from '@/lib/supabaseClient';
 import type { Visual } from '@/lib/types';
+import type { SortMode } from '@/components/Filters';
 
 const PAGE_SIZE = 60;
 
@@ -23,27 +24,61 @@ export default function VisualsContent({ initialItems, hasMore: initialHasMore }
   const isLoadingRef = useRef(false);
   const [currentFilter, setCurrentFilter] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortMode, setSortMode] = useState<SortMode>('newest');
   const [localHighlightId, setLocalHighlightId] = useState<string | null>(null);
+
+  const fetchNewest = async (from: number) => {
+    const { data, error } = await supabase
+      .from('prompts')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .range(from, from + PAGE_SIZE - 1);
+    if (error) throw error;
+    return data ?? [];
+  };
+
+  const fetchPopular = async (from: number) => {
+    const response = await fetch(`/api/popular?type=visual&from=${from}`);
+    if (!response.ok) throw new Error('Popular fetch failed');
+    const payload = await response.json() as { items: Visual[]; hasMore: boolean };
+    setHasMore(payload.hasMore);
+    return payload.items;
+  };
+
+  const fetchItems = (mode: SortMode, from: number) => {
+    return mode === 'popular' ? fetchPopular(from) : fetchNewest(from);
+  };
+
+  const applySortMode = async (mode: SortMode) => {
+    isLoadingRef.current = true;
+    setIsLoadingMore(true);
+    try {
+      const data = await fetchItems(mode, 0);
+      setSortMode(mode);
+      setAllItems(data);
+      if (mode === 'newest') setHasMore(data.length === PAGE_SIZE);
+    } catch {
+      showToast(mode === 'popular' ? 'POPULAR METRICS UNAVAILABLE' : 'ERROR LOADING ITEMS');
+    } finally {
+      isLoadingRef.current = false;
+      setIsLoadingMore(false);
+    }
+  };
 
   const loadMore = async () => {
     if (isLoadingRef.current || !hasMore) return;
     isLoadingRef.current = true;
     setIsLoadingMore(true);
     try {
-      const { data, error } = await supabase
-        .from('prompts')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .range(allItems.length, allItems.length + PAGE_SIZE - 1);
-      if (error) throw error;
+      const data = await fetchItems(sortMode, allItems.length);
       if (data && data.length > 0) {
         setAllItems(prev => [...prev, ...data]);
-        setHasMore(data.length === PAGE_SIZE);
+        if (sortMode === 'newest') setHasMore(data.length === PAGE_SIZE);
       } else {
         setHasMore(false);
       }
     } catch {
-      showToast('ERROR LOADING MORE ITEMS');
+      showToast(sortMode === 'popular' ? 'POPULAR METRICS UNAVAILABLE' : 'ERROR LOADING MORE ITEMS');
     } finally {
       isLoadingRef.current = false;
       setIsLoadingMore(false);
@@ -101,9 +136,11 @@ export default function VisualsContent({ initialItems, hasMore: initialHasMore }
       image_url: imageUrl,
     }));
 
+    const upsertOptions = { onConflict: 'board_id,item_id,item_type', ignoreDuplicates: true };
+
     await supabase
       .from('board_items')
-      .upsert(rows, { onConflict: 'board_id,item_id,item_type', ignoreDuplicates: true } as any);
+      .upsert(rows, upsertOptions);
 
     router.push(`/moodboard/${moodboardId}`);
   }
@@ -142,6 +179,8 @@ export default function VisualsContent({ initialItems, hasMore: initialHasMore }
         currentFilter={currentFilter}
         onFilterChange={setCurrentFilter}
         onSearchChange={setSearchQuery}
+        sortMode={sortMode}
+        onSortChange={applySortMode}
         types={types}
       />
 
@@ -150,6 +189,7 @@ export default function VisualsContent({ initialItems, hasMore: initialHasMore }
         activeTab="main"
         filter={currentFilter}
         searchQuery={searchQuery}
+        sortMode={sortMode}
         highlightedId={localHighlightId || undefined}
         onClearHighlight={() => setLocalHighlightId(null)}
         selectionMode={isSelectionMode}

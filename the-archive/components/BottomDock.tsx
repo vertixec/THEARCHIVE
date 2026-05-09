@@ -162,7 +162,7 @@ export default function BottomDock() {
       }`}
       aria-label="Quick actions"
     >
-      <div className="flex items-center gap-2 rounded-[30px] border border-white/10 bg-black/[0.18] px-4 py-2 text-white shadow-[0_18px_70px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.10)] backdrop-blur-2xl">
+      <div className="flex origin-bottom items-center gap-2 rounded-[30px] border border-white/10 bg-black/[0.18] px-4 py-2 text-white shadow-[0_18px_70px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.10)] backdrop-blur-2xl transition-all duration-300 ease-out will-change-transform hover:scale-[1.035] hover:gap-3 hover:border-white/20 hover:bg-black/[0.28] hover:px-5 hover:py-2.5 hover:shadow-[0_22px_80px_rgba(0,0,0,0.65),0_0_28px_rgba(200,255,0,0.10),inset_0_1px_0_rgba(255,255,255,0.16)]">
         <DockLink href="/" title="Home" active={pathname === '/'} hovered={hoveredAction === 'Home'} onHover={setHoveredAction}>
           <HomeIcon />
         </DockLink>

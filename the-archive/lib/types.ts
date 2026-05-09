@@ -61,6 +61,7 @@ export interface GenerationUsage {
 // Union type used in Card and Grid where any item type can arrive
 export type AnyItem = (Visual | SystemPrompt | CommunityVisual | Workflow) & {
   _itemType?: ItemType;
+  _likeCount?: number;
   // Optional fields accessed generically across item types
   image_url?: string;
   title?: string;
