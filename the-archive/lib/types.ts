@@ -56,6 +56,12 @@ export interface GenerationUsage {
   video_count: number;
   image_limit: number;
   video_limit: number;
+  access_tier?: string;
+  plan_name?: string;
+  credit_balance?: number | null;
+  video_credit_balance?: number | null;
+  image_cost?: number;
+  video_cost?: number;
 }
 
 // Union type used in Card and Grid where any item type can arrive

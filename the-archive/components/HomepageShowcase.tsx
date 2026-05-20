@@ -16,6 +16,10 @@ interface Asset {
   volume?: string;
 }
 
+type PromptAssetRow = Asset & {
+  prompt_text?: string | null;
+};
+
 export default function HomepageShowcase() {
   const { setStatus } = useSync();
   const [assets, setAssets] = useState<Asset[]>([]);
@@ -39,7 +43,7 @@ export default function HomepageShowcase() {
         console.error("Error fetching assets:", error);
         setStatus("ERROR");
       } else {
-        const mappedAssets = (data || []).map((item: any) => ({
+        const mappedAssets = ((data || []) as PromptAssetRow[]).map((item) => ({
           ...item,
           title: item.category || "UNNAMED ASSET",
           category: item.volume || "VISUAL",
@@ -120,7 +124,7 @@ export default function HomepageShowcase() {
     </div>
   );
 
-  if (assets.length === 0) return null;
+  if (assets.length === 0) return <PublicHome />;
 
   const currentAsset = assets[currentIndex];
 
@@ -253,6 +257,48 @@ export default function HomepageShowcase() {
           overflow: hidden !important;
         }
       `}</style>
+    </div>
+  );
+}
+
+function PublicHome() {
+  return (
+    <div className="fixed inset-0 overflow-hidden bg-black text-white font-space">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_20%,rgba(200,255,0,0.16),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.08),transparent_42%)]" />
+      <div className="corner-l corner-top-left" />
+      <div className="corner-l corner-top-right" />
+      <div className="corner-l corner-bottom-left" />
+      <div className="corner-l corner-bottom-right" />
+
+      <main className="relative z-10 flex min-h-screen items-center px-6 py-20 md:px-12">
+        <section className="max-w-4xl">
+          <div className="mb-5 inline-block bg-acid px-3 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-black">
+            Public Beta Opening
+          </div>
+          <h1 className="font-anton text-7xl uppercase leading-none tracking-tight md:text-9xl">
+            The Archive
+          </h1>
+          <p className="mt-6 max-w-2xl font-mono text-xs uppercase leading-relaxed tracking-[0.2em] text-white/50">
+            A curated creative operating system for AI visuals, prompt systems, workflows,
+            moodboards, and generation. Private members keep the deepest access. Public users
+            can now start with a lighter free tier.
+          </p>
+          <div className="mt-10 flex flex-col gap-3 sm:flex-row">
+            <Link
+              href="/pricing"
+              className="bg-acid px-7 py-3 text-center font-mono text-[10px] font-bold uppercase tracking-[0.25em] text-black transition-colors hover:bg-white"
+            >
+              View Access Tiers
+            </Link>
+            <Link
+              href="/login"
+              className="border border-white/15 px-7 py-3 text-center font-mono text-[10px] uppercase tracking-[0.25em] text-white/65 transition-colors hover:border-acid hover:text-acid"
+            >
+              Enter Archive
+            </Link>
+          </div>
+        </section>
+      </main>
     </div>
   );
 }

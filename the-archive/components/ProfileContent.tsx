@@ -6,19 +6,38 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/Toast';
 import Avatar from '@/components/Avatar';
-import { formatJoinDate, formatRelative } from '@/lib/profileMetrics';
+import { formatRelative } from '@/lib/profileMetrics';
 import type {
   ProfileRow,
   ProfileMetrics,
   ActivityEvent,
   CategoryStat,
 } from '@/lib/profileMetrics';
+import { getPlanForProfile, PLAN_CONFIG } from '@/lib/business';
+
+type CreditBalance = {
+  credits: number;
+  video_credits: number;
+  updated_at: string;
+};
+
+type CreditTransaction = {
+  id: string;
+  amount: number;
+  balance_after: number | null;
+  credit_type: string;
+  reason: string;
+  created_at: string;
+  metadata: Record<string, unknown> | null;
+};
 
 interface Props {
   profile: ProfileRow;
   metrics: ProfileMetrics;
   activity: ActivityEvent[];
   topCategories: CategoryStat[];
+  creditBalance: CreditBalance | null;
+  creditTransactions: CreditTransaction[];
 }
 
 export default function ProfileContent({
@@ -26,6 +45,8 @@ export default function ProfileContent({
   metrics,
   activity,
   topCategories,
+  creditBalance,
+  creditTransactions,
 }: Props) {
   const router = useRouter();
   const { showToast } = useToast();
@@ -61,6 +82,9 @@ export default function ProfileContent({
   const [deleteConfirm, setDeleteConfirm] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [showTopUpModal, setShowTopUpModal] = useState(false);
+  const [showAllActivity, setShowAllActivity] = useState(false);
+  const [isEditingIdentity, setIsEditingIdentity] = useState(false);
 
   const profileChanged =
     fullName !== (profile.full_name ?? '') ||
@@ -98,6 +122,7 @@ export default function ProfileContent({
     }
 
     showToast('PROFILE UPDATED');
+    setIsEditingIdentity(false);
     startTransition(() => router.refresh());
   }
 
@@ -226,15 +251,25 @@ export default function ProfileContent({
   }
 
   const displayName = profile.full_name || profile.email?.split('@')[0] || 'MEMBER';
-  const memberSince = formatJoinDate(profile.created_at);
+  const currentPlan = getPlanForProfile(profile);
+  const imageCredits = creditBalance?.credits ?? 0;
+  const videoCredits = creditBalance?.video_credits ?? 0;
+  const topUpTransactions = creditTransactions.filter((transaction) => transaction.amount > 0);
+  const usageTransactions = creditTransactions.filter((transaction) => transaction.amount < 0);
+  const creditsSpent = usageTransactions.reduce((total, transaction) => total + Math.abs(transaction.amount), 0);
+  const planOptions = [PLAN_CONFIG.free, PLAN_CONFIG.community, PLAN_CONFIG.pro];
+  const visibleActivity = showAllActivity ? activity : activity.slice(0, 1);
 
   return (
-    <div id="view-content" className="min-h-screen pb-20">
-      {/* Header hero */}
-      <header className="px-6 md:px-12 pt-12 pb-10 border-b border-white/10">
-        <div className="max-w-6xl mx-auto flex flex-col items-center text-center gap-6">
+    <div id="view-content" className="min-h-screen bg-dark pb-20">
+      <header className="px-6 md:px-12 pt-8">
+        <form
+          onSubmit={handleSaveProfile}
+          className="max-w-6xl mx-auto border border-white/10 bg-panel/70 p-5 md:p-7 flex flex-col gap-6 md:flex-row md:items-start md:justify-between"
+        >
+          <div className="flex min-w-0 items-center gap-4">
           <div className="relative group/avatar shrink-0">
-            <Avatar name={displayName} size="lg" src={avatarUrl} />
+            <Avatar name={displayName} size="md" src={avatarUrl} />
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
@@ -259,18 +294,43 @@ export default function ProfileContent({
             />
           </div>
           <div className="min-w-0">
-            <h1 className="font-bebas text-7xl md:text-9xl text-white uppercase tracking-tighter leading-none">
-              {displayName}
-            </h1>
-            <p className="font-space text-[11px] text-white/50 uppercase tracking-[0.25em] mt-3">
-              {profile.username ? <span className="text-acid">@{profile.username}</span> : <span className="text-white/30">NO USERNAME · </span>}
-              <span className="mx-2 text-white/20">·</span>
-              MEMBER SINCE {memberSince}
-              <span className="mx-2 text-white/20">·</span>
-              <span className={profile.is_public ? 'text-acid' : 'text-white/40'}>
-                {profile.is_public ? 'PUBLIC' : 'PRIVATE'}
-              </span>
-            </p>
+            {isEditingIdentity ? (
+              <div className="grid gap-3">
+                <input
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder={displayName}
+                  maxLength={60}
+                  className="w-full bg-transparent border-b border-white/20 focus:border-acid font-bebas text-4xl md:text-5xl text-white uppercase tracking-tight leading-none outline-none placeholder:text-white/25 transition-colors"
+                />
+                <input
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+                  placeholder="vertix_user"
+                  maxLength={20}
+                  className="w-full max-w-xs bg-transparent border-b border-white/20 focus:border-acid font-mono text-[12px] text-acid outline-none pb-1.5 placeholder:text-white/20 transition-colors"
+                />
+              </div>
+            ) : (
+              <>
+                <div className="flex min-w-0 items-center gap-2">
+                  <h1 className="font-bebas text-4xl md:text-5xl text-white uppercase tracking-tight leading-none truncate">
+                    {displayName}
+                  </h1>
+                  <PencilButton label="Edit name" onClick={() => setIsEditingIdentity(true)} />
+                </div>
+                <div className="mt-2 flex min-w-0 items-center gap-2">
+                  <p className="truncate font-space text-[10px] uppercase tracking-[0.18em] text-white/50">
+                    {username ? <span className="text-acid">@{username}</span> : <span className="text-white/30">NO USERNAME</span>}
+                    <span className="mx-2 text-white/20">/</span>
+                    <span className={isPublic ? 'text-acid' : 'text-white/40'}>
+                      {isPublic ? 'PUBLIC' : 'PRIVATE'}
+                    </span>
+                  </p>
+                  <PencilButton label="Edit username" onClick={() => setIsEditingIdentity(true)} />
+                </div>
+              </>
+            )}
             {profile.is_public && profile.username && (
               <Link
                 href={`/u/${profile.username}`}
@@ -280,46 +340,8 @@ export default function ProfileContent({
               </Link>
             )}
           </div>
-        </div>
-
-        {/* Hero metrics */}
-        <div className="max-w-6xl mx-auto mt-10 grid grid-cols-2 md:grid-cols-4 gap-px bg-white/10 border border-white/10">
-          <Stat label="LIKES" value={metrics.likes_count} />
-          <Stat label="BOARDS" value={metrics.boards_count} />
-          <Stat label="ITEMS" value={metrics.items_count} />
-          <Stat label="DAYS ACTIVE" value={metrics.days_since_join} />
-        </div>
-      </header>
-
-      {/* Grid bloques */}
-      <div className="max-w-6xl mx-auto px-6 md:px-12 mt-10 grid grid-cols-1 lg:grid-cols-2">
-
-        {/* EDIT INFO */}
-        <Block title="EDIT INFO">
-          <form onSubmit={handleSaveProfile} className="flex flex-col gap-5">
-            <Field label="FULL NAME">
-              <input
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                placeholder="JOHN DOE"
-                maxLength={60}
-                className="bg-transparent border-b border-white/30 focus:border-acid font-mono text-[12px] text-white outline-none w-full pb-1.5 placeholder:text-white/15 transition-colors"
-              />
-            </Field>
-
-            <Field label="USERNAME">
-              <input
-                value={username}
-                onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
-                placeholder="vertix_user"
-                maxLength={20}
-                className="bg-transparent border-b border-white/30 focus:border-acid font-mono text-[12px] text-white outline-none w-full pb-1.5 placeholder:text-white/15 transition-colors"
-              />
-              <span className="font-mono text-[9px] text-white/30 uppercase tracking-widest mt-1.5 block">
-                3-20 chars · a-z 0-9 _
-              </span>
-            </Field>
-
+          </div>
+          <div className="grid gap-4 md:min-w-80">
             <Field label="VISIBILITY">
               <button
                 type="button"
@@ -337,11 +359,6 @@ export default function ProfileContent({
                   {isPublic ? 'PUBLIC PROFILE ON' : 'PUBLIC PROFILE OFF'}
                 </span>
               </button>
-              <span className="font-mono text-[9px] text-white/30 uppercase tracking-widest mt-1.5 block">
-                {isPublic
-                  ? 'OTHER MEMBERS CAN VIEW /u/' + (username || '...')
-                  : 'ONLY YOU CAN SEE THIS PROFILE'}
-              </span>
             </Field>
 
             {profileError && (
@@ -353,13 +370,88 @@ export default function ProfileContent({
             <button
               type="submit"
               disabled={!profileChanged || savingProfile}
-              className="self-start bg-acid text-black font-mono text-[10px] uppercase tracking-widest px-5 py-2 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-acid/80 transition-colors"
+              className="self-start bg-acid text-black font-mono text-[10px] uppercase tracking-widest px-5 py-2 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white transition-colors"
             >
               {savingProfile ? 'SAVING...' : 'SAVE CHANGES'}
             </button>
-          </form>
-        </Block>
+          </div>
+        </form>
+      </header>
 
+      <section className="max-w-6xl mx-auto px-6 md:px-12 mt-10 space-y-4">
+        <div className="grid gap-4 lg:grid-cols-2">
+          <section className="border border-white/10 bg-panel/70 p-5 md:p-7">
+            <div className="mb-5 flex items-center justify-between gap-4">
+              <h2 className="font-mono text-[10px] uppercase tracking-[0.25em] text-white/50">Credits</h2>
+              {creditBalance?.updated_at && (
+                <span className="font-mono text-[9px] uppercase tracking-widest text-white/25">
+                  Updated {formatDate(creditBalance.updated_at)}
+                </span>
+              )}
+            </div>
+            <div className="font-bebas text-6xl leading-none tracking-tight text-white">
+              {imageCredits.toLocaleString()}
+            </div>
+            <p className="mt-1 font-mono text-[10px] uppercase tracking-widest text-white/40">image credits left</p>
+
+            <div className="mt-6 space-y-3">
+              <CreditMeter label="Plan images" value={imageCredits} max={Math.max(currentPlan.monthlyImageLimit, imageCredits, 1)} />
+              <CreditMeter label="Video credits" value={videoCredits} max={Math.max(currentPlan.monthlyVideoLimit, videoCredits, 1)} />
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowTopUpModal(true)}
+              className="mt-6 w-full bg-acid px-5 py-3 font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-black transition-colors hover:bg-white"
+            >
+              Top-up
+            </button>
+          </section>
+
+          <section className="border border-white/10 bg-panel/70 p-5 md:p-7">
+            <h2 className="mb-5 font-mono text-[10px] uppercase tracking-[0.25em] text-white/50">Top-up history</h2>
+            {topUpTransactions.length === 0 ? (
+              <p className="font-mono text-[10px] uppercase tracking-widest text-white/30">No top-ups yet</p>
+            ) : (
+              <ul className="divide-y divide-white/5">
+                {topUpTransactions.slice(0, 5).map((transaction) => (
+                  <CreditTransactionRow key={transaction.id} transaction={transaction} />
+                ))}
+              </ul>
+            )}
+          </section>
+        </div>
+
+        <section className="border border-white/10 bg-panel/70">
+          <div className="flex flex-col gap-3 border-b border-white/10 p-5 md:flex-row md:items-center md:justify-between md:p-7">
+            <h2 className="font-mono text-[10px] uppercase tracking-[0.25em] text-white/50">Usage history</h2>
+            <span className="self-start border border-white/10 px-3 py-2 font-mono text-[9px] uppercase tracking-widest text-white/40 md:self-auto">
+              Last 20 events
+            </span>
+          </div>
+          <div className="grid gap-px bg-white/10 md:grid-cols-4">
+            <ProfileDatum label="Credits spent" value={creditsSpent.toLocaleString()} />
+            <ProfileDatum label="Generations" value={usageTransactions.length.toLocaleString()} />
+            <ProfileDatum label="Likes" value={metrics.likes_count.toLocaleString()} />
+            <ProfileDatum label="Boards" value={metrics.boards_count.toLocaleString()} />
+          </div>
+          <div className="min-h-40 p-5 md:p-7">
+            {usageTransactions.length === 0 ? (
+              <p className="py-10 text-center font-mono text-[10px] uppercase tracking-widest text-white/30">
+                No usage in this period
+              </p>
+            ) : (
+              <ul className="divide-y divide-white/5">
+                {usageTransactions.slice(0, 8).map((transaction) => (
+                  <CreditTransactionRow key={transaction.id} transaction={transaction} />
+                ))}
+              </ul>
+            )}
+          </div>
+        </section>
+      </section>
+
+      <div className="max-w-6xl mx-auto px-6 md:px-12 mt-4 grid grid-cols-1 lg:grid-cols-2">
         {/* ACTIVITY */}
         <Block title="ACTIVITY">
           {activity.length === 0 ? (
@@ -367,8 +459,9 @@ export default function ProfileContent({
               NO ACTIVITY YET
             </p>
           ) : (
+            <>
             <ul className="flex flex-col">
-              {activity.map((event, i) => (
+              {visibleActivity.map((event, i) => (
                 <li
                   key={i}
                   className="flex items-center gap-3 py-2.5 border-b border-white/5 last:border-b-0"
@@ -387,6 +480,16 @@ export default function ProfileContent({
                 </li>
               ))}
             </ul>
+            {activity.length > 1 && (
+              <button
+                type="button"
+                onClick={() => setShowAllActivity(!showAllActivity)}
+                className="mt-4 border border-white/10 px-4 py-2 font-mono text-[10px] uppercase tracking-widest text-white/50 transition-colors hover:border-acid hover:text-acid"
+              >
+                {showAllActivity ? 'Hide activity' : `View ${activity.length - 1} more`}
+              </button>
+            )}
+            </>
           )}
         </Block>
 
@@ -450,6 +553,12 @@ export default function ProfileContent({
               <span className={`font-mono text-[10px] uppercase tracking-widest ${profile.status === 'active' ? 'text-acid' : 'text-danger'}`}>
                 {profile.role?.toUpperCase() ?? 'MEMBER'}
               </span>
+            </Row>
+
+            <Row label="ACCESS TIER" value={currentPlan.name.toUpperCase()}>
+              <button type="button" onClick={() => setShowTopUpModal(true)} className="font-mono text-[10px] uppercase tracking-widest text-acid hover:text-white transition-colors">
+                {currentPlan.monthlyImageLimit} IMG / {currentPlan.monthlyVideoLimit} VID
+              </button>
             </Row>
 
             <div className="flex items-center gap-3 pt-4 mt-2 border-t border-white/5">
@@ -578,21 +687,120 @@ export default function ProfileContent({
           </div>
         </Modal>
       )}
+
+      {showTopUpModal && (
+        <Modal title="TOP-UP CREDITS" onClose={() => setShowTopUpModal(false)}>
+          <div className="grid gap-3">
+            {planOptions.map((plan) => (
+              <div key={plan.id} className="border border-white/10 p-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-acid">{plan.label}</p>
+                    <h4 className="mt-1 font-bebas text-3xl uppercase tracking-tight text-white">{plan.name}</h4>
+                  </div>
+                  <div className="text-right font-mono text-[9px] uppercase tracking-widest text-white/45">
+                    <p>{plan.monthlyImageLimit} images</p>
+                    <p>{plan.monthlyVideoLimit} videos</p>
+                  </div>
+                </div>
+                <p className="mt-3 font-mono text-[10px] uppercase leading-relaxed tracking-widest text-white/45">
+                  {plan.description}
+                </p>
+                <Link
+                  href={plan.id === 'community' ? '/inactive-membership' : plan.id === 'free' ? '/profile' : '/pricing'}
+                  className="mt-4 block border border-white/15 px-4 py-2 text-center font-mono text-[10px] uppercase tracking-[0.2em] text-white/70 transition-colors hover:border-acid hover:text-acid"
+                >
+                  {plan.id === currentPlan.id ? 'Current plan' : plan.id === 'pro' ? 'Coming soon' : 'Select'}
+                </Link>
+              </div>
+            ))}
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
 
-function Stat({ label, value }: { label: string; value: number }) {
+function ProfileDatum({ label, value }: { label: string; value: string }) {
   return (
-    <div className="bg-dark p-6 flex flex-col items-center gap-1 text-center">
-      <span className="font-bebas text-5xl md:text-6xl text-white leading-none tracking-tighter">
-        {value.toLocaleString()}
-      </span>
-      <span className="font-mono text-[9px] text-white/40 uppercase tracking-[0.25em]">
+    <div className="bg-dark p-4 md:p-5">
+      <span className="block font-mono text-[9px] uppercase tracking-[0.25em] text-white/35">
         {label}
+      </span>
+      <span className="mt-1 block truncate font-mono text-[12px] text-white/80">
+        {value}
       </span>
     </div>
   );
+}
+
+function PencilButton({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="shrink-0 text-white/35 transition-colors hover:text-acid"
+      title={label}
+      aria-label={label}
+    >
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 20h9" />
+        <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+      </svg>
+    </button>
+  );
+}
+
+function CreditMeter({ label, value, max }: { label: string; value: number; max: number }) {
+  const pct = Math.max(0, Math.min(100, Math.round((value / max) * 100)));
+
+  return (
+    <div>
+      <div className="mb-2 flex items-center justify-between gap-4 font-mono text-[10px] uppercase tracking-widest text-white/45">
+        <span>{label}</span>
+        <span className="text-white/70">
+          {value.toLocaleString()} / {max.toLocaleString()}
+        </span>
+      </div>
+      <div className="h-1.5 overflow-hidden bg-white/10">
+        <div className="h-full bg-acid" style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  );
+}
+
+function CreditTransactionRow({ transaction }: { transaction: CreditTransaction }) {
+  return (
+    <li className="grid grid-cols-[1fr_auto] gap-4 py-3">
+      <div className="min-w-0">
+        <p className="truncate font-mono text-[10px] uppercase tracking-widest text-white/70">
+          {formatReason(transaction.reason)}
+        </p>
+        <p className="mt-1 font-mono text-[9px] uppercase tracking-widest text-white/30">
+          {transaction.credit_type} / {formatDate(transaction.created_at)}
+        </p>
+      </div>
+      <div className={`font-bebas text-3xl leading-none ${transaction.amount >= 0 ? 'text-acid' : 'text-danger'}`}>
+        {transaction.amount >= 0 ? '+' : ''}
+        {transaction.amount}
+      </div>
+    </li>
+  );
+}
+
+function formatReason(reason: string) {
+  return reason.replace(/_/g, ' ');
+}
+
+function formatDate(value: string) {
+  return new Date(value)
+    .toLocaleString('en-US', {
+      month: 'short',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+    .toUpperCase();
 }
 
 function Block({ title, children }: { title: string; children: React.ReactNode }) {

@@ -9,6 +9,8 @@ export type ProfileRow = {
   is_public: boolean;
   status: string | null;
   role: string | null;
+  access_tier?: string | null;
+  plan_id?: string | null;
   created_at: string;
   updated_at: string;
 };

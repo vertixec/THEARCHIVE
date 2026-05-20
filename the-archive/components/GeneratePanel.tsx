@@ -45,6 +45,9 @@ export default function GeneratePanel() {
   const models = useMemo(() => (generationType === 'image' ? IMAGE_MODELS : VIDEO_MODELS), [generationType]);
   const used = generationType === 'image' ? usage?.image_count ?? 0 : usage?.video_count ?? 0;
   const limit = generationType === 'image' ? usage?.image_limit ?? 10 : usage?.video_limit ?? 2;
+  const cost = generationType === 'image' ? usage?.image_cost ?? 1 : usage?.video_cost ?? 5;
+  const planName = usage?.plan_name ?? 'Community';
+  const balance = generationType === 'image' ? usage?.credit_balance : usage?.video_credit_balance;
   const remaining = Math.max(limit - used, 0);
   const canGenerate = prompt.trim().length > 0 && remaining > 0 && !isGenerating;
 
@@ -105,15 +108,31 @@ export default function GeneratePanel() {
         return;
       }
 
+      if (response.status === 403) {
+        showToast('UPGRADE REQUIRED');
+        setError(payload.error || 'Upgrade required');
+        return;
+      }
+
       if (!response.ok) {
         throw new Error(payload.error || 'Generation failed');
       }
 
       setUsage((current) => {
         if (!current) return current;
-        return generationType === 'image'
+        const nextUsage = generationType === 'image'
           ? { ...current, image_count: current.image_count + 1 }
           : { ...current, video_count: current.video_count + 1 };
+
+        if (payload.credits && typeof payload.credits === 'object') {
+          return {
+            ...nextUsage,
+            credit_balance: payload.credits.credits ?? nextUsage.credit_balance,
+            video_credit_balance: payload.credits.video_credits ?? nextUsage.video_credit_balance,
+          };
+        }
+
+        return nextUsage;
       });
       showToast('GENERATION READY');
       markNewCreation();
@@ -233,7 +252,9 @@ export default function GeneratePanel() {
             </button>
             <div className="text-center">
               <h2 className="font-anton text-4xl md:text-5xl uppercase tracking-tight text-white leading-none">GENERATE</h2>
-              <p className="font-mono text-[9px] uppercase tracking-widest text-acid/70 mt-1">CREATIVE ENGINE</p>
+              <p className="font-mono text-[9px] uppercase tracking-widest text-acid/70 mt-1">
+                {planName} ENGINE
+              </p>
             </div>
             <div aria-hidden="true" />
           </header>
@@ -398,6 +419,14 @@ export default function GeneratePanel() {
             <div className="font-mono text-[9px] uppercase tracking-widest text-acid">
               {remaining}/{limit} {generationType === 'image' ? 'images' : 'videos'} remaining this month
             </div>
+            <div className="mt-1 font-mono text-[8px] uppercase tracking-widest text-white/35">
+              Cost: {cost} {cost === 1 ? 'credit' : 'credits'} per {generationType}
+            </div>
+            {typeof balance === 'number' && (
+              <div className="mt-1 font-mono text-[8px] uppercase tracking-widest text-white/35">
+                Balance: {balance} {generationType === 'image' ? 'image' : 'video'} credits
+              </div>
+            )}
           </footer>
         </div>
       </aside>

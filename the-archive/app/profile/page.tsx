@@ -10,6 +10,22 @@ import ProfileContent from '@/components/ProfileContent';
 
 export const dynamic = 'force-dynamic';
 
+type CreditBalance = {
+  credits: number;
+  video_credits: number;
+  updated_at: string;
+};
+
+type CreditTransaction = {
+  id: string;
+  amount: number;
+  balance_after: number | null;
+  credit_type: string;
+  reason: string;
+  created_at: string;
+  metadata: Record<string, unknown> | null;
+};
+
 export default async function ProfilePage() {
   const supabase = await createClient();
 
@@ -24,10 +40,22 @@ export default async function ProfilePage() {
 
   if (!profile) redirect('/login');
 
-  const [metrics, activity, topCategories] = await Promise.all([
+  const [metrics, activity, topCategories, balanceResult, transactionsResult] = await Promise.all([
     getProfileMetrics(supabase, user.id, profile),
     getRecentActivity(supabase, user.id, 10),
     getTopCategories(supabase, user.id),
+    supabase
+      .from('user_credit_balances')
+      .select('credits, video_credits, updated_at')
+      .eq('user_id', user.id)
+      .maybeSingle<CreditBalance>(),
+    supabase
+      .from('credit_transactions')
+      .select('id, amount, balance_after, credit_type, reason, created_at, metadata')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(20)
+      .returns<CreditTransaction[]>(),
   ]);
 
   return (
@@ -36,6 +64,8 @@ export default async function ProfilePage() {
       metrics={metrics}
       activity={activity}
       topCategories={topCategories}
+      creditBalance={balanceResult.data ?? null}
+      creditTransactions={transactionsResult.data ?? []}
     />
   );
 }

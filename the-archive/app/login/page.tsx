@@ -12,7 +12,8 @@ export default function LoginPage() {
             Authentication
           </h1>
           <p className="font-mono text-xs text-white/40 mt-4 uppercase tracking-[0.2em] max-w-md mx-auto">
-            Authorized access only. Verification required for archive entry.
+            Community members enter with full access. New public users can create a free profile
+            and start with a limited beta tier.
           </p>
         </div>
 
