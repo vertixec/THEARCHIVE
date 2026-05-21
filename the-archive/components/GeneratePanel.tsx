@@ -200,8 +200,6 @@ export default function GeneratePanel() {
     const uriList = event.dataTransfer.getData('text/uri-list');
     const plain = event.dataTransfer.getData('text/plain');
     const html = event.dataTransfer.getData('text/html');
-    const draggedPrompt = event.dataTransfer.getData('application/x-vertix-prompt');
-
     let url = (uriList || plain || '').split('\n').find((line) => line.trim() && !line.startsWith('#'))?.trim();
     if (!url && html) {
       const match = html.match(/<img[^>]+src=["']([^"']+)["']/i);
@@ -210,12 +208,21 @@ export default function GeneratePanel() {
 
     if (url && /^https?:\/\//i.test(url)) {
       const added = addReferenceImageUrl(url);
-      if (added && draggedPrompt) setPrompt(draggedPrompt);
       showToast(added ? 'REFERENCE READY' : `MAX ${MAX_REFERENCE_IMAGES} REFERENCES`);
     } else {
       showToast('DROP AN IMAGE');
     }
-  }, [addReferenceImageUrl, isAtReferenceLimit, setPrompt, showToast, uploadReferenceFile]);
+  }, [addReferenceImageUrl, isAtReferenceLimit, showToast, uploadReferenceFile]);
+
+  const handlePromptDrop = useCallback((event: React.DragEvent<HTMLTextAreaElement>) => {
+    const draggedPrompt = event.dataTransfer.getData('application/x-vertix-prompt');
+    if (!draggedPrompt) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    setPrompt(draggedPrompt);
+    showToast('PROMPT LOADED');
+  }, [setPrompt, showToast]);
 
   return (
     <>
@@ -336,6 +343,13 @@ export default function GeneratePanel() {
                 id="generate-prompt"
                 value={prompt}
                 onChange={(event) => setPrompt(event.target.value)}
+                onDragOver={(event) => {
+                  if (event.dataTransfer.types.includes('application/x-vertix-prompt')) {
+                    event.preventDefault();
+                    event.dataTransfer.dropEffect = 'copy';
+                  }
+                }}
+                onDrop={handlePromptDrop}
                 rows={12}
                 className="w-full resize-none bg-black border border-white/10 focus:border-acid outline-none p-3 font-mono text-[10px] leading-relaxed uppercase text-white placeholder:text-white/20"
                 placeholder="Describe the image or video..."

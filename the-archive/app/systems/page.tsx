@@ -5,13 +5,13 @@ const PAGE_SIZE = 60;
 
 export default async function SystemsPage() {
   const supabase = await createClient();
-  const { data } = await supabase
+  const { data, count } = await supabase
     .from('functional_prompts')
-    .select('*')
+    .select('*', { count: 'exact' })
     .order('created_at', { ascending: false })
     .limit(PAGE_SIZE);
 
   const items = data || [];
 
-  return <SystemsContent initialItems={items} hasMore={items.length === PAGE_SIZE} />;
+  return <SystemsContent initialItems={items} hasMore={(count ?? 0) > items.length} />;
 }

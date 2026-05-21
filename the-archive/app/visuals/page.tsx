@@ -6,9 +6,9 @@ const PAGE_SIZE = 60;
 
 export default async function VisualsPage() {
   const supabase = await createClient();
-  const { data } = await supabase
+  const { data, count } = await supabase
     .from('prompts')
-    .select('*')
+    .select('*', { count: 'exact' })
     .order('created_at', { ascending: false })
     .limit(PAGE_SIZE);
 
@@ -16,7 +16,7 @@ export default async function VisualsPage() {
 
   return (
     <Suspense fallback={<div className="p-20 font-mono text-acid">LOADING_VISUALS...</div>}>
-      <VisualsContent initialItems={items} hasMore={items.length === PAGE_SIZE} />
+      <VisualsContent initialItems={items} hasMore={(count ?? 0) > items.length} />
     </Suspense>
   );
 }

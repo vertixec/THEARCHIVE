@@ -3,6 +3,7 @@
 import { useState } from 'react';
 
 export type SortMode = 'newest' | 'popular';
+export type ViewMode = 'catalog' | 'infinite';
 
 interface FiltersProps {
   activeTab: 'main' | 'systems' | 'community' | 'workflows';
@@ -11,6 +12,8 @@ interface FiltersProps {
   onSearchChange: (query: string) => void;
   sortMode?: SortMode;
   onSortChange?: (sort: SortMode) => void;
+  viewMode?: ViewMode;
+  onViewModeChange?: (mode: ViewMode) => void;
   types: string[];
 }
 
@@ -30,9 +33,37 @@ function SearchIcon() {
   );
 }
 
-export default function Filters({ activeTab, currentFilter, onFilterChange, onSearchChange, sortMode = 'newest', onSortChange, types }: FiltersProps) {
+function ViewModeIcon({ mode }: { mode: ViewMode }) {
+  if (mode === 'infinite') {
+    return (
+      <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3l7 7M21 3l-7 7M3 21l7-7M21 21l-7-7" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z" />
+    </svg>
+  );
+}
+
+export default function Filters({
+  activeTab,
+  currentFilter,
+  onFilterChange,
+  onSearchChange,
+  sortMode = 'newest',
+  onSortChange,
+  viewMode,
+  onViewModeChange,
+  types,
+}: FiltersProps) {
   const [tagsOpen, setTagsOpen] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
+  const [viewOpen, setViewOpen] = useState(false);
 
   let filterAllText = 'ALL RECORDS';
   if (activeTab === 'systems') filterAllText = 'ALL SYSTEMS';
@@ -43,6 +74,10 @@ export default function Filters({ activeTab, currentFilter, onFilterChange, onSe
   const sortOptions: { value: SortMode; label: string }[] = [
     { value: 'newest', label: 'NEWEST' },
     { value: 'popular', label: 'POPULAR' },
+  ];
+  const viewOptions: { value: ViewMode; label: string }[] = [
+    { value: 'catalog', label: 'CATALOG' },
+    { value: 'infinite', label: 'INFINITE' },
   ];
 
   return (
@@ -97,7 +132,7 @@ export default function Filters({ activeTab, currentFilter, onFilterChange, onSe
           </div>
         </div>
         
-        <div className="flex items-stretch gap-2 w-full md:w-80">
+        <div className="flex items-stretch gap-2 w-full md:w-[25rem]">
           {onSortChange && (
             <div className="relative shrink-0">
               <button
@@ -128,6 +163,49 @@ export default function Filters({ activeTab, currentFilter, onFilterChange, onSe
                         sortMode === option.value ? 'bg-acid text-black' : 'text-white/60 hover:bg-white/10 hover:text-white'
                       }`}
                     >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {viewMode && onViewModeChange && (
+            <div className="relative shrink-0">
+              <button
+                type="button"
+                onClick={() => setViewOpen(open => !open)}
+                aria-label="Change view mode"
+                aria-expanded={viewOpen}
+                title="View mode"
+                className={`flex h-full min-h-[42px] items-center gap-2 border px-3 transition-all ${
+                  viewOpen || viewMode !== 'catalog'
+                    ? 'border-acid bg-acid text-black'
+                    : 'border-white/20 bg-black text-white/60 hover:border-acid/60 hover:text-acid'
+                }`}
+              >
+                <ViewModeIcon mode={viewMode} />
+                <span className="hidden font-mono text-[9px] uppercase tracking-widest lg:inline">
+                  {viewMode}
+                </span>
+              </button>
+
+              {viewOpen && (
+                <div className="absolute right-0 top-[calc(100%+10px)] z-50 min-w-40 border border-white/15 bg-black/95 p-2 shadow-[0_24px_80px_rgba(0,0,0,0.65)] backdrop-blur-xl">
+                  {viewOptions.map(option => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => {
+                        onViewModeChange(option.value);
+                        setViewOpen(false);
+                      }}
+                      className={`flex w-full items-center gap-2 px-3 py-2 text-left font-mono text-[10px] uppercase tracking-widest transition-all ${
+                        viewMode === option.value ? 'bg-acid text-black' : 'text-white/60 hover:bg-white/10 hover:text-white'
+                      }`}
+                    >
+                      <ViewModeIcon mode={option.value} />
                       {option.label}
                     </button>
                   ))}

@@ -20,6 +20,7 @@ interface AssetCardProps {
   onFlip?: () => void;
   highlighted?: boolean;
   onInteraction?: () => void;
+  forceColor?: boolean;
 }
 
 export default function Card({
@@ -37,6 +38,7 @@ export default function Card({
   onFlip,
   highlighted = false,
   onInteraction,
+  forceColor = false,
 }: AssetCardProps) {
   const { showToast } = useToast();
   const { openPanel } = useGenerate();
@@ -202,6 +204,13 @@ export default function Card({
     }
   };
 
+  const handleImageDragStart = (e: React.DragEvent<HTMLImageElement>) => {
+    e.dataTransfer.effectAllowed = "copy";
+    e.dataTransfer.setData("application/x-vertix-prompt", promptContent);
+    e.dataTransfer.setData("text/plain", displayImg);
+    e.dataTransfer.setData("text/uri-list", displayImg);
+  };
+
   return (
     <div
       id={`card-${item.id}`}
@@ -219,7 +228,9 @@ export default function Card({
           <img
             src={displayImg}
             alt={cardTitle}
-            className={`w-full h-full object-cover filter transition-all duration-700 ease-out ${highlighted ? 'grayscale-0 brightness-110 contrast-100 scale-105' : 'grayscale-0 brightness-100 md:grayscale md:contrast-125 md:brightness-75 group-hover:grayscale-0 group-hover:brightness-100 group-hover:scale-105'}`}
+            draggable
+            onDragStart={handleImageDragStart}
+            className={`w-full h-full object-cover filter transition-all duration-700 ease-out ${highlighted ? 'grayscale-0 brightness-110 contrast-100 scale-105' : forceColor ? 'grayscale-0 brightness-100 contrast-100 group-hover:scale-105' : 'grayscale-0 brightness-100 md:grayscale md:contrast-125 md:brightness-75 group-hover:grayscale-0 group-hover:brightness-100 group-hover:scale-105'}`}
           />
           {highlighted && (
             <div className="absolute inset-0 z-[60] border-2 border-acid shadow-[inset_0_0_15px_#c8ff00,0_0_20px_#c8ff00] pointer-events-none animate-pulse" />

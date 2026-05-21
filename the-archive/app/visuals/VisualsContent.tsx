@@ -1,16 +1,21 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useCallback, useState, useEffect, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Filters from '@/components/Filters';
 import Grid from '@/components/Grid';
+import InfiniteVisualView from '@/components/InfiniteVisualView';
 import { useSync } from '@/components/SyncContext';
 import { useToast } from '@/components/Toast';
 import { supabase } from '@/lib/supabaseClient';
 import type { Visual } from '@/lib/types';
-import type { SortMode } from '@/components/Filters';
+import type { SortMode, ViewMode } from '@/components/Filters';
 
 const PAGE_SIZE = 60;
+type FetchResult = {
+  items: Visual[];
+  hasMore: boolean;
+};
 
 export default function VisualsContent({ initialItems, hasMore: initialHasMore }: { initialItems: Visual[]; hasMore: boolean }) {
   const { setStatus } = useSync();
@@ -25,38 +30,42 @@ export default function VisualsContent({ initialItems, hasMore: initialHasMore }
   const [currentFilter, setCurrentFilter] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortMode, setSortMode] = useState<SortMode>('newest');
+  const [viewMode, setViewMode] = useState<ViewMode>('catalog');
   const [localHighlightId, setLocalHighlightId] = useState<string | null>(null);
 
-  const fetchNewest = async (from: number) => {
-    const { data, error } = await supabase
+  const fetchNewest = useCallback(async (from: number): Promise<FetchResult> => {
+    const { data, error, count } = await supabase
       .from('prompts')
-      .select('*')
+      .select('*', { count: 'exact' })
       .order('created_at', { ascending: false })
       .range(from, from + PAGE_SIZE - 1);
     if (error) throw error;
-    return data ?? [];
-  };
+    const items = data ?? [];
+    return {
+      items,
+      hasMore: typeof count === 'number' ? from + items.length < count : items.length === PAGE_SIZE,
+    };
+  }, []);
 
-  const fetchPopular = async (from: number) => {
+  const fetchPopular = useCallback(async (from: number): Promise<FetchResult> => {
     const response = await fetch(`/api/popular?type=visual&from=${from}`);
     if (!response.ok) throw new Error('Popular fetch failed');
     const payload = await response.json() as { items: Visual[]; hasMore: boolean };
-    setHasMore(payload.hasMore);
-    return payload.items;
-  };
+    return { items: payload.items, hasMore: payload.hasMore };
+  }, []);
 
-  const fetchItems = (mode: SortMode, from: number) => {
+  const fetchItems = useCallback((mode: SortMode, from: number) => {
     return mode === 'popular' ? fetchPopular(from) : fetchNewest(from);
-  };
+  }, [fetchNewest, fetchPopular]);
 
   const applySortMode = async (mode: SortMode) => {
     isLoadingRef.current = true;
     setIsLoadingMore(true);
     try {
-      const data = await fetchItems(mode, 0);
+      const result = await fetchItems(mode, 0);
       setSortMode(mode);
-      setAllItems(data);
-      if (mode === 'newest') setHasMore(data.length === PAGE_SIZE);
+      setAllItems(result.items);
+      setHasMore(result.hasMore);
     } catch {
       showToast(mode === 'popular' ? 'POPULAR METRICS UNAVAILABLE' : 'ERROR LOADING ITEMS');
     } finally {
@@ -65,15 +74,15 @@ export default function VisualsContent({ initialItems, hasMore: initialHasMore }
     }
   };
 
-  const loadMore = async () => {
+  const loadMore = useCallback(async () => {
     if (isLoadingRef.current || !hasMore) return;
     isLoadingRef.current = true;
     setIsLoadingMore(true);
     try {
-      const data = await fetchItems(sortMode, allItems.length);
-      if (data && data.length > 0) {
-        setAllItems(prev => [...prev, ...data]);
-        if (sortMode === 'newest') setHasMore(data.length === PAGE_SIZE);
+      const result = await fetchItems(sortMode, allItems.length);
+      if (result.items.length > 0) {
+        setAllItems(prev => [...prev, ...result.items]);
+        setHasMore(result.hasMore);
       } else {
         setHasMore(false);
       }
@@ -83,7 +92,7 @@ export default function VisualsContent({ initialItems, hasMore: initialHasMore }
       isLoadingRef.current = false;
       setIsLoadingMore(false);
     }
-  };
+  }, [allItems.length, fetchItems, hasMore, showToast, sortMode]);
 
   // Moodboard selection mode
   const moodboardId = searchParams.get('moodboardId');
@@ -115,6 +124,11 @@ export default function VisualsContent({ initialItems, hasMore: initialHasMore }
       }, 12000);
     }
   }, [setStatus, searchParams]);
+
+  useEffect(() => {
+    if (viewMode !== 'infinite' || !hasMore || isLoadingRef.current) return;
+    loadMore();
+  }, [hasMore, loadMore, viewMode]);
 
   function handleSelectItem(id: string, imageUrl: string | null) {
     setSelectedItems(prev => {
@@ -181,30 +195,50 @@ export default function VisualsContent({ initialItems, hasMore: initialHasMore }
         onSearchChange={setSearchQuery}
         sortMode={sortMode}
         onSortChange={applySortMode}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
         types={types}
       />
 
-      <Grid
-        items={allItems}
-        activeTab="main"
-        filter={currentFilter}
-        searchQuery={searchQuery}
-        sortMode={sortMode}
-        highlightedId={localHighlightId || undefined}
-        onClearHighlight={() => setLocalHighlightId(null)}
-        selectionMode={isSelectionMode}
-        selectedIds={new Set(selectedItems.keys())}
-        onSelectItem={handleSelectItem}
-      />
+      {viewMode === 'catalog' ? (
+        <Grid
+          items={allItems}
+          activeTab="main"
+          filter={currentFilter}
+          searchQuery={searchQuery}
+          sortMode={sortMode}
+          highlightedId={localHighlightId || undefined}
+          onClearHighlight={() => setLocalHighlightId(null)}
+          selectionMode={isSelectionMode}
+          selectedIds={new Set(selectedItems.keys())}
+          onSelectItem={handleSelectItem}
+        />
+      ) : (
+        <InfiniteVisualView
+          items={allItems}
+          filter={currentFilter}
+          searchQuery={searchQuery}
+          sortMode={sortMode}
+          highlightedId={localHighlightId || undefined}
+          onClearHighlight={() => setLocalHighlightId(null)}
+          selectionMode={isSelectionMode}
+          selectedIds={new Set(selectedItems.keys())}
+          onSelectItem={handleSelectItem}
+        />
+      )}
 
-      {hasMore && !isSelectionMode && (
-        <div className="flex justify-center py-10">
+      {viewMode === 'catalog' && !isSelectionMode && (
+        <div className="flex justify-center pt-10 pb-36 md:pb-40">
           <button
             onClick={loadMore}
-            disabled={isLoadingMore}
+            disabled={isLoadingMore || !hasMore}
             className="font-mono text-[10px] uppercase tracking-widest border border-white/20 hover:border-acid/60 text-white/50 hover:text-acid px-8 py-3 transition-all disabled:opacity-40"
           >
-            {isLoadingMore ? 'LOADING...' : `LOAD MORE — ${allItems.length} LOADED`}
+            {isLoadingMore
+              ? 'LOADING...'
+              : hasMore
+              ? `LOAD MORE - ${allItems.length} LOADED`
+              : `ALL ASSETS LOADED - ${allItems.length}`}
           </button>
         </div>
       )}
