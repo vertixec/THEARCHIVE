@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabaseServer';
-import { getPlanForProfile, MODEL_CREDIT_COSTS, type BusinessProfile } from '@/lib/business';
+import { MODEL_CREDIT_COSTS, type BusinessProfile } from '@/lib/business';
+import { getPlanForProfileFromDB } from '@/lib/businessServer';
 
 export async function GET() {
   const supabase = await createClient();
@@ -32,7 +33,7 @@ export async function GET() {
     profile = expandedProfile.data;
   }
 
-  const plan = getPlanForProfile(profile);
+  const plan = await getPlanForProfileFromDB(profile, supabase);
 
   const { data, error } = await supabase
     .from('user_generation_usage')

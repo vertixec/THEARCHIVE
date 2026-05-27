@@ -14,6 +14,7 @@ const PUBLIC_PATHS = [
   '/pricing',
   '/terms',
   '/privacy',
+  '/ai-policy',
   '/inactive-membership',
   '/upgrade',
 ];

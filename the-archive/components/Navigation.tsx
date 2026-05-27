@@ -286,22 +286,6 @@ export default function Navigation() {
             </Link>
           )}
 
-          <div className="hidden md:flex items-center gap-4">
-            <div
-              id="sync-indicator"
-              className={`font-mono text-[10px] border px-3 py-1 rounded-full uppercase tracking-tighter ${getStatusColor()}`}
-            >
-              VERTIX OS
-            </div>
-            {user && (
-              <button
-                onClick={handleSignOut}
-                className="font-mono text-[10px] text-gray-500 hover:text-danger border border-white/10 hover:border-danger px-3 py-1 rounded transition-all uppercase tracking-widest"
-              >
-                Sign_Out
-              </button>
-            )}
-          </div>
         </div>
       </nav>
 

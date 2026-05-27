@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import type { GenerationUsage } from '@/lib/types';
@@ -70,6 +71,15 @@ export default function GeneratePanel() {
   useEffect(() => {
     if (pathname === '/' && isOpen) closePanel();
   }, [closePanel, isOpen, pathname]);
+
+  useEffect(() => {
+    if (!user && isOpen) {
+      closePanel();
+      setPrompt('');
+      setUsage(null);
+      setError(null);
+    }
+  }, [closePanel, isOpen, setPrompt, user]);
 
   useEffect(() => {
     const nextModels = generationType === 'image' ? IMAGE_MODELS : VIDEO_MODELS;
@@ -234,7 +244,7 @@ export default function GeneratePanel() {
         aria-hidden={!isOpen}
       >
         <div className="flex h-full flex-col">
-          <header className="shrink-0 border-b border-white/10 px-5 pt-14 pb-5 grid grid-cols-[2.25rem_1fr_2.25rem] items-end gap-3">
+          <header className="shrink-0 border-b border-white/10 px-5 pt-8 pb-3 grid grid-cols-[2.25rem_1fr_2.25rem] items-end gap-3">
             <button
               type="button"
               onClick={closePanel}
@@ -266,9 +276,9 @@ export default function GeneratePanel() {
             <div aria-hidden="true" />
           </header>
 
-          <div className="flex-1 overflow-y-auto scroll-custom px-4 py-5 space-y-5">
-            <section>
-              <div className="flex items-center justify-between mb-2">
+          <div className="flex-1 min-h-0 flex flex-col px-4 py-3 gap-3">
+            <section className="shrink-0">
+              <div className="flex items-center justify-between mb-1.5">
                 <div className="font-mono text-[9px] text-white/40 uppercase tracking-widest">Reference images</div>
                 <div className="font-mono text-[9px] text-acid/60 uppercase tracking-widest">
                   {referenceImageUrls.length}/{MAX_REFERENCE_IMAGES}
@@ -316,7 +326,7 @@ export default function GeneratePanel() {
                   onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragOver(true); }}
                   onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragOver(false); }}
                   onDrop={handleReferenceDrop}
-                  className={`min-h-32 border border-dashed flex items-center justify-center px-4 text-center transition-colors ${
+                  className={`h-16 border border-dashed flex items-center justify-center px-4 text-center transition-colors ${
                     isDragOver
                       ? 'border-acid bg-acid/10'
                       : 'border-white/15 bg-black/40 hover:border-white/25'
@@ -329,14 +339,14 @@ export default function GeneratePanel() {
                       ? 'Uploading...'
                       : isDragOver
                       ? 'Release to use as reference'
-                      : `Drag up to ${MAX_REFERENCE_IMAGES} images here or click generate on any card`}
+                      : `Drag up to ${MAX_REFERENCE_IMAGES} images here`}
                   </span>
                 </div>
               )}
             </section>
 
-            <section>
-              <label htmlFor="generate-prompt" className="font-mono text-[9px] text-white/40 uppercase tracking-widest mb-2 block">
+            <section className="flex-1 min-h-0 flex flex-col">
+              <label htmlFor="generate-prompt" className="font-mono text-[9px] text-white/40 uppercase tracking-widest mb-1.5 block shrink-0">
                 Prompt
               </label>
               <textarea
@@ -350,14 +360,13 @@ export default function GeneratePanel() {
                   }
                 }}
                 onDrop={handlePromptDrop}
-                rows={12}
-                className="w-full resize-none bg-black border border-white/10 focus:border-acid outline-none p-3 font-mono text-[10px] leading-relaxed uppercase text-white placeholder:text-white/20"
+                className="flex-1 min-h-[70px] max-h-[55%] w-full resize-none bg-black border border-white/10 focus:border-acid outline-none p-3 font-mono text-[10px] leading-relaxed uppercase text-white placeholder:text-white/20 scroll-custom"
                 placeholder="Describe the image or video..."
               />
             </section>
 
-            <section className="flex justify-center">
-              <div className="flex items-center gap-2 rounded-[30px] border border-white/10 bg-black/[0.18] px-4 py-2 backdrop-blur-2xl shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+            <section className="shrink-0 flex items-center gap-2">
+              <div className="flex items-center gap-1.5 rounded-full border border-white/10 bg-black/[0.18] p-1 backdrop-blur-2xl shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] shrink-0">
                 {(['image', 'video'] as const).map((type) => (
                   <button
                     key={type}
@@ -365,20 +374,20 @@ export default function GeneratePanel() {
                     onClick={() => setGenerationType(type)}
                     title={type === 'image' ? 'Image' : 'Video'}
                     aria-label={type === 'image' ? 'Image' : 'Video'}
-                    className={`h-12 w-12 flex items-center justify-center rounded-2xl transition-all duration-200 ease-out ${
+                    className={`h-9 w-9 flex items-center justify-center rounded-full transition-all duration-200 ease-out ${
                       generationType === type
-                        ? 'bg-acid text-black shadow-[0_0_22px_rgba(200,255,0,0.35)]'
+                        ? 'bg-acid text-black shadow-[0_0_18px_rgba(200,255,0,0.35)]'
                         : 'bg-white/[0.04] text-white/70 hover:bg-acid hover:text-black'
                     }`}
                   >
                     {type === 'image' ? (
-                      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                         <rect x="4" y="5" width="16" height="14" rx="2" />
                         <circle cx="9" cy="10" r="1.5" />
                         <path d="m7 17 4-4 3 3 2-2 3 3" />
                       </svg>
                     ) : (
-                      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                         <rect x="4" y="6" width="12" height="12" rx="2" />
                         <path d="m16 10 4-2.5v9L16 14" />
                         <path d="M8 3v3" />
@@ -388,17 +397,13 @@ export default function GeneratePanel() {
                   </button>
                 ))}
               </div>
-            </section>
 
-            <section className="flex flex-col items-center">
-              <label htmlFor="generate-model" className="font-mono text-[9px] text-white/40 uppercase tracking-widest mb-2 block">
-                Model
-              </label>
               <select
                 id="generate-model"
+                aria-label="Model"
                 value={selectedModel}
                 onChange={(event) => setSelectedModel(event.target.value)}
-                className="w-full max-w-[280px] bg-black border border-white/10 focus:border-acid outline-none p-3 font-mono text-[10px] uppercase tracking-widest text-acid text-center"
+                className="flex-1 min-w-0 h-11 bg-black border border-white/10 focus:border-acid outline-none px-3 font-mono text-[10px] uppercase tracking-widest text-acid"
               >
                 {models.map((model) => (
                   <option key={model.id} value={model.id}>
@@ -409,24 +414,26 @@ export default function GeneratePanel() {
             </section>
 
             {error && (
-              <div className="rounded-2xl border border-danger/30 bg-danger/5 px-3 py-2 font-mono text-[9px] uppercase tracking-widest text-danger">
+              <div className="shrink-0 rounded-2xl border border-danger/30 bg-danger/5 px-3 py-2 font-mono text-[9px] uppercase tracking-widest text-danger">
                 {error}
               </div>
             )}
 
-            <button
-              type="button"
-              onClick={handleGenerate}
-              disabled={!canGenerate}
-              className="generate-shine relative overflow-hidden w-full rounded-lg bg-acid text-black font-oswald text-sm uppercase tracking-[0.25em] py-3 hover:bg-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-            >
-              <span className="relative z-10 flex items-center justify-center gap-2">
-                <span>{isGenerating ? 'Generating...' : 'Generate'}</span>
-                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
-                  <path d="M13 2 3 14h7l-1 8 11-13h-7l1-7z" />
-                </svg>
-              </span>
-            </button>
+            <div className="shrink-0 flex justify-center">
+              <button
+                type="button"
+                onClick={handleGenerate}
+                disabled={!canGenerate}
+                className="generate-shine relative overflow-hidden rounded-full bg-acid text-black font-oswald text-sm uppercase tracking-[0.25em] px-10 py-3 hover:bg-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                <span className="relative z-10 flex items-center justify-center gap-2">
+                  <span>{isGenerating ? 'Generating...' : 'Generate'}</span>
+                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+                    <path d="M13 2 3 14h7l-1 8 11-13h-7l1-7z" />
+                  </svg>
+                </span>
+              </button>
+            </div>
           </div>
 
           <footer className="shrink-0 border-t border-white/10 px-5 py-4 text-center">
@@ -440,6 +447,19 @@ export default function GeneratePanel() {
               <div className="mt-1 font-mono text-[8px] uppercase tracking-widest text-white/35">
                 Balance: {balance} {generationType === 'image' ? 'image' : 'video'} credits
               </div>
+            )}
+            {usage?.access_tier !== 'admin' && (
+              <Link
+                href="/pricing"
+                onClick={closePanel}
+                className="mt-3 flex items-center justify-center gap-2 border border-acid/40 bg-acid/10 px-4 py-2.5 font-mono text-[10px] uppercase tracking-[0.25em] text-acid transition-colors hover:border-acid hover:bg-acid hover:text-black"
+              >
+                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M12 19V5" />
+                  <path d="m5 12 7-7 7 7" />
+                </svg>
+                <span>Upgrade Plan</span>
+              </Link>
             )}
           </footer>
         </div>

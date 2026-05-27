@@ -3,10 +3,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabaseServer';
 import {
   canAccessFeature,
-  getPlanForProfile,
   MODEL_CREDIT_COSTS,
   type BusinessProfile,
 } from '@/lib/business';
+import { getPlanForProfileFromDB } from '@/lib/businessServer';
 
 const IMAGE_MODELS: Record<string, string> = {
   'gpt-image-2': 'fal-ai/gpt-image-2',
@@ -84,16 +84,40 @@ function enhanceReferencePrompt(prompt: string) {
   return `Edit the provided reference image. ${prompt}. Preserve the main subject, composition, and important details unless explicitly requested.`;
 }
 
+const BROWSER_FETCH_HEADERS: Record<string, string> = {
+  'User-Agent':
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+  Accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+  'Accept-Language': 'en-US,en;q=0.9',
+  'Sec-Fetch-Dest': 'image',
+  'Sec-Fetch-Mode': 'no-cors',
+  'Sec-Fetch-Site': 'cross-site',
+};
+
+async function fetchReferenceImage(url: string) {
+  const direct = await fetch(url, { headers: BROWSER_FETCH_HEADERS, redirect: 'follow' });
+  if (direct.ok) return direct;
+
+  try {
+    const parsed = new URL(url);
+    const referer = `${parsed.protocol}//${parsed.host}/`;
+    const withReferer = await fetch(url, {
+      headers: { ...BROWSER_FETCH_HEADERS, Referer: referer },
+      redirect: 'follow',
+    });
+    if (withReferer.ok) return withReferer;
+    return withReferer;
+  } catch {
+    return direct;
+  }
+}
+
 async function uploadReferenceToFal(url: string) {
   try {
-    const response = await fetch(url, {
-      headers: {
-        Accept: 'image/*,*/*;q=0.8',
-        'User-Agent': 'THE-ARCHIVE-FAL-PROXY/1.0',
-      },
-    });
+    const response = await fetchReferenceImage(url);
 
     if (!response.ok) {
+      console.warn('Reference fetch failed:', { url, status: response.status });
       throw new ReferenceImageAccessError(
         `Reference image is not accessible from the server (${response.status}). Upload the image file directly or use a public Supabase/FAL URL.`
       );
@@ -179,7 +203,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const plan = getPlanForProfile(profile);
+  const plan = await getPlanForProfileFromDB(profile, supabase);
   const generationCost = type === 'image' ? MODEL_CREDIT_COSTS.image : MODEL_CREDIT_COSTS.video;
   const { data: balance } = await supabase
     .from('user_credit_balances')
