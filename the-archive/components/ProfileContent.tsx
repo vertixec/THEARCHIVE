@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition, useRef } from 'react';
+import { useState, useTransition, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
@@ -13,7 +13,8 @@ import type {
   ActivityEvent,
   CategoryStat,
 } from '@/lib/profileMetrics';
-import { getPlanForProfile, PLAN_CONFIG } from '@/lib/business';
+import { getPlanForProfile } from '@/lib/business';
+import CreditsTopUpModal from '@/components/CreditsTopUpModal';
 
 type CreditBalance = {
   credits: number;
@@ -30,6 +31,8 @@ type CreditTransaction = {
   created_at: string;
   metadata: Record<string, unknown> | null;
 };
+
+type TabId = 'personal' | 'credits' | 'subscription' | 'activity';
 
 interface Props {
   profile: ProfileRow;
@@ -52,6 +55,9 @@ export default function ProfileContent({
   const { showToast } = useToast();
   const [, startTransition] = useTransition();
 
+  // Active tab
+  const [activeTab, setActiveTab] = useState<TabId>('personal');
+
   // Avatar
   const [avatarUrl, setAvatarUrl] = useState<string | null>(profile.avatar_url ?? null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
@@ -63,6 +69,7 @@ export default function ProfileContent({
   const [isPublic, setIsPublic] = useState(profile.is_public);
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
+  const [isEditingIdentity, setIsEditingIdentity] = useState(false);
 
   // Password modal
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -82,9 +89,8 @@ export default function ProfileContent({
   const [deleteConfirm, setDeleteConfirm] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
   const [showTopUpModal, setShowTopUpModal] = useState(false);
-  const [showAllActivity, setShowAllActivity] = useState(false);
-  const [isEditingIdentity, setIsEditingIdentity] = useState(false);
 
   const profileChanged =
     fullName !== (profile.full_name ?? '') ||
@@ -254,332 +260,85 @@ export default function ProfileContent({
   const currentPlan = getPlanForProfile(profile);
   const imageCredits = creditBalance?.credits ?? 0;
   const videoCredits = creditBalance?.video_credits ?? 0;
-  const topUpTransactions = creditTransactions.filter((transaction) => transaction.amount > 0);
-  const usageTransactions = creditTransactions.filter((transaction) => transaction.amount < 0);
-  const creditsSpent = usageTransactions.reduce((total, transaction) => total + Math.abs(transaction.amount), 0);
-  const planOptions = [PLAN_CONFIG.free, PLAN_CONFIG.community, PLAN_CONFIG.pro];
-  const visibleActivity = showAllActivity ? activity : activity.slice(0, 1);
+  const topUpTransactions = creditTransactions.filter((t) => t.amount > 0);
+  const usageTransactions = creditTransactions.filter((t) => t.amount < 0);
+  const creditsSpent = usageTransactions.reduce((sum, t) => sum + Math.abs(t.amount), 0);
+
+  const planImageMax = Math.max(currentPlan.monthlyImageLimit, imageCredits, 1);
+  const imagePct = Math.max(0, Math.min(100, Math.round((imageCredits / planImageMax) * 100)));
 
   return (
-    <div id="view-content" className="min-h-screen bg-dark pb-20">
-      <header className="px-6 md:px-12 pt-8">
-        <form
-          onSubmit={handleSaveProfile}
-          className="max-w-6xl mx-auto border border-white/10 bg-panel/70 p-5 md:p-7 flex flex-col gap-6 md:flex-row md:items-start md:justify-between"
-        >
-          <div className="flex min-w-0 items-center gap-4">
-          <div className="relative group/avatar shrink-0">
-            <Avatar name={displayName} size="md" src={avatarUrl} />
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploadingAvatar}
-              className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover/avatar:opacity-100 transition-opacity disabled:cursor-wait"
-              title="UPLOAD PHOTO"
-            >
-              {uploadingAvatar ? (
-                <span className="font-mono text-[9px] text-white uppercase tracking-widest">...</span>
-              ) : (
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-white">
-                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
-                </svg>
-              )}
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleAvatarUpload}
+    <div id="view-content" className="min-h-screen bg-dark">
+      <div className="mx-auto flex max-w-7xl flex-col gap-8 px-6 py-10 md:px-10 lg:flex-row lg:gap-10 lg:py-14">
+        <Sidebar
+          displayName={displayName}
+          avatarUrl={avatarUrl}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+        />
+
+        <main className="min-w-0 flex-1 space-y-4">
+          {activeTab === 'personal' && (
+            <PersonalTab
+              profile={profile}
+              displayName={displayName}
+              avatarUrl={avatarUrl}
+              uploadingAvatar={uploadingAvatar}
+              fileInputRef={fileInputRef}
+              onAvatarUpload={handleAvatarUpload}
+              fullName={fullName}
+              setFullName={setFullName}
+              username={username}
+              setUsername={setUsername}
+              isPublic={isPublic}
+              setIsPublic={setIsPublic}
+              isEditingIdentity={isEditingIdentity}
+              setIsEditingIdentity={setIsEditingIdentity}
+              profileChanged={profileChanged}
+              savingProfile={savingProfile}
+              profileError={profileError}
+              onSaveProfile={handleSaveProfile}
+              onChangeEmail={() => setShowEmailModal(true)}
+              onChangePassword={() => setShowPasswordModal(true)}
+              onSignOut={handleSignOut}
+              onDelete={() => setShowDeleteModal(true)}
             />
-          </div>
-          <div className="min-w-0">
-            {isEditingIdentity ? (
-              <div className="grid gap-3">
-                <input
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  placeholder={displayName}
-                  maxLength={60}
-                  className="w-full bg-transparent border-b border-white/20 focus:border-acid font-bebas text-4xl md:text-5xl text-white uppercase tracking-tight leading-none outline-none placeholder:text-white/25 transition-colors"
-                />
-                <input
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
-                  placeholder="vertix_user"
-                  maxLength={20}
-                  className="w-full max-w-xs bg-transparent border-b border-white/20 focus:border-acid font-mono text-[12px] text-acid outline-none pb-1.5 placeholder:text-white/20 transition-colors"
-                />
-              </div>
-            ) : (
-              <>
-                <div className="flex min-w-0 items-center gap-2">
-                  <h1 className="font-bebas text-4xl md:text-5xl text-white uppercase tracking-tight leading-none truncate">
-                    {displayName}
-                  </h1>
-                  <PencilButton label="Edit name" onClick={() => setIsEditingIdentity(true)} />
-                </div>
-                <div className="mt-2 flex min-w-0 items-center gap-2">
-                  <p className="truncate font-space text-[10px] uppercase tracking-[0.18em] text-white/50">
-                    {username ? <span className="text-acid">@{username}</span> : <span className="text-white/30">NO USERNAME</span>}
-                    <span className="mx-2 text-white/20">/</span>
-                    <span className={isPublic ? 'text-acid' : 'text-white/40'}>
-                      {isPublic ? 'PUBLIC' : 'PRIVATE'}
-                    </span>
-                  </p>
-                  <PencilButton label="Edit username" onClick={() => setIsEditingIdentity(true)} />
-                </div>
-              </>
-            )}
-            {profile.is_public && profile.username && (
-              <Link
-                href={`/u/${profile.username}`}
-                className="inline-block mt-3 font-mono text-[10px] text-white/40 hover:text-acid uppercase tracking-widest transition-colors"
-              >
-                ↗ VIEW PUBLIC PROFILE
-              </Link>
-            )}
-          </div>
-          </div>
-          <div className="grid gap-4 md:min-w-80">
-            <Field label="VISIBILITY">
-              <button
-                type="button"
-                onClick={() => setIsPublic(!isPublic)}
-                className="flex items-center gap-3 group"
-              >
-                <span
-                  className={`w-10 h-5 border flex items-center transition-all ${
-                    isPublic ? 'bg-acid border-acid justify-end' : 'bg-transparent border-white/30 justify-start'
-                  }`}
-                >
-                  <span className={`w-4 h-4 ${isPublic ? 'bg-black' : 'bg-white/40 ml-0.5'}`} />
-                </span>
-                <span className="font-mono text-[10px] text-white/70 uppercase tracking-widest group-hover:text-white">
-                  {isPublic ? 'PUBLIC PROFILE ON' : 'PUBLIC PROFILE OFF'}
-                </span>
-              </button>
-            </Field>
-
-            {profileError && (
-              <p className="font-mono text-[10px] text-danger uppercase tracking-widest">
-                {profileError}
-              </p>
-            )}
-
-            <button
-              type="submit"
-              disabled={!profileChanged || savingProfile}
-              className="self-start bg-acid text-black font-mono text-[10px] uppercase tracking-widest px-5 py-2 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white transition-colors"
-            >
-              {savingProfile ? 'SAVING...' : 'SAVE CHANGES'}
-            </button>
-          </div>
-        </form>
-      </header>
-
-      <section className="max-w-6xl mx-auto px-6 md:px-12 mt-10 space-y-4">
-        <div className="grid gap-4 lg:grid-cols-2">
-          <section className="border border-white/10 bg-panel/70 p-5 md:p-7">
-            <div className="mb-5 flex items-center justify-between gap-4">
-              <h2 className="font-mono text-[10px] uppercase tracking-[0.25em] text-white/50">Credits</h2>
-              {creditBalance?.updated_at && (
-                <span className="font-mono text-[9px] uppercase tracking-widest text-white/25">
-                  Updated {formatDate(creditBalance.updated_at)}
-                </span>
-              )}
-            </div>
-            <div className="font-bebas text-6xl leading-none tracking-tight text-white">
-              {imageCredits.toLocaleString()}
-            </div>
-            <p className="mt-1 font-mono text-[10px] uppercase tracking-widest text-white/40">image credits left</p>
-
-            <div className="mt-6 space-y-3">
-              <CreditMeter label="Plan images" value={imageCredits} max={Math.max(currentPlan.monthlyImageLimit, imageCredits, 1)} />
-              <CreditMeter label="Video credits" value={videoCredits} max={Math.max(currentPlan.monthlyVideoLimit, videoCredits, 1)} />
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setShowTopUpModal(true)}
-              className="mt-6 w-full bg-acid px-5 py-3 font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-black transition-colors hover:bg-white"
-            >
-              Top-up
-            </button>
-          </section>
-
-          <section className="border border-white/10 bg-panel/70 p-5 md:p-7">
-            <h2 className="mb-5 font-mono text-[10px] uppercase tracking-[0.25em] text-white/50">Top-up history</h2>
-            {topUpTransactions.length === 0 ? (
-              <p className="font-mono text-[10px] uppercase tracking-widest text-white/30">No top-ups yet</p>
-            ) : (
-              <ul className="divide-y divide-white/5">
-                {topUpTransactions.slice(0, 5).map((transaction) => (
-                  <CreditTransactionRow key={transaction.id} transaction={transaction} />
-                ))}
-              </ul>
-            )}
-          </section>
-        </div>
-
-        <section className="border border-white/10 bg-panel/70">
-          <div className="flex flex-col gap-3 border-b border-white/10 p-5 md:flex-row md:items-center md:justify-between md:p-7">
-            <h2 className="font-mono text-[10px] uppercase tracking-[0.25em] text-white/50">Usage history</h2>
-            <span className="self-start border border-white/10 px-3 py-2 font-mono text-[9px] uppercase tracking-widest text-white/40 md:self-auto">
-              Last 20 events
-            </span>
-          </div>
-          <div className="grid gap-px bg-white/10 md:grid-cols-4">
-            <ProfileDatum label="Credits spent" value={creditsSpent.toLocaleString()} />
-            <ProfileDatum label="Generations" value={usageTransactions.length.toLocaleString()} />
-            <ProfileDatum label="Likes" value={metrics.likes_count.toLocaleString()} />
-            <ProfileDatum label="Boards" value={metrics.boards_count.toLocaleString()} />
-          </div>
-          <div className="min-h-40 p-5 md:p-7">
-            {usageTransactions.length === 0 ? (
-              <p className="py-10 text-center font-mono text-[10px] uppercase tracking-widest text-white/30">
-                No usage in this period
-              </p>
-            ) : (
-              <ul className="divide-y divide-white/5">
-                {usageTransactions.slice(0, 8).map((transaction) => (
-                  <CreditTransactionRow key={transaction.id} transaction={transaction} />
-                ))}
-              </ul>
-            )}
-          </div>
-        </section>
-      </section>
-
-      <div className="max-w-6xl mx-auto px-6 md:px-12 mt-4 grid grid-cols-1 lg:grid-cols-2">
-        {/* ACTIVITY */}
-        <Block title="ACTIVITY">
-          {activity.length === 0 ? (
-            <p className="font-mono text-[10px] text-white/30 uppercase tracking-widest">
-              NO ACTIVITY YET
-            </p>
-          ) : (
-            <>
-            <ul className="flex flex-col">
-              {visibleActivity.map((event, i) => (
-                <li
-                  key={i}
-                  className="flex items-center gap-3 py-2.5 border-b border-white/5 last:border-b-0"
-                >
-                  <span
-                    className={`w-1.5 h-1.5 ${
-                      event.type === 'like' ? 'bg-acid' : 'bg-white/40'
-                    }`}
-                  />
-                  <span className="flex-1 font-mono text-[11px] text-white/70 truncate">
-                    {event.label}
-                  </span>
-                  <span className="font-mono text-[9px] text-white/30 uppercase tracking-widest shrink-0">
-                    {formatRelative(event.created_at)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-            {activity.length > 1 && (
-              <button
-                type="button"
-                onClick={() => setShowAllActivity(!showAllActivity)}
-                className="mt-4 border border-white/10 px-4 py-2 font-mono text-[10px] uppercase tracking-widest text-white/50 transition-colors hover:border-acid hover:text-acid"
-              >
-                {showAllActivity ? 'Hide activity' : `View ${activity.length - 1} more`}
-              </button>
-            )}
-            </>
-          )}
-        </Block>
-
-        {/* TOP CATEGORIES + COMPLETION */}
-        <Block title="TOP CATEGORIES">
-          {topCategories.length === 0 ? (
-            <p className="font-mono text-[10px] text-white/30 uppercase tracking-widest mb-6">
-              LIKE ITEMS TO SEE STATS
-            </p>
-          ) : (
-            <ul className="flex flex-col gap-3 mb-8">
-              {topCategories.map((c, i) => {
-                const max = topCategories[0]?.count ?? 1;
-                const pct = Math.round((c.count / max) * 100);
-                return (
-                  <li key={c.label}>
-                    <div className="flex items-baseline justify-between mb-1.5">
-                      <span className="font-bebas text-2xl text-white tracking-wider">
-                        {String(i + 1).padStart(2, '0')}. {c.label}
-                      </span>
-                      <span className="font-mono text-[10px] text-acid uppercase tracking-widest">
-                        {c.count}
-                      </span>
-                    </div>
-                    <div className="h-px bg-white/5 relative overflow-hidden">
-                      <div
-                        className="absolute inset-y-0 left-0 bg-acid"
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
           )}
 
-        </Block>
+          {activeTab === 'credits' && (
+            <CreditsTab
+              imageCredits={imageCredits}
+              videoCredits={videoCredits}
+              imagePct={imagePct}
+              planImageMax={planImageMax}
+              creditsSpent={creditsSpent}
+              updatedAt={creditBalance?.updated_at}
+              topUpTransactions={topUpTransactions}
+              usageTransactions={usageTransactions}
+              onTopUp={() => setShowTopUpModal(true)}
+            />
+          )}
 
-        {/* ACCOUNT */}
-        <Block title="ACCOUNT">
-          <div className="flex flex-col gap-4">
-            <Row label="EMAIL" value={profile.email ?? '—'}>
-              <button
-                onClick={() => setShowEmailModal(true)}
-                className="font-mono text-[10px] text-white/50 hover:text-acid uppercase tracking-widest transition-colors"
-              >
-                CHANGE
-              </button>
-            </Row>
+          {activeTab === 'subscription' && (
+            <SubscriptionTab
+              plan={currentPlan}
+              imageCredits={imageCredits}
+              videoCredits={videoCredits}
+              onTopUp={() => setShowTopUpModal(true)}
+            />
+          )}
 
-            <Row label="PASSWORD" value="••••••••">
-              <button
-                onClick={() => setShowPasswordModal(true)}
-                className="font-mono text-[10px] text-white/50 hover:text-acid uppercase tracking-widest transition-colors"
-              >
-                CHANGE
-              </button>
-            </Row>
-
-            <Row label="STATUS" value={(profile.status ?? 'unknown').toUpperCase()}>
-              <span className={`font-mono text-[10px] uppercase tracking-widest ${profile.status === 'active' ? 'text-acid' : 'text-danger'}`}>
-                {profile.role?.toUpperCase() ?? 'MEMBER'}
-              </span>
-            </Row>
-
-            <Row label="ACCESS TIER" value={currentPlan.name.toUpperCase()}>
-              <button type="button" onClick={() => setShowTopUpModal(true)} className="font-mono text-[10px] uppercase tracking-widest text-acid hover:text-white transition-colors">
-                {currentPlan.monthlyImageLimit} IMG / {currentPlan.monthlyVideoLimit} VID
-              </button>
-            </Row>
-
-            <div className="flex items-center gap-3 pt-4 mt-2 border-t border-white/5">
-              <button
-                onClick={handleSignOut}
-                className="font-mono text-[10px] text-white/50 hover:text-white border border-white/10 hover:border-white/30 px-4 py-2 uppercase tracking-widest transition-all"
-              >
-                SIGN OUT
-              </button>
-              <button
-                onClick={() => setShowDeleteModal(true)}
-                className="font-mono text-[10px] text-danger/70 hover:text-danger border border-white/10 hover:border-danger px-4 py-2 uppercase tracking-widest transition-all"
-              >
-                DELETE ACCOUNT
-              </button>
-            </div>
-          </div>
-        </Block>
+          {activeTab === 'activity' && (
+            <ActivityTab
+              activity={activity}
+              topCategories={topCategories}
+              likesCount={metrics.likes_count}
+              boardsCount={metrics.boards_count}
+            />
+          )}
+        </main>
       </div>
 
-      {/* Password modal */}
       {showPasswordModal && (
         <Modal title="CHANGE PASSWORD" onClose={() => setShowPasswordModal(false)}>
           <form onSubmit={handleChangePassword} className="flex flex-col gap-4">
@@ -614,7 +373,6 @@ export default function ProfileContent({
         </Modal>
       )}
 
-      {/* Email modal */}
       {showEmailModal && (
         <Modal title="CHANGE EMAIL" onClose={() => setShowEmailModal(false)}>
           <form onSubmit={handleChangeEmail} className="flex flex-col gap-4">
@@ -648,7 +406,6 @@ export default function ProfileContent({
         </Modal>
       )}
 
-      {/* Delete modal */}
       {showDeleteModal && (
         <Modal title="DELETE ACCOUNT" onClose={() => setShowDeleteModal(false)}>
           <div className="flex flex-col gap-4">
@@ -688,72 +445,760 @@ export default function ProfileContent({
         </Modal>
       )}
 
-      {showTopUpModal && (
-        <Modal title="TOP-UP CREDITS" onClose={() => setShowTopUpModal(false)}>
-          <div className="grid gap-3">
-            {planOptions.map((plan) => (
-              <div key={plan.id} className="border border-white/10 p-4">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-acid">{plan.label}</p>
-                    <h4 className="mt-1 font-bebas text-3xl uppercase tracking-tight text-white">{plan.name}</h4>
-                  </div>
-                  <div className="text-right font-mono text-[9px] uppercase tracking-widest text-white/45">
-                    <p>{plan.monthlyImageLimit} images</p>
-                    <p>{plan.monthlyVideoLimit} videos</p>
-                  </div>
-                </div>
-                <p className="mt-3 font-mono text-[10px] uppercase leading-relaxed tracking-widest text-white/45">
-                  {plan.description}
-                </p>
-                <Link
-                  href={plan.id === 'community' ? '/inactive-membership' : plan.id === 'free' ? '/profile' : '/pricing'}
-                  className="mt-4 block border border-white/15 px-4 py-2 text-center font-mono text-[10px] uppercase tracking-[0.2em] text-white/70 transition-colors hover:border-acid hover:text-acid"
-                >
-                  {plan.id === currentPlan.id ? 'Current plan' : plan.id === 'pro' ? 'Coming soon' : 'Select'}
-                </Link>
-              </div>
-            ))}
-          </div>
-        </Modal>
-      )}
+      <CreditsTopUpModal open={showTopUpModal} onClose={() => setShowTopUpModal(false)} />
     </div>
   );
 }
 
-function ProfileDatum({ label, value }: { label: string; value: string }) {
+// ──────────────────────────────────────────────────────────────
+// SIDEBAR
+// ──────────────────────────────────────────────────────────────
+
+function Sidebar({
+  displayName,
+  avatarUrl,
+  activeTab,
+  onTabChange,
+}: {
+  displayName: string;
+  avatarUrl: string | null;
+  activeTab: TabId;
+  onTabChange: (tab: TabId) => void;
+}) {
   return (
-    <div className="bg-dark p-4 md:p-5">
+    <aside className="w-full shrink-0 lg:w-60">
+      <div className="mb-8 flex items-center gap-3">
+        <Avatar name={displayName} size="sm" src={avatarUrl} />
+        <span className="truncate font-bebas text-2xl text-white uppercase tracking-tight leading-none">
+          {displayName}
+        </span>
+      </div>
+
+      <NavGroup label="Account settings">
+        <NavItem
+          icon={IconUser}
+          label="Personal Profile"
+          active={activeTab === 'personal'}
+          onClick={() => onTabChange('personal')}
+        />
+      </NavGroup>
+
+      <NavGroup label="Workspace">
+        <NavItem
+          icon={IconCredits}
+          label="Credits & Usage"
+          active={activeTab === 'credits'}
+          onClick={() => onTabChange('credits')}
+        />
+        <NavItem
+          icon={IconCrown}
+          label="Subscription"
+          active={activeTab === 'subscription'}
+          onClick={() => onTabChange('subscription')}
+        />
+        <NavItem
+          icon={IconActivity}
+          label="Activity"
+          active={activeTab === 'activity'}
+          onClick={() => onTabChange('activity')}
+        />
+      </NavGroup>
+    </aside>
+  );
+}
+
+function NavGroup({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="mb-6">
+      <p className="mb-2 px-3 font-mono text-[9px] uppercase tracking-[0.25em] text-white/35">
+        {label}
+      </p>
+      <div className="flex flex-col gap-0.5">{children}</div>
+    </div>
+  );
+}
+
+function NavItem({
+  icon: Icon,
+  label,
+  active,
+  onClick,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex items-center gap-3 border px-3 py-2.5 text-left font-mono text-[11px] uppercase tracking-widest transition-colors ${
+        active
+          ? 'border-acid/40 bg-acid/5 text-acid'
+          : 'border-transparent text-white/55 hover:border-white/10 hover:bg-panel/40 hover:text-white'
+      }`}
+    >
+      <Icon className="h-3.5 w-3.5 shrink-0" />
+      <span className="truncate">{label}</span>
+    </button>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────
+// PERSONAL TAB
+// ──────────────────────────────────────────────────────────────
+
+function PersonalTab({
+  profile,
+  displayName,
+  avatarUrl,
+  uploadingAvatar,
+  fileInputRef,
+  onAvatarUpload,
+  fullName,
+  setFullName,
+  username,
+  setUsername,
+  isPublic,
+  setIsPublic,
+  isEditingIdentity,
+  setIsEditingIdentity,
+  profileChanged,
+  savingProfile,
+  profileError,
+  onSaveProfile,
+  onChangeEmail,
+  onChangePassword,
+  onSignOut,
+  onDelete,
+}: {
+  profile: ProfileRow;
+  displayName: string;
+  avatarUrl: string | null;
+  uploadingAvatar: boolean;
+  fileInputRef: React.RefObject<HTMLInputElement | null>;
+  onAvatarUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  fullName: string;
+  setFullName: (v: string) => void;
+  username: string;
+  setUsername: (v: string) => void;
+  isPublic: boolean;
+  setIsPublic: (v: boolean) => void;
+  isEditingIdentity: boolean;
+  setIsEditingIdentity: (v: boolean) => void;
+  profileChanged: boolean;
+  savingProfile: boolean;
+  profileError: string | null;
+  onSaveProfile: (e: React.FormEvent) => void;
+  onChangeEmail: () => void;
+  onChangePassword: () => void;
+  onSignOut: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <form onSubmit={onSaveProfile} className="space-y-4">
+      {/* Identity card */}
+      <Card>
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex min-w-0 items-center gap-5">
+            <div className="relative group/avatar shrink-0">
+              <Avatar name={displayName} size="lg" src={avatarUrl} />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingAvatar}
+                className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover/avatar:opacity-100 transition-opacity disabled:cursor-wait"
+                title="UPLOAD PHOTO"
+              >
+                {uploadingAvatar ? (
+                  <span className="font-mono text-[9px] text-white uppercase tracking-widest">...</span>
+                ) : (
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-white">
+                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+                  </svg>
+                )}
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={onAvatarUpload}
+              />
+            </div>
+            <div className="min-w-0">
+              <h1 className="font-bebas text-4xl md:text-5xl text-white uppercase tracking-tight leading-none truncate">
+                {displayName}
+              </h1>
+              {profile.is_public && profile.username && (
+                <Link
+                  href={`/u/${profile.username}`}
+                  className="inline-block mt-3 font-mono text-[10px] text-white/40 hover:text-acid uppercase tracking-widest transition-colors"
+                >
+                  ↗ VIEW PUBLIC PROFILE
+                </Link>
+              )}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsEditingIdentity(!isEditingIdentity)}
+            className="flex items-center gap-2 border border-white/15 bg-panel/40 px-4 py-2 font-mono text-[10px] uppercase tracking-widest text-white/70 hover:border-acid hover:text-acid transition-colors"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+            </svg>
+            {isEditingIdentity ? 'Cancel' : 'Edit profile'}
+          </button>
+        </div>
+      </Card>
+
+      {/* Username + Email */}
+      <Card>
+        <FieldRow label="USERNAME">
+          {isEditingIdentity ? (
+            <input
+              value={username}
+              onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+              placeholder="vertix_user"
+              maxLength={20}
+              className="w-full bg-transparent border-b border-white/20 focus:border-acid font-mono text-[13px] text-white outline-none pb-1.5 placeholder:text-white/20 transition-colors"
+            />
+          ) : (
+            <p className="font-mono text-[13px] text-white">
+              {username || <span className="text-white/30">— not set —</span>}
+            </p>
+          )}
+        </FieldRow>
+
+        <div className="h-px bg-white/5 my-5" />
+
+        <FieldRow label="FULL NAME">
+          {isEditingIdentity ? (
+            <input
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              placeholder={displayName}
+              maxLength={60}
+              className="w-full bg-transparent border-b border-white/20 focus:border-acid font-mono text-[13px] text-white outline-none pb-1.5 placeholder:text-white/20 transition-colors"
+            />
+          ) : (
+            <p className="font-mono text-[13px] text-white">
+              {fullName || <span className="text-white/30">— not set —</span>}
+            </p>
+          )}
+        </FieldRow>
+
+        <div className="h-px bg-white/5 my-5" />
+
+        <FieldRow label="EMAIL">
+          <div className="flex items-center justify-between gap-4">
+            <p className="font-mono text-[13px] text-white truncate">{profile.email ?? '—'}</p>
+            <button
+              type="button"
+              onClick={onChangeEmail}
+              className="font-mono text-[10px] text-white/50 hover:text-acid uppercase tracking-widest transition-colors"
+            >
+              CHANGE
+            </button>
+          </div>
+        </FieldRow>
+
+        <div className="h-px bg-white/5 my-5" />
+
+        <FieldRow label="PASSWORD">
+          <div className="flex items-center justify-between gap-4">
+            <p className="font-mono text-[13px] text-white">••••••••</p>
+            <button
+              type="button"
+              onClick={onChangePassword}
+              className="font-mono text-[10px] text-white/50 hover:text-acid uppercase tracking-widest transition-colors"
+            >
+              CHANGE
+            </button>
+          </div>
+        </FieldRow>
+
+        <div className="h-px bg-white/5 my-5" />
+
+        <FieldRow label="VISIBILITY">
+          <button
+            type="button"
+            onClick={() => setIsPublic(!isPublic)}
+            className="flex items-center gap-3 group"
+          >
+            <span
+              className={`w-10 h-5 border flex items-center transition-all ${
+                isPublic ? 'bg-acid border-acid justify-end' : 'bg-transparent border-white/30 justify-start'
+              }`}
+            >
+              <span className={`w-4 h-4 ${isPublic ? 'bg-black' : 'bg-white/40 ml-0.5'}`} />
+            </span>
+            <span className="font-mono text-[10px] text-white/70 uppercase tracking-widest group-hover:text-white">
+              {isPublic ? 'PUBLIC PROFILE ON' : 'PUBLIC PROFILE OFF'}
+            </span>
+          </button>
+        </FieldRow>
+
+        {isEditingIdentity && (
+          <div className="mt-6 flex items-center gap-3 border-t border-white/5 pt-5">
+            <button
+              type="submit"
+              disabled={!profileChanged || savingProfile}
+              className="bg-acid text-black font-mono text-[10px] uppercase tracking-widest px-5 py-2 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white transition-colors"
+            >
+              {savingProfile ? 'SAVING...' : 'SAVE CHANGES'}
+            </button>
+            {profileError && (
+              <p className="font-mono text-[10px] text-danger uppercase tracking-widest">
+                {profileError}
+              </p>
+            )}
+          </div>
+        )}
+      </Card>
+
+      {/* Danger zone */}
+      <Card>
+        <h2 className="font-mono text-[10px] uppercase tracking-[0.25em] text-white/50 mb-5">
+          Account actions
+        </h2>
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={onSignOut}
+            className="font-mono text-[10px] text-white/60 hover:text-white border border-white/10 hover:border-white/30 px-4 py-2 uppercase tracking-widest transition-all"
+          >
+            SIGN OUT
+          </button>
+          <button
+            type="button"
+            onClick={onDelete}
+            className="font-mono text-[10px] text-danger/70 hover:text-danger border border-white/10 hover:border-danger px-4 py-2 uppercase tracking-widest transition-all"
+          >
+            DELETE ACCOUNT
+          </button>
+        </div>
+      </Card>
+    </form>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────
+// CREDITS TAB
+// ──────────────────────────────────────────────────────────────
+
+function CreditsTab({
+  imageCredits,
+  videoCredits,
+  imagePct,
+  planImageMax,
+  creditsSpent,
+  updatedAt,
+  topUpTransactions,
+  usageTransactions,
+  onTopUp,
+}: {
+  imageCredits: number;
+  videoCredits: number;
+  imagePct: number;
+  planImageMax: number;
+  creditsSpent: number;
+  updatedAt: string | undefined;
+  topUpTransactions: CreditTransaction[];
+  usageTransactions: CreditTransaction[];
+  onTopUp: () => void;
+}) {
+  return (
+    <div className="space-y-4">
+      {/* Credits + Usage chart */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <div className="mb-5 flex items-center justify-between gap-4">
+            <h2 className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.25em] text-white/55">
+              <IconCredits className="h-3 w-3" />
+              Credits
+            </h2>
+            {updatedAt && (
+              <span className="font-mono text-[9px] uppercase tracking-widest text-white/25">
+                Updated {formatDate(updatedAt)}
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center justify-between gap-6">
+            <div>
+              <div className="font-bebas text-6xl leading-none tracking-tight text-white">
+                {imagePct}%
+              </div>
+              <p className="mt-2 font-mono text-[11px] uppercase tracking-widest text-white/50">
+                {imageCredits.toLocaleString()} left
+              </p>
+            </div>
+            <CircularProgress pct={imagePct} size={92} />
+          </div>
+
+          <div className="mt-6 flex items-center justify-between gap-3 border-t border-white/5 pt-5">
+            <div className="font-mono text-[10px] uppercase tracking-widest text-white/45">
+              {videoCredits.toLocaleString()} video credits
+            </div>
+            <button
+              type="button"
+              onClick={onTopUp}
+              className="bg-white text-black font-mono text-[10px] font-bold uppercase tracking-[0.2em] px-5 py-2.5 hover:bg-acid transition-colors"
+            >
+              Top-up
+            </button>
+          </div>
+        </Card>
+
+        <Card>
+          <div className="mb-5 flex items-center justify-between gap-4">
+            <h2 className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.25em] text-white/55">
+              <IconActivity className="h-3 w-3" />
+              Usage history
+            </h2>
+            <span className="font-mono text-[9px] uppercase tracking-widest text-white/40">
+              {creditsSpent.toLocaleString()} spent
+            </span>
+          </div>
+          <UsageChart transactions={usageTransactions} />
+        </Card>
+      </div>
+
+      {/* Top-up history + recent usage */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <h2 className="mb-5 font-mono text-[10px] uppercase tracking-[0.25em] text-white/55">
+            Top-up history
+          </h2>
+          {topUpTransactions.length === 0 ? (
+            <p className="font-mono text-[10px] uppercase tracking-widest text-white/30">
+              No top-ups yet
+            </p>
+          ) : (
+            <ul className="divide-y divide-white/5">
+              {topUpTransactions.slice(0, 6).map((t) => (
+                <CreditTransactionRow key={t.id} transaction={t} />
+              ))}
+            </ul>
+          )}
+        </Card>
+
+        <Card>
+          <h2 className="mb-5 font-mono text-[10px] uppercase tracking-[0.25em] text-white/55">
+            Recent usage
+          </h2>
+          {usageTransactions.length === 0 ? (
+            <p className="font-mono text-[10px] uppercase tracking-widest text-white/30">
+              No usage in this period
+            </p>
+          ) : (
+            <ul className="divide-y divide-white/5">
+              {usageTransactions.slice(0, 6).map((t) => (
+                <CreditTransactionRow key={t.id} transaction={t} />
+              ))}
+            </ul>
+          )}
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────
+// SUBSCRIPTION TAB
+// ──────────────────────────────────────────────────────────────
+
+function SubscriptionTab({
+  plan,
+  imageCredits,
+  videoCredits,
+  onTopUp,
+}: {
+  plan: ReturnType<typeof getPlanForProfile>;
+  imageCredits: number;
+  videoCredits: number;
+  onTopUp: () => void;
+}) {
+  const imageMax = Math.max(plan.monthlyImageLimit, imageCredits, 1);
+  const videoMax = Math.max(plan.monthlyVideoLimit, videoCredits, 1);
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-white/45">
+              Current plan
+            </p>
+            <h2 className="mt-2 font-bebas text-5xl text-white uppercase tracking-tight leading-none">
+              {plan.name}
+            </h2>
+          </div>
+          <span className="border border-acid/40 bg-acid/5 px-3 py-1 font-mono text-[10px] uppercase tracking-widest text-acid">
+            Active
+          </span>
+        </div>
+
+        <div className="mt-8 grid gap-5">
+          <CreditMeter label="Plan images" value={imageCredits} max={imageMax} />
+          <CreditMeter label="Video credits" value={videoCredits} max={videoMax} />
+        </div>
+
+        <div className="mt-8 flex flex-wrap gap-3 border-t border-white/5 pt-6">
+          <button
+            type="button"
+            onClick={onTopUp}
+            className="bg-acid text-black font-mono text-[10px] font-bold uppercase tracking-[0.2em] px-5 py-2.5 hover:bg-white transition-colors"
+          >
+            Top-up credits
+          </button>
+          <Link
+            href="/pricing"
+            className="border border-white/15 bg-panel/40 px-5 py-2.5 font-mono text-[10px] uppercase tracking-widest text-white/70 hover:border-acid hover:text-acid transition-colors"
+          >
+            Compare plans
+          </Link>
+        </div>
+      </Card>
+
+      <Card>
+        <h2 className="mb-5 font-mono text-[10px] uppercase tracking-[0.25em] text-white/55">
+          Plan limits
+        </h2>
+        <div className="grid grid-cols-2 gap-px bg-white/10">
+          <PlanDatum label="Images / month" value={plan.monthlyImageLimit.toLocaleString()} />
+          <PlanDatum label="Videos / month" value={plan.monthlyVideoLimit.toLocaleString()} />
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function PlanDatum({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="bg-dark p-5">
       <span className="block font-mono text-[9px] uppercase tracking-[0.25em] text-white/35">
         {label}
       </span>
-      <span className="mt-1 block truncate font-mono text-[12px] text-white/80">
+      <span className="mt-2 block font-bebas text-3xl text-white tracking-tight leading-none">
         {value}
       </span>
     </div>
   );
 }
 
-function PencilButton({ label, onClick }: { label: string; onClick: () => void }) {
+// ──────────────────────────────────────────────────────────────
+// ACTIVITY TAB
+// ──────────────────────────────────────────────────────────────
+
+function ActivityTab({
+  activity,
+  topCategories,
+  likesCount,
+  boardsCount,
+}: {
+  activity: ActivityEvent[];
+  topCategories: CategoryStat[];
+  likesCount: number;
+  boardsCount: number;
+}) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="shrink-0 text-white/35 transition-colors hover:text-acid"
-      title={label}
-      aria-label={label}
-    >
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M12 20h9" />
-        <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-      </svg>
-    </button>
+    <div className="space-y-4">
+      <Card>
+        <h2 className="mb-5 font-mono text-[10px] uppercase tracking-[0.25em] text-white/55">
+          Overview
+        </h2>
+        <div className="grid grid-cols-2 gap-px bg-white/10">
+          <PlanDatum label="Likes" value={likesCount.toLocaleString()} />
+          <PlanDatum label="Boards" value={boardsCount.toLocaleString()} />
+        </div>
+      </Card>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <h2 className="mb-5 font-mono text-[10px] uppercase tracking-[0.25em] text-white/55">
+            Recent activity
+          </h2>
+          {activity.length === 0 ? (
+            <p className="font-mono text-[10px] uppercase tracking-widest text-white/30">
+              No activity yet
+            </p>
+          ) : (
+            <ul className="flex flex-col">
+              {activity.map((event, i) => (
+                <li
+                  key={i}
+                  className="flex items-center gap-3 py-2.5 border-b border-white/5 last:border-b-0"
+                >
+                  <span
+                    className={`w-1.5 h-1.5 ${
+                      event.type === 'like' ? 'bg-acid' : 'bg-white/40'
+                    }`}
+                  />
+                  <span className="flex-1 font-mono text-[11px] text-white/70 truncate">
+                    {event.label}
+                  </span>
+                  <span className="font-mono text-[9px] text-white/30 uppercase tracking-widest shrink-0">
+                    {formatRelative(event.created_at)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+
+        <Card>
+          <h2 className="mb-5 font-mono text-[10px] uppercase tracking-[0.25em] text-white/55">
+            Top categories
+          </h2>
+          {topCategories.length === 0 ? (
+            <p className="font-mono text-[10px] uppercase tracking-widest text-white/30">
+              Like items to see stats
+            </p>
+          ) : (
+            <ul className="flex flex-col gap-3">
+              {topCategories.map((c, i) => {
+                const max = topCategories[0]?.count ?? 1;
+                const pct = Math.round((c.count / max) * 100);
+                return (
+                  <li key={c.label}>
+                    <div className="flex items-baseline justify-between mb-1.5">
+                      <span className="font-bebas text-2xl text-white tracking-wider">
+                        {String(i + 1).padStart(2, '0')}. {c.label}
+                      </span>
+                      <span className="font-mono text-[10px] text-acid uppercase tracking-widest">
+                        {c.count}
+                      </span>
+                    </div>
+                    <div className="h-px bg-white/5 relative overflow-hidden">
+                      <div
+                        className="absolute inset-y-0 left-0 bg-acid"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────
+// SHARED UI PRIMITIVES
+// ──────────────────────────────────────────────────────────────
+
+function Card({ children }: { children: React.ReactNode }) {
+  return (
+    <section className="border border-white/10 bg-panel/70 p-5 md:p-7">
+      {children}
+    </section>
+  );
+}
+
+function FieldRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <p className="mb-2 font-mono text-[9px] uppercase tracking-[0.25em] text-white/40">
+        {label}
+      </p>
+      {children}
+    </div>
+  );
+}
+
+function CircularProgress({ pct, size = 80 }: { pct: number; size?: number }) {
+  const stroke = 6;
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const offset = c - (pct / 100) * c;
+
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90">
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={r}
+        fill="none"
+        stroke="rgba(255,255,255,0.08)"
+        strokeWidth={stroke}
+      />
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={r}
+        fill="none"
+        stroke="var(--color-acid)"
+        strokeWidth={stroke}
+        strokeDasharray={c}
+        strokeDashoffset={offset}
+        strokeLinecap="round"
+        style={{ transition: 'stroke-dashoffset 0.6s ease' }}
+      />
+    </svg>
+  );
+}
+
+function UsageChart({ transactions }: { transactions: CreditTransaction[] }) {
+  const bars = useMemo(() => {
+    const days = 30;
+    const now = Date.now();
+    const buckets = new Array(days).fill(0);
+    for (const t of transactions) {
+      const ts = new Date(t.created_at).getTime();
+      const diffDays = Math.floor((now - ts) / (1000 * 60 * 60 * 24));
+      if (diffDays >= 0 && diffDays < days) {
+        buckets[days - 1 - diffDays] += Math.abs(t.amount);
+      }
+    }
+    return buckets;
+  }, [transactions]);
+
+  const max = Math.max(...bars, 1);
+  const hasData = bars.some((b) => b > 0);
+
+  if (!hasData) {
+    return (
+      <div className="flex h-32 items-center justify-center">
+        <p className="font-mono text-[10px] uppercase tracking-widest text-white/30">
+          No usage in last 30 days
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="flex h-32 items-end gap-1">
+        {bars.map((value, i) => {
+          const h = Math.max(2, Math.round((value / max) * 100));
+          return (
+            <div
+              key={i}
+              className="flex-1 bg-acid/70 hover:bg-acid transition-colors"
+              style={{ height: `${h}%` }}
+              title={`${value} credits`}
+            />
+          );
+        })}
+      </div>
+      <div className="mt-3 flex justify-between font-mono text-[9px] uppercase tracking-widest text-white/30">
+        <span>30 days ago</span>
+        <span>Today</span>
+      </div>
+    </div>
   );
 }
 
 function CreditMeter({ label, value, max }: { label: string; value: number; max: number }) {
   const pct = Math.max(0, Math.min(100, Math.round((value / max) * 100)));
-
   return (
     <div>
       <div className="mb-2 flex items-center justify-between gap-4 font-mono text-[10px] uppercase tracking-widest text-white/45">
@@ -785,67 +1230,6 @@ function CreditTransactionRow({ transaction }: { transaction: CreditTransaction 
         {transaction.amount}
       </div>
     </li>
-  );
-}
-
-function formatReason(reason: string) {
-  return reason.replace(/_/g, ' ');
-}
-
-function formatDate(value: string) {
-  return new Date(value)
-    .toLocaleString('en-US', {
-      month: 'short',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
-    .toUpperCase();
-}
-
-function Block({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="bg-dark p-6 md:p-8">
-      <h2 className="font-mono text-[10px] text-white/40 uppercase tracking-[0.3em] mb-6">
-        {title}
-      </h2>
-      {children}
-    </section>
-  );
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="block">
-      <span className="font-mono text-[9px] text-white/40 uppercase tracking-[0.25em] mb-2 block">
-        {label}
-      </span>
-      {children}
-    </label>
-  );
-}
-
-function Row({
-  label,
-  value,
-  children,
-}: {
-  label: string;
-  value: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-4">
-      <div className="min-w-0 flex-1">
-        <span className="font-mono text-[9px] text-white/40 uppercase tracking-[0.25em] block">
-          {label}
-        </span>
-        <span className="font-mono text-[12px] text-white/80 truncate block mt-0.5">
-          {value}
-        </span>
-      </div>
-      {children}
-    </div>
   );
 }
 
@@ -884,4 +1268,62 @@ function Modal({
       </div>
     </div>
   );
+}
+
+// ──────────────────────────────────────────────────────────────
+// ICONS
+// ──────────────────────────────────────────────────────────────
+
+function IconUser({ className = '' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+      <circle cx="12" cy="7" r="4" />
+    </svg>
+  );
+}
+
+function IconCredits({ className = '' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v10" />
+      <path d="M9 10c0-1.5 1.5-2 3-2s3 .5 3 2-1.5 2-3 2-3 .5-3 2 1.5 2 3 2 3-.5 3-2" />
+    </svg>
+  );
+}
+
+function IconCrown({ className = '' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M3 7l4 5 5-7 5 7 4-5v12H3z" />
+    </svg>
+  );
+}
+
+function IconActivity({ className = '' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+    </svg>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────
+// FORMATTERS
+// ──────────────────────────────────────────────────────────────
+
+function formatReason(reason: string) {
+  return reason.replace(/_/g, ' ');
+}
+
+function formatDate(value: string) {
+  return new Date(value)
+    .toLocaleString('en-US', {
+      month: 'short',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+    .toUpperCase();
 }

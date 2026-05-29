@@ -7,6 +7,10 @@ import {
   type BusinessProfile,
 } from '@/lib/business';
 import { getPlanForProfileFromDB } from '@/lib/businessServer';
+import {
+  ReferenceImageAccessError,
+  prepareReferenceUrls,
+} from '@/lib/falReference';
 
 const IMAGE_MODELS: Record<string, string> = {
   'gpt-image-2': 'fal-ai/gpt-image-2',
@@ -37,13 +41,6 @@ type CreditSpendResult = {
   credits: number;
   video_credits: number;
 };
-
-class ReferenceImageAccessError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'ReferenceImageAccessError';
-  }
-}
 
 function getErrorMessage(error: unknown) {
   if (error instanceof Error) return error.message;
@@ -82,66 +79,6 @@ function getFalUserMessage(body: unknown, type: 'image' | 'video', hasReference:
 function enhanceReferencePrompt(prompt: string) {
   if (prompt.length >= 80) return prompt;
   return `Edit the provided reference image. ${prompt}. Preserve the main subject, composition, and important details unless explicitly requested.`;
-}
-
-const BROWSER_FETCH_HEADERS: Record<string, string> = {
-  'User-Agent':
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-  Accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
-  'Accept-Language': 'en-US,en;q=0.9',
-  'Sec-Fetch-Dest': 'image',
-  'Sec-Fetch-Mode': 'no-cors',
-  'Sec-Fetch-Site': 'cross-site',
-};
-
-async function fetchReferenceImage(url: string) {
-  const direct = await fetch(url, { headers: BROWSER_FETCH_HEADERS, redirect: 'follow' });
-  if (direct.ok) return direct;
-
-  try {
-    const parsed = new URL(url);
-    const referer = `${parsed.protocol}//${parsed.host}/`;
-    const withReferer = await fetch(url, {
-      headers: { ...BROWSER_FETCH_HEADERS, Referer: referer },
-      redirect: 'follow',
-    });
-    if (withReferer.ok) return withReferer;
-    return withReferer;
-  } catch {
-    return direct;
-  }
-}
-
-async function uploadReferenceToFal(url: string) {
-  try {
-    const response = await fetchReferenceImage(url);
-
-    if (!response.ok) {
-      console.warn('Reference fetch failed:', { url, status: response.status });
-      throw new ReferenceImageAccessError(
-        `Reference image is not accessible from the server (${response.status}). Upload the image file directly or use a public Supabase/FAL URL.`
-      );
-    }
-
-    const contentType = response.headers.get('content-type') || 'image/png';
-    if (!contentType.startsWith('image/')) {
-      throw new ReferenceImageAccessError('Reference URL did not return an image file.');
-    }
-
-    const blob = new Blob([await response.arrayBuffer()], { type: contentType });
-    return await fal.storage.upload(blob);
-  } catch (error) {
-    if (error instanceof ReferenceImageAccessError) throw error;
-    console.warn('Reference re-host failed, using original URL:', {
-      url,
-      message: getErrorMessage(error),
-    });
-    return url;
-  }
-}
-
-async function prepareReferenceUrls(urls: string[]) {
-  return Promise.all(urls.map((url) => uploadReferenceToFal(url)));
 }
 
 export async function POST(req: NextRequest) {
@@ -313,6 +250,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Credit spend failed' }, { status: 500 });
   }
 
+  const refundOnFailure = async (reason: string) => {
+    if (!spendResult?.ok) return;
+    await supabase.rpc('refund_generation_credits', {
+      p_generation_type: type,
+      p_amount: generationCost,
+      p_reason: reason,
+    });
+  };
+
   const nextUsage = {
     user_id: user.id,
     year_month: yearMonth,
@@ -325,7 +271,8 @@ export async function POST(req: NextRequest) {
     .upsert(nextUsage, { onConflict: 'user_id,year_month' });
 
   if (upsertError) {
-    return NextResponse.json({ error: 'Usage update failed' }, { status: 500 });
+    await refundOnFailure('usage_upsert_failed');
+    return NextResponse.json({ error: 'Usage update failed', refunded: true }, { status: 500 });
   }
 
   const { data: generation, error: insertError } = await supabase
@@ -342,7 +289,8 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (insertError) {
-    return NextResponse.json({ error: 'Generation history save failed' }, { status: 500 });
+    await refundOnFailure('generation_insert_failed');
+    return NextResponse.json({ error: 'Generation history save failed', refunded: true }, { status: 500 });
   }
 
   return NextResponse.json({ url: resultUrl, generation, credits: spendResult });

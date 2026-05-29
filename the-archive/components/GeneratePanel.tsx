@@ -3,11 +3,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { supabase } from '@/lib/supabaseClient';
 import type { GenerationUsage } from '@/lib/types';
 import { useAuth } from './AuthContext';
 import { useGenerate, MAX_REFERENCE_IMAGES } from './GenerateContext';
 import { useToast } from './Toast';
+import CreditsTopUpModal from './CreditsTopUpModal';
 
 const IMAGE_MODELS = [
   { id: 'gpt-image-2', label: 'GPT Image 2', description: 'High fidelity, text-aware' },
@@ -42,6 +42,7 @@ export default function GeneratePanel() {
   const [error, setError] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [isUploadingRef, setIsUploadingRef] = useState(false);
+  const [showTopUpModal, setShowTopUpModal] = useState(false);
 
   const models = useMemo(() => (generationType === 'image' ? IMAGE_MODELS : VIDEO_MODELS), [generationType]);
   const used = generationType === 'image' ? usage?.image_count ?? 0 : usage?.video_count ?? 0;
@@ -157,6 +158,21 @@ export default function GeneratePanel() {
 
   const isAtReferenceLimit = referenceImageUrls.length >= MAX_REFERENCE_IMAGES;
 
+  const ingestReference = useCallback(async (body: FormData | { url: string }) => {
+    const init: RequestInit = body instanceof FormData
+      ? { method: 'POST', body }
+      : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
+
+    const response = await fetch('/api/generate/upload-reference', init);
+    const payload = await response.json().catch(() => ({}));
+
+    if (!response.ok || typeof payload?.url !== 'string') {
+      throw new Error(typeof payload?.error === 'string' ? payload.error : 'Reference upload failed');
+    }
+
+    return payload.url as string;
+  }, []);
+
   const uploadReferenceFile = useCallback(async (file: File) => {
     if (!user) {
       showToast('LOGIN REQUIRED');
@@ -173,23 +189,56 @@ export default function GeneratePanel() {
 
     setIsUploadingRef(true);
     try {
-      const ext = file.name.split('.').pop() ?? 'jpg';
-      const path = `${user.id}/generate-refs/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-      const { error: uploadError } = await supabase.storage
-        .from('moodboard-uploads')
-        .upload(path, file, { cacheControl: '3600' });
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage.from('moodboard-uploads').getPublicUrl(path);
-      const added = addReferenceImageUrl(publicUrl);
+      const form = new FormData();
+      form.append('file', file);
+      const hostedUrl = await ingestReference(form);
+      const added = addReferenceImageUrl(hostedUrl);
       showToast(added ? 'REFERENCE READY' : `MAX ${MAX_REFERENCE_IMAGES} REFERENCES`);
-    } catch {
-      showToast('UPLOAD FAILED');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'UPLOAD FAILED';
+      showToast(message.length > 32 ? 'UPLOAD FAILED' : message.toUpperCase());
     } finally {
       setIsUploadingRef(false);
     }
-  }, [addReferenceImageUrl, showToast, user]);
+  }, [addReferenceImageUrl, ingestReference, showToast, user]);
+
+  const fetchUrlAsBlobInBrowser = useCallback(async (url: string): Promise<Blob | null> => {
+    try {
+      const response = await fetch(url, { mode: 'cors', credentials: 'omit' });
+      if (!response.ok) return null;
+      const blob = await response.blob();
+      return blob.size > 0 ? blob : null;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const ingestReferenceFromUrl = useCallback(async (url: string) => {
+    if (!user) {
+      showToast('LOGIN REQUIRED');
+      return;
+    }
+    setIsUploadingRef(true);
+    try {
+      const blob = await fetchUrlAsBlobInBrowser(url);
+      let hostedUrl: string;
+      if (blob) {
+        const ext = (blob.type.split('/')[1] || 'png').split(';')[0];
+        const form = new FormData();
+        form.append('file', new File([blob], `reference.${ext}`, { type: blob.type || 'image/png' }));
+        hostedUrl = await ingestReference(form);
+      } else {
+        hostedUrl = await ingestReference({ url });
+      }
+      const added = addReferenceImageUrl(hostedUrl);
+      showToast(added ? 'REFERENCE READY' : `MAX ${MAX_REFERENCE_IMAGES} REFERENCES`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'REFERENCE FETCH FAILED';
+      showToast(message.length > 32 ? 'REFERENCE FETCH FAILED' : message.toUpperCase());
+    } finally {
+      setIsUploadingRef(false);
+    }
+  }, [addReferenceImageUrl, fetchUrlAsBlobInBrowser, ingestReference, showToast, user]);
 
   const handleReferenceDrop = useCallback(async (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -201,7 +250,18 @@ export default function GeneratePanel() {
       return;
     }
 
-    const file = event.dataTransfer.files?.[0];
+    let file: File | null = event.dataTransfer.files?.[0] ?? null;
+    if (!file && event.dataTransfer.items) {
+      for (const item of Array.from(event.dataTransfer.items)) {
+        if (item.kind === 'file') {
+          const maybeFile = item.getAsFile();
+          if (maybeFile && maybeFile.type.startsWith('image/')) {
+            file = maybeFile;
+            break;
+          }
+        }
+      }
+    }
     if (file) {
       await uploadReferenceFile(file);
       return;
@@ -217,12 +277,11 @@ export default function GeneratePanel() {
     }
 
     if (url && /^https?:\/\//i.test(url)) {
-      const added = addReferenceImageUrl(url);
-      showToast(added ? 'REFERENCE READY' : `MAX ${MAX_REFERENCE_IMAGES} REFERENCES`);
+      await ingestReferenceFromUrl(url);
     } else {
       showToast('DROP AN IMAGE');
     }
-  }, [addReferenceImageUrl, isAtReferenceLimit, showToast, uploadReferenceFile]);
+  }, [ingestReferenceFromUrl, isAtReferenceLimit, showToast, uploadReferenceFile]);
 
   const handlePromptDrop = useCallback((event: React.DragEvent<HTMLTextAreaElement>) => {
     const draggedPrompt = event.dataTransfer.getData('application/x-vertix-prompt');
@@ -449,21 +508,36 @@ export default function GeneratePanel() {
               </div>
             )}
             {usage?.access_tier !== 'admin' && (
-              <Link
-                href="/pricing"
-                onClick={closePanel}
-                className="mt-3 flex items-center justify-center gap-2 border border-acid/40 bg-acid/10 px-4 py-2.5 font-mono text-[10px] uppercase tracking-[0.25em] text-acid transition-colors hover:border-acid hover:bg-acid hover:text-black"
-              >
-                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M12 19V5" />
-                  <path d="m5 12 7-7 7 7" />
-                </svg>
-                <span>Upgrade Plan</span>
-              </Link>
+              typeof balance === 'number' && balance < cost ? (
+                <button
+                  type="button"
+                  onClick={() => setShowTopUpModal(true)}
+                  className="mt-3 flex w-full items-center justify-center gap-2 border border-acid bg-acid px-4 py-2.5 font-mono text-[10px] uppercase tracking-[0.25em] text-black transition-colors hover:bg-white"
+                >
+                  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M12 5v14" />
+                    <path d="M5 12h14" />
+                  </svg>
+                  <span>Buy Credits</span>
+                </button>
+              ) : (
+                <Link
+                  href="/pricing"
+                  onClick={closePanel}
+                  className="mt-3 flex items-center justify-center gap-2 border border-acid/40 bg-acid/10 px-4 py-2.5 font-mono text-[10px] uppercase tracking-[0.25em] text-acid transition-colors hover:border-acid hover:bg-acid hover:text-black"
+                >
+                  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M12 19V5" />
+                    <path d="m5 12 7-7 7 7" />
+                  </svg>
+                  <span>Upgrade Plan</span>
+                </Link>
+              )
             )}
           </footer>
         </div>
       </aside>
+      <CreditsTopUpModal open={showTopUpModal} onClose={() => setShowTopUpModal(false)} />
     </>
   );
 }

@@ -64,6 +64,59 @@ export interface GenerationUsage {
   video_cost?: number;
 }
 
+export interface CreditPack {
+  id: string;
+  name: string;
+  description: string | null;
+  price_usd: string;
+  image_credits: number;
+  video_credits: number;
+  lemonsqueezy_variant_id: string | null;
+  is_active: boolean;
+  sort_order: number;
+}
+
+export type PaymentIntentStatus = 'pending' | 'confirmed' | 'failed' | 'refunded';
+
+export interface PaymentIntent {
+  id: string;
+  user_id: string;
+  pack_id: string;
+  amount_usd: string;
+  image_credits: number;
+  video_credits: number;
+  provider: string;
+  provider_reference: string | null;
+  checkout_url: string | null;
+  status: PaymentIntentStatus;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  confirmed_at: string | null;
+}
+
+export type CreditTransactionReason =
+  | 'signup_bonus'
+  | 'monthly_grant'
+  | 'purchase'
+  | 'generation_spend'
+  | 'refund'
+  | 'admin_adjustment'
+  | 'migration';
+
+export interface CreditTransaction {
+  id: string;
+  user_id: string;
+  amount: number;
+  balance_after: number | null;
+  credit_type: string;
+  reason: CreditTransactionReason | string;
+  related_generation_id: string | null;
+  payment_provider: string | null;
+  payment_reference: string | null;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+}
+
 // Union type used in Card and Grid where any item type can arrive
 export type AnyItem = (Visual | SystemPrompt | CommunityVisual | Workflow | Generation) & {
   _itemType?: ItemType;
