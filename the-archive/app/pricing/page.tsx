@@ -27,14 +27,14 @@ export default async function PricingPage() {
   return (
     <main className="min-h-screen bg-dark text-white px-6 py-16 md:px-12">
       <section className="mx-auto max-w-6xl">
-        <div className="mb-12 max-w-3xl">
+        <div className="mb-12 mx-auto max-w-3xl text-center">
           <div className="mb-4 inline-block bg-acid px-3 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.3em] text-black">
             Public Beta Plan
           </div>
           <h1 className="font-anton text-6xl uppercase leading-none tracking-tight md:text-8xl">
             Choose Your Archive Access
           </h1>
-          <p className="mt-5 max-w-2xl font-mono text-xs uppercase leading-relaxed tracking-[0.18em] text-white/45">
+          <p className="mt-5 mx-auto max-w-2xl font-mono text-xs uppercase leading-relaxed tracking-[0.18em] text-white/45">
             THE ARCHIVE is becoming a public creative operating system. Start free, keep the
             private community as the premium layer, and add credits when you need more output.
           </p>
