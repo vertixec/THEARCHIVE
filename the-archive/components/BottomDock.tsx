@@ -37,13 +37,14 @@ function VideoIcon() {
   );
 }
 
-function CreationsIcon() {
+function ToolsIcon() {
   return (
     <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M4 7h16" />
-      <path d="M4 12h16" />
-      <path d="M4 17h16" />
-      <path d="M7 4v16" />
+      <path d="M12 3l1.6 5.1a3 3 0 0 0 1.9 1.9L20.6 12l-5.1 1.6a3 3 0 0 0-1.9 1.9L12 20.6l-1.6-5.1a3 3 0 0 0-1.9-1.9L3.4 12l5.1-1.6a3 3 0 0 0 1.9-1.9z" />
+      <path d="M19 4.5v2.4" />
+      <path d="M20.2 5.7h-2.4" />
+      <path d="M5 17.5v1.8" />
+      <path d="M5.9 18.4H4.1" />
     </svg>
   );
 }
@@ -144,7 +145,7 @@ export default function BottomDock() {
   const pathname = usePathname();
   const [hoveredAction, setHoveredAction] = useState<string | null>(null);
   const { user } = useAuth();
-  const { closePanel, openPanel, setGenerationType, generationType, isOpen, hasNewCreation, clearNewCreation } = useGenerate();
+  const { closePanel, openPanel, setGenerationType, generationType, isOpen, panelMode, setPanelMode } = useGenerate();
 
   const hiddenRoutes = pathname === '/' || pathname === '/login' || pathname === '/inactive-membership' || pathname.startsWith('/auth');
 
@@ -152,18 +153,24 @@ export default function BottomDock() {
     if (pathname === '/') closePanel();
   }, [closePanel, pathname]);
 
-  useEffect(() => {
-    if (pathname.startsWith('/creations')) clearNewCreation();
-  }, [clearNewCreation, pathname]);
-
   if (!user || hiddenRoutes) return null;
 
   const openGenerator = (type: 'image' | 'video') => {
-    if (isOpen && generationType === type) {
+    if (isOpen && panelMode === 'generate' && generationType === type) {
       closePanel();
       return;
     }
+    setPanelMode('generate');
     setGenerationType(type);
+    openPanel();
+  };
+
+  const openTools = () => {
+    if (isOpen && panelMode === 'tools') {
+      closePanel();
+      return;
+    }
+    setPanelMode('tools');
     openPanel();
   };
 
@@ -178,22 +185,15 @@ export default function BottomDock() {
         <DockLink href="/" title="Home" active={pathname === '/'} hovered={hoveredAction === 'Home'} onHover={setHoveredAction}>
           <HomeIcon />
         </DockLink>
-        <DockButton title="Generate Image" active={isOpen && generationType === 'image'} hovered={hoveredAction === 'Generate Image'} onHover={setHoveredAction} onClick={() => openGenerator('image')}>
+        <DockButton title="Generate Image" active={isOpen && panelMode === 'generate' && generationType === 'image'} hovered={hoveredAction === 'Generate Image'} onHover={setHoveredAction} onClick={() => openGenerator('image')}>
           <ImageIcon />
         </DockButton>
-        <DockButton title="Generate Video" active={isOpen && generationType === 'video'} hovered={hoveredAction === 'Generate Video'} onHover={setHoveredAction} onClick={() => openGenerator('video')}>
+        <DockButton title="Generate Video" active={isOpen && panelMode === 'generate' && generationType === 'video'} hovered={hoveredAction === 'Generate Video'} onHover={setHoveredAction} onClick={() => openGenerator('video')}>
           <VideoIcon />
         </DockButton>
-        <DockLink
-          href="/creations"
-          title="Creations"
-          active={pathname.startsWith('/creations')}
-          hovered={hoveredAction === 'Creations'}
-          hasNotification={hasNewCreation}
-          onHover={setHoveredAction}
-        >
-          <CreationsIcon />
-        </DockLink>
+        <DockButton title="Tools" active={isOpen && panelMode === 'tools'} hovered={hoveredAction === 'Tools'} onHover={setHoveredAction} onClick={openTools}>
+          <ToolsIcon />
+        </DockButton>
       </div>
     </nav>
   );

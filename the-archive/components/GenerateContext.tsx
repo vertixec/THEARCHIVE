@@ -3,6 +3,7 @@
 import { createContext, ReactNode, useCallback, useContext, useState } from 'react';
 
 type GenerationType = 'image' | 'video';
+type PanelMode = 'generate' | 'tools';
 
 export const MAX_REFERENCE_IMAGES = 3;
 
@@ -12,6 +13,8 @@ interface GenerateState {
   referenceImageUrls: string[];
   generationType: GenerationType;
   hasNewCreation: boolean;
+  panelMode: PanelMode;
+  activeToolId: string | null;
 }
 
 interface GenerateContextType extends GenerateState {
@@ -25,6 +28,9 @@ interface GenerateContextType extends GenerateState {
   markNewCreation: () => void;
   clearNewCreation: () => void;
   togglePanel: () => void;
+  setPanelMode: (mode: PanelMode) => void;
+  openTool: (toolId: string) => void;
+  closeTool: () => void;
 }
 
 const GenerateContext = createContext<GenerateContextType | null>(null);
@@ -41,6 +47,8 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
   const [referenceImageUrls, setReferenceImageUrls] = useState<string[]>([]);
   const [generationType, setGenerationType] = useState<GenerationType>('image');
   const [hasNewCreation, setHasNewCreation] = useState(false);
+  const [panelMode, setPanelMode] = useState<PanelMode>('generate');
+  const [activeToolId, setActiveToolId] = useState<string | null>(null);
 
   const openPanel = useCallback((newPrompt = '', references: string | string[] | null = null) => {
     if (newPrompt) setPrompt(newPrompt);
@@ -49,6 +57,12 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const closePanel = useCallback(() => setIsOpen(false), []);
+  const openTool = useCallback((toolId: string) => {
+    setPanelMode('tools');
+    setActiveToolId(toolId);
+    setIsOpen(true);
+  }, []);
+  const closeTool = useCallback(() => setActiveToolId(null), []);
   const togglePanel = useCallback(() => setIsOpen((current) => !current), []);
   const markNewCreation = useCallback(() => setHasNewCreation(true), []);
   const clearNewCreation = useCallback(() => setHasNewCreation(false), []);
@@ -77,6 +91,8 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
         referenceImageUrls,
         generationType,
         hasNewCreation,
+        panelMode,
+        activeToolId,
         openPanel,
         closePanel,
         togglePanel,
@@ -87,6 +103,9 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
         setGenerationType,
         markNewCreation,
         clearNewCreation,
+        setPanelMode,
+        openTool,
+        closeTool,
       }}
     >
       {children}

@@ -6,11 +6,35 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
 import { useAuth } from "@/components/AuthContext";
+import { useGenerate } from "@/components/GenerateContext";
+
+function CreationsGridIcon({ size = 20, className = "" }: { size?: number; className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.9"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <rect x="3" y="3" width="7" height="7" rx="1.4" />
+      <rect x="14" y="3" width="7" height="7" rx="1.4" />
+      <rect x="3" y="14" width="7" height="7" rx="1.4" />
+      <rect x="14" y="14" width="7" height="7" rx="1.4" />
+    </svg>
+  );
+}
 
 export default function Navigation() {
   const pathname = usePathname();
   const router = useRouter();
   const { user } = useAuth();
+  const { hasNewCreation, clearNewCreation } = useGenerate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [supabaseStatus, setSupabaseStatus] = useState<"ONLINE" | "ERROR" | "SYNCING">("SYNCING");
 
@@ -28,6 +52,10 @@ export default function Navigation() {
     const interval = setInterval(checkHealth, 30000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (pathname.startsWith("/creations")) clearNewCreation();
+  }, [clearNewCreation, pathname]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -122,8 +150,18 @@ export default function Navigation() {
                   </Link>
                 ))}
 
-                {/* Icon row: Favorites + Profile */}
+                {/* Icon row: Creations + Favorites + Profile */}
                 <div className="flex items-center justify-center gap-8 md:gap-12 h-16 md:h-24">
+                  {user && (
+                    <Link
+                      href="/creations"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="group flex flex-col items-center gap-2"
+                      title="CREATIONS"
+                    >
+                      <CreationsGridIcon size={32} className="text-white/20 group-hover:text-acid transition-all duration-300" />
+                    </Link>
+                  )}
                   <Link
                     href="/favorites"
                     onClick={() => setIsMenuOpen(false)}
@@ -239,8 +277,24 @@ export default function Navigation() {
           </button>
         )}
 
-        {/* Right Side: Favorites and Status */}
+        {/* Right Side: Creations, Favorites and Status */}
         <div className="flex items-center gap-3 md:gap-10 ml-auto items-center">
+          {!isAuthPage && user && (
+            <Link
+              href="/creations"
+              className={`relative transition-all duration-300 hover:text-acid py-1 border-b-2 flex items-center justify-center ${isTabActive("/creations") ? "text-acid border-acid" : "text-white/60 border-transparent"}`}
+              title="CREATIONS"
+            >
+              <CreationsGridIcon size={20} />
+              {hasNewCreation && !isTabActive("/creations") && (
+                <span className="absolute -right-1 -top-0.5 flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-acid opacity-70" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-acid shadow-[0_0_10px_rgba(200,255,0,0.8)]" />
+                </span>
+              )}
+            </Link>
+          )}
+
           {!isAuthPage && (
             <Link
               href="/favorites"
@@ -329,8 +383,18 @@ export default function Navigation() {
                 </Link>
               ))}
 
-              {/* Icon row: Favorites + Profile */}
+              {/* Icon row: Creations + Favorites + Profile */}
               <div className="flex items-center justify-center gap-10 mt-4">
+                {user && (
+                  <Link
+                    href="/creations"
+                    onClick={() => setIsMenuOpen(false)}
+                    className="group flex flex-col items-center gap-2"
+                    title="CREATIONS"
+                  >
+                    <CreationsGridIcon size={28} className="text-white/30 group-hover:text-acid transition-all duration-300" />
+                  </Link>
+                )}
                 <Link
                   href="/favorites"
                   onClick={() => setIsMenuOpen(false)}

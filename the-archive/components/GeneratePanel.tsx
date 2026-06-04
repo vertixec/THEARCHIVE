@@ -5,9 +5,12 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { GenerationUsage } from '@/lib/types';
 import { useAuth } from './AuthContext';
-import { useGenerate, MAX_REFERENCE_IMAGES } from './GenerateContext';
+import { useGenerate } from './GenerateContext';
 import { useToast } from './Toast';
 import CreditsTopUpModal from './CreditsTopUpModal';
+import ReferenceImages from './generate/ReferenceImages';
+import ToolsGallery from './generate/ToolsGallery';
+import ToolRunner from './generate/ToolRunner';
 
 const IMAGE_MODELS = [
   { id: 'gpt-image-2', label: 'GPT Image 2', description: 'High fidelity, text-aware' },
@@ -26,12 +29,13 @@ export default function GeneratePanel() {
     prompt,
     referenceImageUrls,
     generationType,
+    panelMode,
+    activeToolId,
     closePanel,
     setPrompt,
-    addReferenceImageUrl,
-    removeReferenceImageUrl,
     setGenerationType,
     markNewCreation,
+    setPanelMode,
   } = useGenerate();
   const pathname = usePathname();
   const { user } = useAuth();
@@ -40,16 +44,17 @@ export default function GeneratePanel() {
   const [usage, setUsage] = useState<GenerationUsage | null>(null);
   const [selectedModel, setSelectedModel] = useState(IMAGE_MODELS[0].id);
   const [error, setError] = useState<string | null>(null);
-  const [isDragOver, setIsDragOver] = useState(false);
-  const [isUploadingRef, setIsUploadingRef] = useState(false);
   const [showTopUpModal, setShowTopUpModal] = useState(false);
 
+  const isTools = panelMode === 'tools';
+  // Tools (currently image-based) always show the image credit footer.
+  const footerType: 'image' | 'video' = isTools ? 'image' : generationType;
   const models = useMemo(() => (generationType === 'image' ? IMAGE_MODELS : VIDEO_MODELS), [generationType]);
-  const used = generationType === 'image' ? usage?.image_count ?? 0 : usage?.video_count ?? 0;
-  const limit = generationType === 'image' ? usage?.image_limit ?? 10 : usage?.video_limit ?? 2;
-  const cost = generationType === 'image' ? usage?.image_cost ?? 1 : usage?.video_cost ?? 5;
+  const used = footerType === 'image' ? usage?.image_count ?? 0 : usage?.video_count ?? 0;
+  const limit = footerType === 'image' ? usage?.image_limit ?? 10 : usage?.video_limit ?? 2;
+  const cost = footerType === 'image' ? usage?.image_cost ?? 1 : usage?.video_cost ?? 5;
   const planName = usage?.plan_name ?? 'Community';
-  const balance = generationType === 'image' ? usage?.credit_balance : usage?.video_credit_balance;
+  const balance = footerType === 'image' ? usage?.credit_balance : usage?.video_credit_balance;
   const remaining = Math.max(limit - used, 0);
   const canGenerate = prompt.trim().length > 0 && remaining > 0 && !isGenerating;
 
@@ -156,132 +161,17 @@ export default function GeneratePanel() {
     }
   };
 
-  const isAtReferenceLimit = referenceImageUrls.length >= MAX_REFERENCE_IMAGES;
-
-  const ingestReference = useCallback(async (body: FormData | { url: string }) => {
-    const init: RequestInit = body instanceof FormData
-      ? { method: 'POST', body }
-      : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
-
-    const response = await fetch('/api/generate/upload-reference', init);
-    const payload = await response.json().catch(() => ({}));
-
-    if (!response.ok || typeof payload?.url !== 'string') {
-      throw new Error(typeof payload?.error === 'string' ? payload.error : 'Reference upload failed');
-    }
-
-    return payload.url as string;
+  // Keep the credit footer in sync after a Tools run spends image credits.
+  const applyToolSpend = useCallback((creditsLeft: number | null, spentCount: number) => {
+    setUsage((current) => {
+      if (!current) return current;
+      return {
+        ...current,
+        image_count: current.image_count + spentCount,
+        credit_balance: creditsLeft ?? current.credit_balance,
+      };
+    });
   }, []);
-
-  const uploadReferenceFile = useCallback(async (file: File) => {
-    if (!user) {
-      showToast('LOGIN REQUIRED');
-      return;
-    }
-    if (!file.type.startsWith('image/')) {
-      showToast('IMAGE FILES ONLY');
-      return;
-    }
-    if (file.size > 15 * 1024 * 1024) {
-      showToast('MAX 15MB');
-      return;
-    }
-
-    setIsUploadingRef(true);
-    try {
-      const form = new FormData();
-      form.append('file', file);
-      const hostedUrl = await ingestReference(form);
-      const added = addReferenceImageUrl(hostedUrl);
-      showToast(added ? 'REFERENCE READY' : `MAX ${MAX_REFERENCE_IMAGES} REFERENCES`);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'UPLOAD FAILED';
-      showToast(message.length > 32 ? 'UPLOAD FAILED' : message.toUpperCase());
-    } finally {
-      setIsUploadingRef(false);
-    }
-  }, [addReferenceImageUrl, ingestReference, showToast, user]);
-
-  const fetchUrlAsBlobInBrowser = useCallback(async (url: string): Promise<Blob | null> => {
-    try {
-      const response = await fetch(url, { mode: 'cors', credentials: 'omit' });
-      if (!response.ok) return null;
-      const blob = await response.blob();
-      return blob.size > 0 ? blob : null;
-    } catch {
-      return null;
-    }
-  }, []);
-
-  const ingestReferenceFromUrl = useCallback(async (url: string) => {
-    if (!user) {
-      showToast('LOGIN REQUIRED');
-      return;
-    }
-    setIsUploadingRef(true);
-    try {
-      const blob = await fetchUrlAsBlobInBrowser(url);
-      let hostedUrl: string;
-      if (blob) {
-        const ext = (blob.type.split('/')[1] || 'png').split(';')[0];
-        const form = new FormData();
-        form.append('file', new File([blob], `reference.${ext}`, { type: blob.type || 'image/png' }));
-        hostedUrl = await ingestReference(form);
-      } else {
-        hostedUrl = await ingestReference({ url });
-      }
-      const added = addReferenceImageUrl(hostedUrl);
-      showToast(added ? 'REFERENCE READY' : `MAX ${MAX_REFERENCE_IMAGES} REFERENCES`);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'REFERENCE FETCH FAILED';
-      showToast(message.length > 32 ? 'REFERENCE FETCH FAILED' : message.toUpperCase());
-    } finally {
-      setIsUploadingRef(false);
-    }
-  }, [addReferenceImageUrl, fetchUrlAsBlobInBrowser, ingestReference, showToast, user]);
-
-  const handleReferenceDrop = useCallback(async (event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-    setIsDragOver(false);
-
-    if (isAtReferenceLimit) {
-      showToast(`MAX ${MAX_REFERENCE_IMAGES} REFERENCES`);
-      return;
-    }
-
-    let file: File | null = event.dataTransfer.files?.[0] ?? null;
-    if (!file && event.dataTransfer.items) {
-      for (const item of Array.from(event.dataTransfer.items)) {
-        if (item.kind === 'file') {
-          const maybeFile = item.getAsFile();
-          if (maybeFile && maybeFile.type.startsWith('image/')) {
-            file = maybeFile;
-            break;
-          }
-        }
-      }
-    }
-    if (file) {
-      await uploadReferenceFile(file);
-      return;
-    }
-
-    const uriList = event.dataTransfer.getData('text/uri-list');
-    const plain = event.dataTransfer.getData('text/plain');
-    const html = event.dataTransfer.getData('text/html');
-    let url = (uriList || plain || '').split('\n').find((line) => line.trim() && !line.startsWith('#'))?.trim();
-    if (!url && html) {
-      const match = html.match(/<img[^>]+src=["']([^"']+)["']/i);
-      if (match) url = match[1];
-    }
-
-    if (url && /^https?:\/\//i.test(url)) {
-      await ingestReferenceFromUrl(url);
-    } else {
-      showToast('DROP AN IMAGE');
-    }
-  }, [ingestReferenceFromUrl, isAtReferenceLimit, showToast, uploadReferenceFile]);
 
   const handlePromptDrop = useCallback((event: React.DragEvent<HTMLTextAreaElement>) => {
     const draggedPrompt = event.dataTransfer.getData('application/x-vertix-prompt');
@@ -311,200 +201,146 @@ export default function GeneratePanel() {
               title="Collapse panel"
               aria-label="Collapse panel"
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="3" y="3" width="18" height="18" rx="2" />
                 <path d="M9 3v18" />
               </svg>
             </button>
             <div className="text-center">
               <h2 className="font-anton text-4xl md:text-5xl uppercase tracking-tight text-white leading-none">GENERATE</h2>
-              <p className="font-mono text-[9px] uppercase tracking-widest text-acid/70 mt-1">
-                {planName} ENGINE
-              </p>
+              <p className="font-mono text-[9px] uppercase tracking-widest text-acid/70 mt-1">{planName} ENGINE</p>
             </div>
             <div aria-hidden="true" />
           </header>
 
-          <div className="flex-1 min-h-0 flex flex-col px-4 py-3 gap-3">
-            <section className="shrink-0">
-              <div className="flex items-center justify-between mb-1.5">
-                <div className="font-mono text-[9px] text-white/40 uppercase tracking-widest">Reference images</div>
-                <div className="font-mono text-[9px] text-acid/60 uppercase tracking-widest">
-                  {referenceImageUrls.length}/{MAX_REFERENCE_IMAGES}
-                </div>
-              </div>
-
-              {referenceImageUrls.length > 0 ? (
-                <div className="grid grid-cols-3 gap-2">
-                  {referenceImageUrls.map((url, index) => (
-                    <div key={`${url}-${index}`} className="relative aspect-square border border-white/10 bg-black overflow-hidden">
-                      <img src={url} alt={`Reference ${index + 1}`} className="h-full w-full object-cover pointer-events-none" />
-                      <button
-                        type="button"
-                        onClick={() => removeReferenceImageUrl(index)}
-                        className="absolute right-1 top-1 h-5 w-5 bg-black/80 border border-white/20 font-mono text-[10px] leading-none uppercase text-white/60 hover:text-acid hover:border-acid/60 transition-colors flex items-center justify-center"
-                        title="Remove"
-                        aria-label="Remove reference"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
-
-                  {!isAtReferenceLimit && (
-                    <div
-                      onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragOver(true); }}
-                      onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragOver(true); }}
-                      onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragOver(false); }}
-                      onDrop={handleReferenceDrop}
-                      className={`relative aspect-square border border-dashed flex items-center justify-center text-center transition-colors ${
-                        isDragOver ? 'border-acid bg-acid/10' : 'border-white/15 bg-black/40 hover:border-white/25'
-                      }`}
-                    >
-                      <span className={`font-mono text-[8px] uppercase tracking-widest leading-tight px-1 ${
-                        isDragOver ? 'text-acid' : 'text-white/30'
-                      }`}>
-                        {isUploadingRef ? 'Uploading...' : isDragOver ? 'Drop here' : '+ Add'}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div
-                  onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragOver(true); }}
-                  onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragOver(true); }}
-                  onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragOver(false); }}
-                  onDrop={handleReferenceDrop}
-                  className={`h-16 border border-dashed flex items-center justify-center px-4 text-center transition-colors ${
-                    isDragOver
-                      ? 'border-acid bg-acid/10'
-                      : 'border-white/15 bg-black/40 hover:border-white/25'
+          {/* Mode toggle: freeform Generate vs Tools */}
+          <div className="shrink-0 px-4 pt-3">
+            <div className="grid grid-cols-2 gap-1 rounded-full border border-white/10 bg-black/[0.18] p-1">
+              {(['generate', 'tools'] as const).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => setPanelMode(mode)}
+                  className={`h-8 rounded-full font-mono text-[10px] uppercase tracking-[0.2em] transition-all duration-200 ${
+                    panelMode === mode ? 'bg-acid text-black' : 'text-white/60 hover:text-white'
                   }`}
                 >
-                  <span className={`font-mono text-[9px] uppercase tracking-widest leading-relaxed ${
-                    isDragOver ? 'text-acid' : 'text-white/30'
-                  }`}>
-                    {isUploadingRef
-                      ? 'Uploading...'
-                      : isDragOver
-                      ? 'Release to use as reference'
-                      : `Drag up to ${MAX_REFERENCE_IMAGES} images here`}
-                  </span>
-                </div>
-              )}
-            </section>
-
-            <section className="flex-1 min-h-0 flex flex-col">
-              <label htmlFor="generate-prompt" className="font-mono text-[9px] text-white/40 uppercase tracking-widest mb-1.5 block shrink-0">
-                Prompt
-              </label>
-              <textarea
-                id="generate-prompt"
-                value={prompt}
-                onChange={(event) => setPrompt(event.target.value)}
-                onDragOver={(event) => {
-                  if (event.dataTransfer.types.includes('application/x-vertix-prompt')) {
-                    event.preventDefault();
-                    event.dataTransfer.dropEffect = 'copy';
-                  }
-                }}
-                onDrop={handlePromptDrop}
-                className="flex-1 min-h-[70px] max-h-[55%] w-full resize-none bg-black border border-white/10 focus:border-acid outline-none p-3 font-mono text-[10px] leading-relaxed uppercase text-white placeholder:text-white/20 scroll-custom"
-                placeholder="Describe the image or video..."
-              />
-            </section>
-
-            <section className="shrink-0 flex items-center gap-2">
-              <div className="flex items-center gap-1.5 rounded-full border border-white/10 bg-black/[0.18] p-1 backdrop-blur-2xl shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] shrink-0">
-                {(['image', 'video'] as const).map((type) => (
-                  <button
-                    key={type}
-                    type="button"
-                    onClick={() => setGenerationType(type)}
-                    title={type === 'image' ? 'Image' : 'Video'}
-                    aria-label={type === 'image' ? 'Image' : 'Video'}
-                    className={`h-9 w-9 flex items-center justify-center rounded-full transition-all duration-200 ease-out ${
-                      generationType === type
-                        ? 'bg-acid text-black shadow-[0_0_18px_rgba(200,255,0,0.35)]'
-                        : 'bg-white/[0.04] text-white/70 hover:bg-acid hover:text-black'
-                    }`}
-                  >
-                    {type === 'image' ? (
-                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="4" y="5" width="16" height="14" rx="2" />
-                        <circle cx="9" cy="10" r="1.5" />
-                        <path d="m7 17 4-4 3 3 2-2 3 3" />
-                      </svg>
-                    ) : (
-                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="4" y="6" width="12" height="12" rx="2" />
-                        <path d="m16 10 4-2.5v9L16 14" />
-                        <path d="M8 3v3" />
-                        <path d="M12 3v3" />
-                      </svg>
-                    )}
-                  </button>
-                ))}
-              </div>
-
-              <select
-                id="generate-model"
-                aria-label="Model"
-                value={selectedModel}
-                onChange={(event) => setSelectedModel(event.target.value)}
-                className="flex-1 min-w-0 h-11 bg-black border border-white/10 focus:border-acid outline-none px-3 font-mono text-[10px] uppercase tracking-widest text-acid"
-              >
-                {models.map((model) => (
-                  <option key={model.id} value={model.id}>
-                    {model.label} - {model.description}
-                  </option>
-                ))}
-              </select>
-            </section>
-
-            {error && (
-              <div className="shrink-0 rounded-2xl border border-danger/30 bg-danger/5 px-3 py-2 font-mono text-[9px] uppercase tracking-widest text-danger">
-                {error}
-              </div>
-            )}
-
-            <div className="shrink-0 flex justify-center">
-              <button
-                type="button"
-                onClick={handleGenerate}
-                disabled={!canGenerate}
-                className="generate-shine relative overflow-hidden rounded-full bg-acid text-black font-oswald text-sm uppercase tracking-[0.25em] px-10 py-3 hover:bg-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-              >
-                <span className="relative z-10 flex items-center justify-center gap-2">
-                  <span>{isGenerating ? 'Generating...' : 'Generate'}</span>
-                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
-                    <path d="M13 2 3 14h7l-1 8 11-13h-7l1-7z" />
-                  </svg>
-                </span>
-              </button>
+                  {mode === 'generate' ? 'Generate' : 'Tools'}
+                </button>
+              ))}
             </div>
           </div>
 
+          {isTools ? (
+            <div className="flex-1 min-h-0 flex flex-col px-4 py-3">
+              {activeToolId ? <ToolRunner toolId={activeToolId} onSpend={applyToolSpend} /> : <ToolsGallery />}
+            </div>
+          ) : (
+            <div className="flex-1 min-h-0 flex flex-col px-4 py-3 gap-3">
+              <ReferenceImages label="Reference images" />
+
+                <section className="flex-1 min-h-0 flex flex-col">
+                  <label htmlFor="generate-prompt" className="font-mono text-[9px] text-white/40 uppercase tracking-widest mb-1.5 block shrink-0">
+                    Prompt
+                  </label>
+                  <textarea
+                    id="generate-prompt"
+                    value={prompt}
+                    onChange={(event) => setPrompt(event.target.value)}
+                    onDragOver={(event) => {
+                      if (event.dataTransfer.types.includes('application/x-vertix-prompt')) {
+                        event.preventDefault();
+                        event.dataTransfer.dropEffect = 'copy';
+                      }
+                    }}
+                    onDrop={handlePromptDrop}
+                    className="flex-1 min-h-[70px] max-h-[55%] w-full resize-none bg-black border border-white/10 focus:border-acid outline-none p-3 font-mono text-[10px] leading-relaxed uppercase text-white placeholder:text-white/20 scroll-custom"
+                    placeholder="Describe the image or video..."
+                  />
+                </section>
+
+                <section className="shrink-0 flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 rounded-full border border-white/10 bg-black/[0.18] p-1 backdrop-blur-2xl shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] shrink-0">
+                    {(['image', 'video'] as const).map((type) => (
+                      <button
+                        key={type}
+                        type="button"
+                        onClick={() => setGenerationType(type)}
+                        title={type === 'image' ? 'Image' : 'Video'}
+                        aria-label={type === 'image' ? 'Image' : 'Video'}
+                        className={`h-9 w-9 flex items-center justify-center rounded-full transition-all duration-200 ease-out ${
+                          generationType === type
+                            ? 'bg-acid text-black shadow-[0_0_18px_rgba(200,255,0,0.35)]'
+                            : 'bg-white/[0.04] text-white/70 hover:bg-acid hover:text-black'
+                        }`}
+                      >
+                        {type === 'image' ? (
+                          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="4" y="5" width="16" height="14" rx="2" />
+                            <circle cx="9" cy="10" r="1.5" />
+                            <path d="m7 17 4-4 3 3 2-2 3 3" />
+                          </svg>
+                        ) : (
+                          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="4" y="6" width="12" height="12" rx="2" />
+                            <path d="m16 10 4-2.5v9L16 14" />
+                            <path d="M8 3v3" />
+                            <path d="M12 3v3" />
+                          </svg>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+
+                  <select
+                    id="generate-model"
+                    aria-label="Model"
+                    value={selectedModel}
+                    onChange={(event) => setSelectedModel(event.target.value)}
+                    className="flex-1 min-w-0 h-11 bg-black border border-white/10 focus:border-acid outline-none px-3 font-mono text-[10px] uppercase tracking-widest text-acid"
+                  >
+                    {models.map((model) => (
+                      <option key={model.id} value={model.id}>
+                        {model.label} - {model.description}
+                      </option>
+                    ))}
+                  </select>
+                </section>
+
+                {error && (
+                  <div className="shrink-0 rounded-2xl border border-danger/30 bg-danger/5 px-3 py-2 font-mono text-[9px] uppercase tracking-widest text-danger">
+                    {error}
+                  </div>
+                )}
+
+                <div className="shrink-0 flex justify-center">
+                  <button
+                    type="button"
+                    onClick={handleGenerate}
+                    disabled={!canGenerate}
+                    className="generate-shine relative overflow-hidden rounded-full bg-acid text-black font-oswald text-sm uppercase tracking-[0.25em] px-10 py-3 hover:bg-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                  >
+                    <span className="relative z-10 flex items-center justify-center gap-2">
+                      <span>{isGenerating ? 'Generating...' : 'Generate'}</span>
+                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+                        <path d="M13 2 3 14h7l-1 8 11-13h-7l1-7z" />
+                      </svg>
+                    </span>
+                  </button>
+                </div>
+            </div>
+          )}
+
           <footer className="shrink-0 border-t border-white/10 px-5 py-4 text-center">
             <div className="font-mono text-[9px] uppercase tracking-widest text-acid">
-              {remaining}/{limit} {generationType === 'image' ? 'images' : 'videos'} remaining this month
+              {remaining}/{limit} {footerType === 'image' ? 'images' : 'videos'} remaining this month
             </div>
             <div className="mt-1 font-mono text-[8px] uppercase tracking-widest text-white/35">
-              Cost: {cost} {cost === 1 ? 'credit' : 'credits'} per {generationType}
+              Cost: {cost} {cost === 1 ? 'credit' : 'credits'} per {footerType}
             </div>
             {typeof balance === 'number' && (
               <div className="mt-1 font-mono text-[8px] uppercase tracking-widest text-white/35">
-                Balance: {balance} {generationType === 'image' ? 'image' : 'video'} credits
+                Balance: {balance} {footerType === 'image' ? 'image' : 'video'} credits
               </div>
             )}
             {usage?.access_tier !== 'admin' && (
