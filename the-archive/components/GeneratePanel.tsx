@@ -207,7 +207,7 @@ export default function GeneratePanel() {
               </svg>
             </button>
             <div className="text-center">
-              <h2 className="font-anton text-4xl md:text-5xl uppercase tracking-tight text-white leading-none">GENERATE</h2>
+              <h2 className="font-anton text-4xl md:text-5xl uppercase tracking-tight text-white leading-none">STUDIO</h2>
               <p className="font-mono text-[9px] uppercase tracking-widest text-acid/70 mt-1">{planName} ENGINE</p>
             </div>
             <div aria-hidden="true" />
