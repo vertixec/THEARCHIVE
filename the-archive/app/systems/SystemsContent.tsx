@@ -3,11 +3,12 @@
 import { useCallback, useState, useEffect, useRef } from 'react';
 import Filters from '@/components/Filters';
 import Grid from '@/components/Grid';
+import InfiniteVisualView from '@/components/InfiniteVisualView';
 import { useSync } from '@/components/SyncContext';
 import { useToast } from '@/components/Toast';
 import { supabase } from '@/lib/supabaseClient';
 import type { SystemPrompt } from '@/lib/types';
-import type { SortMode } from '@/components/Filters';
+import type { SortMode, ViewMode } from '@/components/Filters';
 
 const PAGE_SIZE = 60;
 type FetchResult = {
@@ -25,6 +26,7 @@ export default function SystemsContent({ initialItems, hasMore: initialHasMore }
   const [currentFilter, setCurrentFilter] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortMode, setSortMode] = useState<SortMode>('newest');
+  const [viewMode, setViewMode] = useState<ViewMode>('catalog');
 
   const types = [...new Set(allItems.map(item => {
     const val = item.prompt_type || 'GENERAL';
@@ -96,6 +98,11 @@ export default function SystemsContent({ initialItems, hasMore: initialHasMore }
     }
   }, [allItems.length, fetchItems, hasMore, showToast, sortMode]);
 
+  useEffect(() => {
+    if (viewMode !== 'infinite' || !hasMore || isLoadingRef.current) return;
+    loadMore();
+  }, [hasMore, loadMore, viewMode]);
+
   return (
     <div id="view-content">
       <header className="pt-8 md:pt-12 pb-6 px-4 md:px-6 bg-panel/30 text-center">
@@ -115,18 +122,30 @@ export default function SystemsContent({ initialItems, hasMore: initialHasMore }
         onSearchChange={setSearchQuery}
         sortMode={sortMode}
         onSortChange={applySortMode}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
         types={types}
       />
 
-      <Grid
-        items={allItems}
-        activeTab="systems"
-        filter={currentFilter}
-        searchQuery={searchQuery}
-        sortMode={sortMode}
-      />
+      {viewMode === 'catalog' ? (
+        <Grid
+          items={allItems}
+          activeTab="systems"
+          filter={currentFilter}
+          searchQuery={searchQuery}
+          sortMode={sortMode}
+        />
+      ) : (
+        <InfiniteVisualView
+          items={allItems}
+          activeTab="systems"
+          filter={currentFilter}
+          searchQuery={searchQuery}
+          sortMode={sortMode}
+        />
+      )}
 
-      {hasMore && (
+      {viewMode === 'catalog' && hasMore && (
         <div className="flex justify-center pt-10 pb-36 md:pb-40">
           <button
             onClick={loadMore}

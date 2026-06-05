@@ -4,15 +4,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Card from './Card';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from './AuthContext';
-import type { Visual } from '@/lib/types';
+import type { AnyItem, ItemType } from '@/lib/types';
 import type { SortMode } from './Filters';
 
-type VisualWithLikeCount = Visual & {
-  _likeCount?: number;
-};
-
 interface InfiniteVisualViewProps {
-  items: VisualWithLikeCount[];
+  items: AnyItem[];
+  activeTab?: 'main' | 'systems';
   filter: string;
   searchQuery: string;
   sortMode?: SortMode;
@@ -41,6 +38,7 @@ function seededOffset(index: number, range: number) {
 
 export default function InfiniteVisualView({
   items,
+  activeTab = 'main',
   filter,
   searchQuery,
   sortMode = 'newest',
@@ -51,6 +49,7 @@ export default function InfiniteVisualView({
   onSelectItem,
 }: InfiniteVisualViewProps) {
   const { user } = useAuth();
+  const itemType: ItemType = activeTab === 'systems' ? 'system' : 'visual';
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const dragStartRef = useRef<Point | null>(null);
   const transformStartRef = useRef<Point>({ x: 0, y: 0 });
@@ -100,15 +99,17 @@ export default function InfiniteVisualView({
 
   const filteredItems = useMemo(() => {
     const query = searchQuery.toLowerCase();
+    const typeField = activeTab === 'systems' ? 'prompt_type' : 'volume';
     const filtered = items.filter(item => {
-      const itemTypeValue = (item.volume || 'GENERAL').toString().trim().toUpperCase();
+      const itemTypeValue = (item[typeField] || 'GENERAL').toString().trim().toUpperCase();
       const matchesType = filter === 'ALL' || itemTypeValue === filter;
       const searchStr = (
         (item.prompt_text || '') +
         (item.title || '') +
         (item.model || '') +
         (item.category || '') +
-        (item.volume || '')
+        (item.volume || '') +
+        (item.prompt_type || '')
       ).toLowerCase();
 
       return matchesType && (!query || searchStr.includes(query));
@@ -122,7 +123,7 @@ export default function InfiniteVisualView({
 
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
-  }, [items, filter, searchQuery, sortMode, likeCounts]);
+  }, [items, activeTab, filter, searchQuery, sortMode, likeCounts]);
 
   const columns = Math.max(4, Math.ceil(Math.sqrt(filteredItems.length * 1.35)));
   const rows = Math.max(3, Math.ceil(filteredItems.length / columns));
@@ -195,7 +196,7 @@ export default function InfiniteVisualView({
         .from('user_likes')
         .select('item_id')
         .eq('user_id', user.id)
-        .eq('item_type', 'visual');
+        .eq('item_type', itemType);
 
       if (data && isMounted) {
         setLikedIds(new Set(data.map(l => l.item_id.toString())));
@@ -206,7 +207,7 @@ export default function InfiniteVisualView({
     return () => {
       isMounted = false;
     };
-  }, [user]);
+  }, [user, itemType]);
 
   useEffect(() => {
     let isMounted = true;
@@ -233,7 +234,7 @@ export default function InfiniteVisualView({
       const { data } = await supabase
         .from('user_likes')
         .select('item_id')
-        .eq('item_type', 'visual')
+        .eq('item_type', itemType)
         .in('item_id', itemIds);
 
       if (!isMounted) return;
@@ -250,7 +251,7 @@ export default function InfiniteVisualView({
     return () => {
       isMounted = false;
     };
-  }, [items]);
+  }, [items, itemType]);
 
   const handleLikeToggle = (itemId: string, _itemType: string, newIsLiked: boolean) => {
     setLikedIds(current => {
@@ -281,7 +282,9 @@ export default function InfiniteVisualView({
     velocityRef.current = { x: 0, y: 0 };
     didDragRef.current = false;
     activePointerIdRef.current = event.pointerId;
-    event.currentTarget.setPointerCapture(event.pointerId);
+    // Note: pointer capture is deferred until an actual drag begins (see handlePointerMove).
+    // Capturing on press would re-target the resulting click to the viewport, preventing
+    // the underlying Card from receiving the click it needs to flip.
   }
 
   function handlePointerMove(event: React.PointerEvent<HTMLDivElement>) {
@@ -300,7 +303,13 @@ export default function InfiniteVisualView({
     }
 
     lastPointerRef.current = { x: event.clientX, y: event.clientY, time: now };
-    if (Math.abs(dx) + Math.abs(dy) > 6) didDragRef.current = true;
+    if (Math.abs(dx) + Math.abs(dy) > 6 && !didDragRef.current) {
+      didDragRef.current = true;
+      // Capture now that this is a real drag so move/up keep tracking outside the viewport.
+      if (activePointerIdRef.current !== null) {
+        event.currentTarget.setPointerCapture(activePointerIdRef.current);
+      }
+    }
     updateTransform(current => ({
       ...current,
       x: transformStartRef.current.x + dx,
@@ -457,8 +466,14 @@ export default function InfiniteVisualView({
         >
           {filteredItems.map((item, index) => {
             const position = positions.get(item.id.toString()) ?? { x: 0, y: 0 };
-            const cardTitle = item.category || 'ASSET';
-            const secondaryLabel = item.volume || 'VOL';
+            const cardTitle = activeTab === 'systems'
+              ? (item.title || 'SYSTEM')
+              : (item.category || 'ASSET');
+            const secondaryLabel = activeTab === 'systems'
+              ? (item.prompt_type || 'TYPE')
+              : (item.volume || 'VOL');
+            const secondaryLabelName = activeTab === 'systems' ? 'TYPE' : 'CATEGORY';
+            const bottomLabel = activeTab === 'systems' ? 'IDENTIFIER' : 'VOLUME';
             const isSelected = selectionMode && selectedIds?.has(item.id.toString());
 
             return (
@@ -477,9 +492,9 @@ export default function InfiniteVisualView({
                   item={item}
                   cardTitle={cardTitle}
                   secondaryLabel={secondaryLabel}
-                  secondaryLabelName="CATEGORY"
-                  bottomLabel="VOLUME"
-                  itemType="visual"
+                  secondaryLabelName={secondaryLabelName}
+                  bottomLabel={bottomLabel}
+                  itemType={itemType}
                   initialIsLiked={likedIds.has(item.id.toString())}
                   likeCount={likeCounts.get(item.id.toString()) ?? 0}
                   showLikeCount={sortMode === 'popular'}
