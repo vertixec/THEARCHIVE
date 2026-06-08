@@ -66,6 +66,10 @@ export function buildFalInput(
   const finalPrompt =
     hasReference && type === 'image' ? enhanceReferencePrompt(prompt) : prompt;
   const input: Record<string, unknown> = { prompt: finalPrompt };
+  // Per-model params (quality, image_size, aspect_ratio, resolution, duration)
+  // are merged by the caller via falParamsFor() — see app/api/generate/route.ts.
+  // Critically, gpt-image-2 defaults to HIGH quality (~$0.211/img) on FAL, so
+  // the route always sends an explicit quality (default 'medium', ~$0.053).
   if (type === 'image' && hasReference) {
     if (endpoint.includes('/edit') || endpoint.includes('/image-to-image')) {
       input.image_urls = preparedReferenceList;

@@ -55,8 +55,13 @@ export default function TermsPage() {
             <p className="mt-3">
               Generations consume credits. Purchased credits do not expire unless we state
               otherwise in writing. Monthly plan credits reset each billing cycle and do not
-              roll over. Refunds for purchased credits are handled case by case; failed
-              generations are refunded automatically when possible.
+              roll over. Payments are processed by Lemon Squeezy as Merchant of Record. Failed
+              generations are refunded automatically when possible. Refunds for purchased credits
+              are governed by our{' '}
+              <Link href="/refund" className="text-acid underline-offset-4 hover:underline">
+                Refund Policy
+              </Link>
+              .
             </p>
           </section>
 

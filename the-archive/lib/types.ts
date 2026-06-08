@@ -58,8 +58,11 @@ export interface GenerationUsage {
   video_limit: number;
   access_tier?: string;
   plan_name?: string;
+  // Single unified credit pool.
   credit_balance?: number | null;
-  video_credit_balance?: number | null;
+  /** Per-model credit cost map, keyed by model id. */
+  model_costs?: Record<string, number>;
+  /** Default cost for an image / video when no specific model is selected. */
   image_cost?: number;
   video_cost?: number;
 }

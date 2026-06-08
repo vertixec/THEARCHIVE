@@ -28,7 +28,7 @@ export default function PrivacyPage() {
               <li>Account data: email, name, avatar URL, username.</li>
               <li>Profile data: access tier, plan, onboarding status.</li>
               <li>Usage data: generations, prompts, moodboards, favorites, credit transactions.</li>
-              <li>Payment metadata via Stripe (we do not store card numbers).</li>
+              <li>Payment metadata via Lemon Squeezy (we do not store card numbers).</li>
               <li>Technical data: IP, user agent, log timestamps.</li>
             </ul>
           </section>
@@ -51,7 +51,7 @@ export default function PrivacyPage() {
             <ul className="mt-3 list-disc space-y-2 pl-5">
               <li>Supabase — auth, database, storage.</li>
               <li>FAL.ai — AI generation infrastructure.</li>
-              <li>Stripe — payments (once enabled).</li>
+              <li>Lemon Squeezy — payment processing and Merchant of Record.</li>
               <li>Vercel — hosting and logs.</li>
             </ul>
           </section>

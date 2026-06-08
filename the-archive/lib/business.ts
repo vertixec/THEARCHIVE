@@ -49,7 +49,9 @@ export const PLAN_CONFIG: Record<AccessTier, PlanConfig> = {
     description: 'A light account for outside users to test THE ARCHIVE before upgrading.',
     monthlyImageLimit: 5,
     monthlyVideoLimit: 0,
-    signupCredits: 5,
+    // 60 unified credits ≈ 5 medium gpt-image-2 images. The monthly image
+    // count (5) is the hard guardrail that caps free-tier FAL spend.
+    signupCredits: 60,
     features: ['view_visuals', 'generate_image', 'create_moodboard', 'save_favorite'],
   },
   community: {
@@ -111,10 +113,43 @@ export const PLAN_CONFIG: Record<AccessTier, PlanConfig> = {
   },
 };
 
-export const MODEL_CREDIT_COSTS = {
-  image: 1,
-  video: 5,
+// Credit cost PER MODEL (unified credit pool). Calibrated to ~4.5x the real
+// FAL compute cost at a retail value of ~$0.02 per credit (prices: June 2026).
+// This is the single source of truth for what a generation costs. Different
+// models cost different amounts so users can't pick an expensive model for the
+// price of a cheap one — that arbitrage is what made the old flat pricing lose
+// money. See supabase/pricing_unified_credits.sql for the matching DB changes.
+//
+//   model              FAL cost      credits   markup
+//   gpt-image-2 (med)   $0.053         12        4.5x
+//   flux-pro            $0.04-0.08     10        2.5-5x
+//   nano-banana-pro     $0.15          35        4.7x
+//   kling-1.6 (5s)      $0.28          65        4.6x
+//   seedance fast (5s)  $1.21          275       4.5x
+export const MODEL_CREDIT_COSTS: Record<string, number> = {
+  'gpt-image-2': 12,
+  'flux-pro': 10,
+  'nano-banana-pro': 35,
+  'kling-1.6': 65,
+  seedance: 275,
+};
+
+// Cost charged when a model id is missing/unknown — the default of each type
+// (gpt-image-2 for images, kling-1.6 for videos).
+export const DEFAULT_MODEL_COST = {
+  image: MODEL_CREDIT_COSTS['gpt-image-2'],
+  video: MODEL_CREDIT_COSTS['kling-1.6'],
 } as const;
+
+export function creditCostForModel(
+  modelId: string | null | undefined,
+  type: 'image' | 'video',
+): number {
+  if (modelId && MODEL_CREDIT_COSTS[modelId] != null) {
+    return MODEL_CREDIT_COSTS[modelId];
+  }
+  return type === 'image' ? DEFAULT_MODEL_COST.image : DEFAULT_MODEL_COST.video;
+}
 
 export function resolveAccessTier(profile?: BusinessProfile | null): AccessTier {
   if (!profile) return 'visitor';

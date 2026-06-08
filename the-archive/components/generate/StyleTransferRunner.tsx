@@ -259,7 +259,7 @@ export default function StyleTransferRunner({
           </span>
         </button>
         <div className="font-mono text-[8px] uppercase tracking-widest text-white/35">
-          Cost: {tool.creditCost} image {tool.creditCost === 1 ? 'credit' : 'credits'}
+          Cost: {tool.creditCost} {tool.creditCost === 1 ? 'credit' : 'credits'}
         </div>
       </div>
     </div>

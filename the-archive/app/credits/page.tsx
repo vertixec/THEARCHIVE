@@ -29,9 +29,9 @@ export default async function CreditsPage({
   const [{ data: balance }, { data: packs }, { data: intents }, { data: transactions }] = await Promise.all([
     supabase
       .from('user_credit_balances')
-      .select('credits, video_credits, updated_at')
+      .select('credits, updated_at')
       .eq('user_id', user.id)
-      .maybeSingle<{ credits: number; video_credits: number; updated_at: string | null }>(),
+      .maybeSingle<{ credits: number; updated_at: string | null }>(),
     supabase
       .from('credit_packs')
       .select('id, name, description, price_usd, image_credits, video_credits, lemonsqueezy_variant_id, is_active, sort_order')
@@ -65,7 +65,7 @@ export default async function CreditsPage({
             Top Up Your Archive
           </h1>
           <p className="mt-5 max-w-2xl font-mono text-xs uppercase leading-relaxed tracking-[0.18em] text-white/45">
-            Buy credit packs to keep generating. Image and video credits are added instantly after payment.
+            Buy credit packs to keep generating. Credits are added instantly after payment and never expire.
           </p>
         </header>
 
@@ -80,9 +80,8 @@ export default async function CreditsPage({
           </div>
         )}
 
-        <section className="mb-14 grid grid-cols-1 gap-px border border-white/10 bg-white/10 md:grid-cols-2">
-          <BalanceCell label="Image credits" value={balance?.credits ?? 0} />
-          <BalanceCell label="Video credits" value={balance?.video_credits ?? 0} />
+        <section className="mb-14 border border-white/10 bg-white/10">
+          <BalanceCell label="Credits" value={balance?.credits ?? 0} />
         </section>
 
         <CreditsPurchaseGrid packs={(packs ?? []) as CreditPack[]} />
@@ -145,7 +144,7 @@ function HistoryList({
           <span className="col-span-3 text-white/70">{intent.pack_id}</span>
           <span className="col-span-2 text-acid">${intent.amount_usd}</span>
           <span className="col-span-2 text-white/45">
-            +{intent.image_credits} img / +{intent.video_credits} vid
+            +{intent.image_credits + intent.video_credits} cr
           </span>
           <span
             className={

@@ -4,10 +4,14 @@ import { createClient } from '@/lib/supabaseServer';
 import { createAdminClient } from '@/lib/supabaseAdmin';
 import {
   canAccessFeature,
-  MODEL_CREDIT_COSTS,
   type BusinessProfile,
 } from '@/lib/business';
-import { getPlanForProfileFromDB } from '@/lib/businessServer';
+import {
+  creditCostFor,
+  defaultSelection,
+  falParamsFor,
+  normalizeSelection,
+} from '@/lib/modelOptions';
 import {
   ReferenceImageAccessError,
   prepareReferenceUrls,
@@ -55,7 +59,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { prompt, model, generationType, referenceImageUrl, referenceImageUrls } = await req.json();
+  const { prompt, model, generationType, referenceImageUrl, referenceImageUrls, options } = await req.json();
   const cleanPrompt = typeof prompt === 'string' ? prompt.trim() : '';
   const type: GenerationType = generationType === 'video' ? 'video' : 'image';
 
@@ -111,49 +115,38 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const plan = await getPlanForProfileFromDB(profile, supabase);
-  const generationCost = type === 'image' ? MODEL_CREDIT_COSTS.image : MODEL_CREDIT_COSTS.video;
+  // Credits are now the only spend gate (the old monthly count limit was
+  // redundant and conflicted with the credit balance). Cost depends on the
+  // chosen model AND the selected options (quality / format / resolution /
+  // duration). The selection is normalized so the client can't under-pay.
+  const resolvedModel = modelId || DEFAULT_MODEL[type];
+  const hasReference = referenceList.length > 0;
 
-  const yearMonth = new Date().toISOString().slice(0, 7);
-  const { data: usage, error: usageError } = await supabase
-    .from('user_generation_usage')
-    .select('image_count, video_count')
-    .eq('user_id', user.id)
-    .eq('year_month', yearMonth)
-    .maybeSingle();
-
-  if (usageError) {
-    return NextResponse.json({ error: 'Usage lookup failed' }, { status: 500 });
+  let selection = normalizeSelection(resolvedModel, options);
+  if (type === 'image' && hasReference) {
+    // Edit endpoints size the output from the source image, so format/
+    // resolution don't apply — price at the model base, keeping only quality
+    // (the one option that still affects an edit's cost, e.g. gpt-image-2).
+    const base = defaultSelection(resolvedModel);
+    if (selection.quality) base.quality = selection.quality;
+    selection = base;
   }
-
-  const imageCount = usage?.image_count ?? 0;
-  const videoCount = usage?.video_count ?? 0;
-
-  // Monthly counters track the NUMBER of generations (not credits).
-  if (type === 'image' && imageCount + 1 > plan.monthlyImageLimit) {
-    return NextResponse.json({ error: 'Monthly image limit reached' }, { status: 429 });
-  }
-  if (type === 'video' && videoCount >= plan.monthlyVideoLimit) {
-    return NextResponse.json({ error: 'Monthly video limit reached' }, { status: 429 });
-  }
+  const generationCost = creditCostFor(resolvedModel, selection, type);
 
   // Fast-fail UX hint only; the authoritative atomic charge happens below.
+  // Single unified credit pool — images and videos both draw from `credits`.
   const { data: balance } = await supabase
     .from('user_credit_balances')
-    .select('credits, video_credits')
+    .select('credits')
     .eq('user_id', user.id)
-    .maybeSingle<{ credits: number; video_credits: number }>();
+    .maybeSingle<{ credits: number }>();
 
-  if (balance) {
-    const currentBalance = type === 'image' ? balance.credits : balance.video_credits;
-    if (currentBalance < generationCost) {
-      return NextResponse.json({ error: 'Not enough credits' }, { status: 429 });
-    }
+  if (balance && balance.credits < generationCost) {
+    return NextResponse.json({ error: 'Not enough credits' }, { status: 429 });
   }
 
   fal.config({ credentials: apiKey });
 
-  const hasReference = referenceList.length > 0;
   const endpoint = resolveEndpoint(type, modelId, hasReference);
 
   let preparedReferenceList: string[] = [];
@@ -167,7 +160,15 @@ export async function POST(req: NextRequest) {
   }
 
   const input = buildFalInput(type, endpoint, cleanPrompt, preparedReferenceList);
-  const resolvedModel = modelId || DEFAULT_MODEL[type];
+  // Merge the per-model option params (quality / image_size / aspect_ratio /
+  // resolution / duration). On image edits, drop dimension params (output dims
+  // follow the source) and keep only quality.
+  const modelParams = falParamsFor(resolvedModel, selection);
+  if (type === 'image' && hasReference) {
+    Object.assign(input, modelParams.quality != null ? { quality: modelParams.quality } : {});
+  } else {
+    Object.assign(input, modelParams);
+  }
 
   // 1) Charge credits FIRST (atomic, fail closed). Refunded on any failure.
   const { data: spendData, error: spendError } = await supabase.rpc('spend_generation_credits', {
@@ -229,6 +230,9 @@ export async function POST(req: NextRequest) {
       generation_type: type,
       reference_image_url: hasReference ? referenceList[0] : null,
       status: 'queued',
+      // Persist exactly what we charged so the status poller refunds the right
+      // amount on failure (cost now varies by model).
+      credit_cost: generationCost,
       fal_request_id: requestId,
       fal_endpoint: endpoint,
     })

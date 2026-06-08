@@ -4,10 +4,9 @@ import { createClient } from '@/lib/supabaseServer';
 import { createAdminClient } from '@/lib/supabaseAdmin';
 import {
   canAccessFeature,
-  MODEL_CREDIT_COSTS,
+  creditCostForModel,
   type BusinessProfile,
 } from '@/lib/business';
-import { getPlanForProfileFromDB } from '@/lib/businessServer';
 import { ReferenceImageAccessError, prepareReferenceUrls } from '@/lib/falReference';
 import { buildAdPrompts } from '@/lib/tools/prompts/ads';
 import { getTool } from '@/lib/tools/registry';
@@ -20,6 +19,8 @@ export const runtime = 'nodejs';
 export const maxDuration = 60;
 
 const GPT_IMAGE_EDIT = 'openai/gpt-image-2/edit';
+// This tool runs gpt-image-2 edits — charge the per-image gpt-image-2 rate.
+const PER_IMAGE_COST = creditCostForModel('gpt-image-2', 'image');
 
 type FalResult = { data?: { images?: { url?: string }[] } };
 type CreditSpendResult = { ok: boolean; credits: number; video_credits: number };
@@ -108,40 +109,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Your current plan cannot generate images' }, { status: 403 });
   }
 
-  const plan = await getPlanForProfileFromDB(profile, supabase);
-  const maxCost = MODEL_CREDIT_COSTS.image * outputs;
+  // Credits are the only spend gate. Reserve the full run; only spend for
+  // successes below.
+  const maxCost = PER_IMAGE_COST * outputs;
 
-  // Limits + balance (reserve for the full run; only spend for successes) -
   const { data: balance } = await supabase
     .from('user_credit_balances')
-    .select('credits, video_credits')
+    .select('credits')
     .eq('user_id', user.id)
-    .maybeSingle<{ credits: number; video_credits: number }>();
-
-  const yearMonth = new Date().toISOString().slice(0, 7);
-  const { data: usage, error: usageError } = await supabase
-    .from('user_generation_usage')
-    .select('image_count, video_count')
-    .eq('user_id', user.id)
-    .eq('year_month', yearMonth)
-    .maybeSingle<{ image_count: number; video_count: number }>();
-
-  if (usageError) {
-    return NextResponse.json({ error: 'Usage lookup failed' }, { status: 500 });
-  }
-
-  const imageCount = usage?.image_count ?? 0;
-
-  if (imageCount + outputs > plan.monthlyImageLimit) {
-    return NextResponse.json(
-      { error: `You have ${Math.max(plan.monthlyImageLimit - imageCount, 0)} images left this month (this tool uses ${outputs})` },
-      { status: 429 }
-    );
-  }
+    .maybeSingle<{ credits: number }>();
 
   if (balance && balance.credits < maxCost) {
     return NextResponse.json(
-      { error: `You need ${maxCost} image credits for this tool` },
+      { error: `You need ${maxCost} credits for this tool` },
       { status: 429 }
     );
   }
@@ -163,7 +143,7 @@ export async function POST(req: NextRequest) {
   const settled = await Promise.allSettled(
     adPrompts.map(async ({ prompt, angle }) => {
       const result = (await fal.subscribe(GPT_IMAGE_EDIT, {
-        input: { prompt, image_urls: preparedReferences },
+        input: { prompt, image_urls: preparedReferences, quality: 'medium' },
       })) as FalResult;
       const url = result.data?.images?.[0]?.url;
       if (!url) throw new Error('No result URL from FAL');
@@ -187,7 +167,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Spend only for what we actually produced ----------------------------
-  const spendAmount = MODEL_CREDIT_COSTS.image * succeeded.length;
+  const spendAmount = PER_IMAGE_COST * succeeded.length;
   const { data: spendData, error: spendError } = await supabase.rpc('spend_generation_credits', {
     p_generation_type: 'image',
     p_amount: spendAmount,
@@ -244,6 +224,7 @@ export async function POST(req: NextRequest) {
       generation_type: 'image' as const,
       result_url: item.url,
       reference_image_url: referenceList[0],
+      credit_cost: PER_IMAGE_COST,
     }))
   );
 

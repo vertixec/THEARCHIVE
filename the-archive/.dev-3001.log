@@ -120,3 +120,183 @@
  GET /api/generate/usage 200 in 811ms (compile: 3ms, render: 808ms)
  GET /creations 200 in 447ms (compile: 15ms, proxy.ts: 408ms, render: 24ms)
  GET /creations 200 in 2.8s (compile: 9ms, proxy.ts: 2.6s, render: 205ms)
+ GET / 200 in 930ms (compile: 97ms, proxy.ts: 766ms, render: 67ms)
+ GET /visuals 200 in 973ms (compile: 21ms, proxy.ts: 362ms, render: 589ms)
+ GET /visuals 200 in 2.1s (compile: 135ms, proxy.ts: 1371ms, render: 578ms)
+ GET /visuals 200 in 987ms (compile: 3ms, proxy.ts: 578ms, render: 405ms)
+ GET /visuals 200 in 1054ms (compile: 98ms, proxy.ts: 482ms, render: 473ms)
+ GET /visuals 200 in 1135ms (compile: 6ms, proxy.ts: 428ms, render: 701ms)
+ GET /visuals 200 in 876ms (compile: 66ms, proxy.ts: 392ms, render: 417ms)
+ GET /visuals 200 in 737ms (compile: 5ms, proxy.ts: 380ms, render: 352ms)
+ GET /visuals 200 in 723ms (compile: 4ms, proxy.ts: 373ms, render: 346ms)
+ GET /visuals 200 in 737ms (compile: 3ms, proxy.ts: 392ms, render: 342ms)
+ GET /visuals 200 in 1181ms (compile: 7ms, proxy.ts: 459ms, render: 715ms)
+ GET / 200 in 421ms (compile: 25ms, proxy.ts: 373ms, render: 22ms)
+ GET /visuals 200 in 728ms (compile: 4ms, proxy.ts: 387ms, render: 337ms)
+ GET / 200 in 355ms (compile: 4ms, proxy.ts: 338ms, render: 13ms)
+ GET /terms 200 in 1485ms (compile: 1037ms, proxy.ts: 411ms, render: 37ms)
+<w> [webpack.cache.PackFileCacheStrategy] Serializing big strings (133kiB) impacts deserialization performance (consider using Buffer instead and decode when needed)
+ GET /terms 200 in 1749ms (compile: 4ms, proxy.ts: 1722ms, render: 22ms)
+ GET /terms 200 in 493ms (compile: 4ms, proxy.ts: 475ms, render: 14ms)
+ GET /terms 200 in 429ms (compile: 3ms, proxy.ts: 411ms, render: 15ms)
+ GET /terms 200 in 579ms (compile: 4ms, proxy.ts: 553ms, render: 21ms)
+ GET /terms 200 in 479ms (compile: 3ms, proxy.ts: 460ms, render: 15ms)
+ GET /terms 200 in 490ms (compile: 3ms, proxy.ts: 473ms, render: 14ms)
+ GET /terms 200 in 406ms (compile: 3ms, proxy.ts: 387ms, render: 15ms)
+ GET /terms 200 in 458ms (compile: 3ms, proxy.ts: 433ms, render: 21ms)
+ GET /terms 200 in 396ms (compile: 4ms, proxy.ts: 371ms, render: 21ms)
+ GET /terms 200 in 396ms (compile: 3ms, proxy.ts: 375ms, render: 18ms)
+ GET /terms 200 in 416ms (compile: 3ms, proxy.ts: 400ms, render: 14ms)
+ GET /terms 200 in 385ms (compile: 3ms, proxy.ts: 368ms, render: 14ms)
+ GET /terms 200 in 405ms (compile: 3ms, proxy.ts: 386ms, render: 15ms)
+ GET /terms 200 in 408ms (compile: 3ms, proxy.ts: 391ms, render: 14ms)
+ GET /terms 200 in 412ms (compile: 3ms, proxy.ts: 395ms, render: 14ms)
+ GET /terms 200 in 419ms (compile: 3ms, proxy.ts: 401ms, render: 14ms)
+ GET /terms 200 in 402ms (compile: 4ms, proxy.ts: 385ms, render: 14ms)
+ GET /terms 200 in 392ms (compile: 3ms, proxy.ts: 375ms, render: 14ms)
+ GET /terms 200 in 392ms (compile: 5ms, proxy.ts: 370ms, render: 16ms)
+ GET /terms 200 in 389ms (compile: 3ms, proxy.ts: 370ms, render: 16ms)
+ GET /terms 200 in 407ms (compile: 3ms, proxy.ts: 386ms, render: 18ms)
+ GET /terms 200 in 424ms (compile: 3ms, proxy.ts: 407ms, render: 14ms)
+ GET /terms 200 in 400ms (compile: 3ms, proxy.ts: 381ms, render: 17ms)
+ GET /terms 200 in 383ms (compile: 3ms, proxy.ts: 364ms, render: 16ms)
+ GET /terms 200 in 519ms (compile: 4ms, proxy.ts: 501ms, render: 14ms)
+ GET /terms 200 in 714ms (compile: 71ms, proxy.ts: 613ms, render: 31ms)
+ GET /terms 200 in 458ms (compile: 51ms, proxy.ts: 368ms, render: 39ms)
+ GET /terms 200 in 432ms (compile: 31ms, proxy.ts: 380ms, render: 21ms)
+ GET /terms 200 in 420ms (compile: 30ms, proxy.ts: 369ms, render: 21ms)
+ GET /terms 200 in 427ms (compile: 31ms, proxy.ts: 375ms, render: 20ms)
+ GET /terms 200 in 441ms (compile: 28ms, proxy.ts: 385ms, render: 29ms)
+ GET /terms 200 in 470ms (compile: 3ms, proxy.ts: 453ms, render: 13ms)
+ GET /terms 200 in 409ms (compile: 3ms, proxy.ts: 387ms, render: 19ms)
+ GET /terms 200 in 545ms (compile: 3ms, proxy.ts: 529ms, render: 13ms)
+ GET /terms 200 in 527ms (compile: 29ms, proxy.ts: 477ms, render: 21ms)
+ GET /terms 200 in 425ms (compile: 27ms, proxy.ts: 375ms, render: 24ms)
+ GET /terms 200 in 436ms (compile: 25ms, proxy.ts: 394ms, render: 17ms)
+ GET /terms 200 in 425ms (compile: 27ms, proxy.ts: 378ms, render: 20ms)
+ GET /terms 200 in 504ms (compile: 4ms, proxy.ts: 484ms, render: 17ms)
+ GET /terms 200 in 398ms (compile: 3ms, proxy.ts: 382ms, render: 13ms)
+ GET /terms 200 in 440ms (compile: 27ms, proxy.ts: 392ms, render: 21ms)
+ GET /terms 200 in 396ms (compile: 5ms, proxy.ts: 377ms, render: 13ms)
+ GET /terms 200 in 499ms (compile: 5ms, proxy.ts: 481ms, render: 14ms)
+ GET /terms 200 in 411ms (compile: 3ms, proxy.ts: 394ms, render: 14ms)
+ GET /terms 200 in 396ms (compile: 5ms, proxy.ts: 378ms, render: 13ms)
+ GET /terms 200 in 475ms (compile: 5ms, proxy.ts: 456ms, render: 14ms)
+ GET /terms 200 in 384ms (compile: 4ms, proxy.ts: 367ms, render: 12ms)
+ GET /terms 200 in 392ms (compile: 4ms, proxy.ts: 374ms, render: 14ms)
+ GET /terms 200 in 397ms (compile: 5ms, proxy.ts: 377ms, render: 15ms)
+ GET /terms 200 in 467ms (compile: 3ms, proxy.ts: 446ms, render: 18ms)
+ GET /terms 200 in 395ms (compile: 6ms, proxy.ts: 375ms, render: 14ms)
+ GET /terms 200 in 397ms (compile: 3ms, proxy.ts: 378ms, render: 15ms)
+ GET / 200 in 2.1s (compile: 1094ms, proxy.ts: 932ms, render: 25ms)
+ GET / 200 in 449ms (compile: 3ms, proxy.ts: 425ms, render: 21ms)
+ GET /visuals 200 in 858ms (compile: 11ms, proxy.ts: 429ms, render: 418ms)
+ GET /visuals 200 in 977ms (compile: 4ms, proxy.ts: 593ms, render: 380ms)
+ GET /visuals 200 in 1019ms (compile: 7ms, proxy.ts: 638ms, render: 374ms)
+ GET /visuals 200 in 605ms (compile: 4ms, proxy.ts: 367ms, render: 235ms)
+ GET /visuals 200 in 2.2s (compile: 78ms, proxy.ts: 1638ms, render: 523ms)
+ GET /api/generate/usage 200 in 3.9s (compile: 1531ms, render: 2.4s)
+ GET /visuals 200 in 1387ms (compile: 5ms, proxy.ts: 948ms, render: 435ms)
+ GET /api/generate/usage 200 in 936ms (compile: 4ms, render: 932ms)
+ GET /profile 200 in 2.7s (compile: 1177ms, proxy.ts: 348ms, render: 1210ms)
+ GET /login 200 in 502ms (compile: 472ms, proxy.ts: 6ms, render: 24ms)
+ GET / 200 in 522ms (compile: 16ms, proxy.ts: 494ms, render: 12ms)
+ GET /visuals 200 in 761ms (compile: 15ms, proxy.ts: 371ms, render: 376ms)
+ GET /api/generate/usage 200 in 1066ms (compile: 17ms, render: 1048ms)
+ GET /pricing 200 in 2.7s (compile: 976ms, proxy.ts: 1229ms, render: 476ms)
+ GET /api/generate/usage 200 in 997ms (compile: 8ms, render: 989ms)
+ GET /systems 200 in 1800ms (compile: 768ms, proxy.ts: 445ms, render: 587ms)
+ GET /systems 200 in 1500ms (compile: 52ms, proxy.ts: 688ms, render: 759ms)
+ POST /api/generate 200 in 4.3s (compile: 1101ms, render: 3.2s)
+ GET /api/generate/status?jobId=971eb7f7-eaf6-4d4a-9cbe-2fb579e430ff 200 in 1485ms (compile: 708ms, render: 777ms)
+ GET /systems 200 in 1006ms (compile: 20ms, proxy.ts: 430ms, render: 557ms)
+ GET /api/generate/status?jobId=971eb7f7-eaf6-4d4a-9cbe-2fb579e430ff 200 in 508ms (compile: 3ms, render: 505ms)
+ GET /api/generate/status?jobId=971eb7f7-eaf6-4d4a-9cbe-2fb579e430ff 200 in 525ms (compile: 1892µs, render: 523ms)
+ GET /api/generate/status?jobId=971eb7f7-eaf6-4d4a-9cbe-2fb579e430ff 200 in 485ms (compile: 6ms, render: 479ms)
+ GET /api/generate/status?jobId=971eb7f7-eaf6-4d4a-9cbe-2fb579e430ff 200 in 524ms (compile: 3ms, render: 521ms)
+ GET /api/generate/status?jobId=971eb7f7-eaf6-4d4a-9cbe-2fb579e430ff 200 in 471ms (compile: 3ms, render: 468ms)
+ GET /api/generate/status?jobId=971eb7f7-eaf6-4d4a-9cbe-2fb579e430ff 200 in 478ms (compile: 3ms, render: 475ms)
+ GET /api/generate/status?jobId=971eb7f7-eaf6-4d4a-9cbe-2fb579e430ff 200 in 528ms (compile: 3ms, render: 525ms)
+ GET /api/generate/status?jobId=971eb7f7-eaf6-4d4a-9cbe-2fb579e430ff 200 in 482ms (compile: 2ms, render: 480ms)
+ GET /api/generate/status?jobId=971eb7f7-eaf6-4d4a-9cbe-2fb579e430ff 200 in 489ms (compile: 2ms, render: 487ms)
+ GET /api/generate/status?jobId=971eb7f7-eaf6-4d4a-9cbe-2fb579e430ff 200 in 540ms (compile: 2ms, render: 538ms)
+ GET /api/generate/status?jobId=971eb7f7-eaf6-4d4a-9cbe-2fb579e430ff 200 in 467ms (compile: 1642µs, render: 465ms)
+ GET /api/generate/status?jobId=971eb7f7-eaf6-4d4a-9cbe-2fb579e430ff 200 in 509ms (compile: 5ms, render: 504ms)
+ GET /api/generate/status?jobId=971eb7f7-eaf6-4d4a-9cbe-2fb579e430ff 200 in 498ms (compile: 7ms, render: 491ms)
+ GET /api/generate/status?jobId=971eb7f7-eaf6-4d4a-9cbe-2fb579e430ff 200 in 477ms (compile: 6ms, render: 471ms)
+ GET /api/generate/status?jobId=971eb7f7-eaf6-4d4a-9cbe-2fb579e430ff 200 in 512ms (compile: 5ms, render: 507ms)
+ GET /api/generate/status?jobId=971eb7f7-eaf6-4d4a-9cbe-2fb579e430ff 200 in 490ms (compile: 4ms, render: 486ms)
+ GET /api/generate/status?jobId=971eb7f7-eaf6-4d4a-9cbe-2fb579e430ff 200 in 1280ms (compile: 4ms, render: 1276ms)
+ GET /api/generate/usage 200 in 2.3s (compile: 1319ms, render: 1002ms)
+ GET /systems 200 in 990ms (compile: 53ms, proxy.ts: 393ms, render: 544ms)
+ GET /api/generate/usage 200 in 1886ms (compile: 8ms, render: 1878ms)
+ GET /creations 200 in 1800ms (compile: 1358ms, proxy.ts: 377ms, render: 65ms)
+ GET /creations 200 in 378ms (compile: 4ms, proxy.ts: 359ms, render: 15ms)
+ GET /creations 200 in 416ms (compile: 5ms, proxy.ts: 362ms, render: 48ms)
+ GET /creations 200 in 464ms (compile: 5ms, proxy.ts: 437ms, render: 23ms)
+ GET /creations 200 in 370ms (compile: 5ms, proxy.ts: 339ms, render: 26ms)
+ GET /creations 200 in 487ms (compile: 3ms, proxy.ts: 471ms, render: 13ms)
+ GET /creations 200 in 483ms (compile: 3ms, proxy.ts: 465ms, render: 15ms)
+ GET /creations 200 in 407ms (compile: 3ms, proxy.ts: 392ms, render: 12ms)
+ GET /creations 200 in 1304ms (compile: 3ms, proxy.ts: 1288ms, render: 13ms)
+ GET /creations 200 in 581ms (compile: 3ms, proxy.ts: 564ms, render: 14ms)
+ GET /creations 200 in 528ms (compile: 3ms, proxy.ts: 512ms, render: 13ms)
+ GET /creations 200 in 539ms (compile: 3ms, proxy.ts: 525ms, render: 12ms)
+ GET /creations 200 in 505ms (compile: 3ms, proxy.ts: 488ms, render: 14ms)
+ GET /creations 200 in 453ms (compile: 3ms, proxy.ts: 438ms, render: 12ms)
+ GET /creations 200 in 422ms (compile: 3ms, proxy.ts: 404ms, render: 15ms)
+ GET /creations 200 in 645ms (compile: 126ms, proxy.ts: 473ms, render: 45ms)
+ GET /creations 200 in 625ms (compile: 123ms, proxy.ts: 426ms, render: 76ms)
+ GET /creations 200 in 618ms (compile: 56ms, proxy.ts: 519ms, render: 42ms)
+ GET /creations 200 in 618ms (compile: 82ms, proxy.ts: 487ms, render: 49ms)
+ GET /creations 200 in 606ms (compile: 85ms, proxy.ts: 451ms, render: 71ms)
+ GET /creations 200 in 667ms (compile: 87ms, proxy.ts: 521ms, render: 59ms)
+⨯ ./components/GeneratePanel.tsx
+Error:   x Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+     ,-[C:\Users\jorge\VERTIX-VAULT\01-PROYECTOS\THE ARCHIVE\THEARCHIVE\the-archive\components\GeneratePanel.tsx:461:1]
+ 458 |             )}
+ 459 |             <div className="mt-1 font-mono text-[8px] uppercase tracking-widest text-white/35">
+ 460 |               Cost: {cost} {cost === 1 ? 'credit' : 'credits'} per {footerType}
+ 461 |             </div>}
+     :                   ^
+ 462 |             {usage?.access_tier !== 'admin' && (
+ 463 |               typeof balance === 'number' && balance < cost ? (
+ 464 |                 <button
+     `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./components/GeneratePanel.tsx
+./app/layout.tsx
+○ Compiling /_error ...
+⨯ ./components/GeneratePanel.tsx
+Error:   x Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+     ,-[C:\Users\jorge\VERTIX-VAULT\01-PROYECTOS\THE ARCHIVE\THEARCHIVE\the-archive\components\GeneratePanel.tsx:461:1]
+ 458 |             )}
+ 459 |             <div className="mt-1 font-mono text-[8px] uppercase tracking-widest text-white/35">
+ 460 |               Cost: {cost} {cost === 1 ? 'credit' : 'credits'} per {footerType}
+ 461 |             </div>}
+     :                   ^
+ 462 |             {usage?.access_tier !== 'admin' && (
+ 463 |               typeof balance === 'number' && balance < cost ? (
+ 464 |                 <button
+     `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./components/GeneratePanel.tsx
+./app/layout.tsx
+ GET /creations 500 in 9.7s (compile: 9.1s, proxy.ts: 430ms, render: 190ms)
+ GET /creations 500 in 457ms (compile: 8ms, proxy.ts: 433ms, render: 16ms)
+ GET /creations 500 in 476ms (compile: 8ms, proxy.ts: 452ms, render: 16ms)
+⚠ Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+⚠ Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+⚠ Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ GET /creations 200 in 849ms (compile: 13ms, proxy.ts: 782ms, render: 54ms)
+ GET /creations 200 in 393ms (compile: 4ms, proxy.ts: 343ms, render: 46ms)
+ GET /creations 200 in 585ms (compile: 82ms, proxy.ts: 441ms, render: 63ms)
+ GET /api/generate/usage 200 in 3.7s (compile: 2.7s, render: 1052ms)

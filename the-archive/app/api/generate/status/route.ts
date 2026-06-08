@@ -2,7 +2,7 @@ import { fal } from '@fal-ai/client';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabaseServer';
 import { createAdminClient } from '@/lib/supabaseAdmin';
-import { MODEL_CREDIT_COSTS } from '@/lib/business';
+import { creditCostForModel } from '@/lib/business';
 import {
   extractResultUrl,
   getApiKey,
@@ -24,6 +24,8 @@ type GenerationRow = {
   result_url: string | null;
   fal_request_id: string | null;
   fal_endpoint: string | null;
+  model: string | null;
+  credit_cost: number | null;
 };
 
 export async function GET(req: NextRequest) {
@@ -48,7 +50,7 @@ export async function GET(req: NextRequest) {
 
   const { data: job, error: jobError } = await supabase
     .from('generations')
-    .select('id, user_id, generation_type, status, result_url, fal_request_id, fal_endpoint')
+    .select('id, user_id, generation_type, status, result_url, fal_request_id, fal_endpoint, model, credit_cost')
     .eq('id', jobId)
     .eq('user_id', user.id)
     .maybeSingle<GenerationRow>();
@@ -73,7 +75,9 @@ export async function GET(req: NextRequest) {
   }
 
   const type = job.generation_type;
-  const generationCost = type === 'image' ? MODEL_CREDIT_COSTS.image : MODEL_CREDIT_COSTS.video;
+  // Refund exactly what was charged at submit time. Prefer the persisted
+  // credit_cost; fall back to the model's catalog cost for older rows.
+  const generationCost = job.credit_cost ?? creditCostForModel(job.model, type);
 
   const refund = async (reason: string) => {
     try {

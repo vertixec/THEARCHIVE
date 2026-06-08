@@ -241,6 +241,9 @@ export default function HomepageShowcase() {
         <span className="font-bebas text-xl text-white/20">/0{assets.length}</span>
       </div>
 
+      {/* Bottom Center: Legal Footer */}
+      <LegalFooter />
+
       {/* Bottom: Progress Bar */}
       <div className="absolute bottom-0 left-0 w-full h-[3px] bg-white/5 z-50">
         <motion.div 
@@ -299,6 +302,36 @@ function PublicHome() {
           </div>
         </section>
       </main>
+      <LegalFooter />
+    </div>
+  );
+}
+
+function LegalFooter() {
+  const stop = (e: React.MouseEvent) => e.stopPropagation();
+  const links = [
+    { label: 'Terms', href: '/terms' },
+    { label: 'Privacy', href: '/privacy' },
+    { label: 'Refunds', href: '/refund' },
+    { label: 'Pricing', href: '/pricing' },
+  ];
+  return (
+    <div
+      onClick={stop}
+      className="fixed bottom-3 left-1/2 z-[60] -translate-x-1/2 flex items-center gap-3 md:gap-4 bg-black/50 backdrop-blur-sm border border-white/10 px-3 py-1 md:px-4 md:py-1.5"
+    >
+      {links.map((link, i) => (
+        <span key={link.href} className="flex items-center gap-3 md:gap-4">
+          {i > 0 && <span className="h-2 w-px bg-white/15" />}
+          <Link
+            href={link.href}
+            onClick={stop}
+            className="font-mono text-[8px] md:text-[9px] uppercase tracking-[0.2em] text-white/45 transition-colors hover:text-acid"
+          >
+            {link.label}
+          </Link>
+        </span>
+      ))}
     </div>
   );
 }

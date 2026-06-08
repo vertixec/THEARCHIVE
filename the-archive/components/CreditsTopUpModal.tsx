@@ -120,7 +120,7 @@ export default function CreditsTopUpModal({ open, onClose }: Props) {
                   </span>
                   <span className="mt-2 font-bebas text-3xl uppercase">{pack.name}</span>
                   <span className="mt-3 font-mono text-[9px] uppercase tracking-widest text-white/55">
-                    +{pack.image_credits} img / +{pack.video_credits} vid
+                    +{pack.image_credits + pack.video_credits} credits
                   </span>
                   <span className="mt-4 border border-current px-3 py-1.5 font-mono text-[9px] uppercase tracking-[0.25em]">
                     {isLocked ? 'Coming soon' : isPending ? 'Redirecting' : 'Buy'}

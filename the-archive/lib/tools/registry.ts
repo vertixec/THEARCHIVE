@@ -18,7 +18,8 @@ export const TOOLS: ToolDefinition[] = [
     outputNoun: 'ad',
     angleOptions: AD_ANGLE_OPTIONS,
     creditType: 'image',
-    creditCost: 5,
+    // Credits per single output (gpt-image-2 edit). Total run = cost × outputs.
+    creditCost: 12,
     inputs: [
       {
         key: 'references',
@@ -60,7 +61,8 @@ export const TOOLS: ToolDefinition[] = [
     outputCount: 1,
     outputNoun: 'image',
     creditType: 'image',
-    creditCost: 1,
+    // Credits per single output (gpt-image-2 edit).
+    creditCost: 12,
     // Custom UI: rendered by StyleTransferRunner (two labeled slots), not the
     // generic ToolRunner — so no declarative inputs here.
     inputs: [],
@@ -76,7 +78,8 @@ export const TOOLS: ToolDefinition[] = [
     kind: 'pipeline',
     outputCount: 5,
     creditType: 'video',
-    creditCost: 30,
+    // Per-clip video cost (seedance) — placeholder; tool is not live yet.
+    creditCost: 275,
     inputs: [],
   },
 ];

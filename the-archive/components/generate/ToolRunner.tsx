@@ -45,8 +45,8 @@ export default function ToolRunner({
     ? tool.angleOptions!.filter((a) => selectedAngles.includes(a.id)).map((a) => a.id)
     : [];
   const runCount = hasAngles ? orderedAngles.length : tool.outputCount;
-  // 1 credit per output in this tool.
-  const runCost = hasAngles ? runCount : tool.creditCost;
+  // creditCost is per single output; the full run costs cost × outputs.
+  const runCost = runCount * tool.creditCost;
 
   const missingRequired = tool.inputs.some((input) => {
     if (!input.required) return false;
@@ -255,7 +255,7 @@ export default function ToolRunner({
             </span>
           </button>
           <div className="font-mono text-[8px] uppercase tracking-widest text-white/35">
-            Cost: {runCost} {tool.creditType === 'image' ? 'image' : 'video'} {runCost === 1 ? 'credit' : 'credits'}
+            Cost: {runCost} {runCost === 1 ? 'credit' : 'credits'}
           </div>
         </div>
       </div>

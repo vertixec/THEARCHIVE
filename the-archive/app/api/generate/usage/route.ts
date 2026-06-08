@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabaseServer';
-import { MODEL_CREDIT_COSTS, type BusinessProfile } from '@/lib/business';
+import {
+  MODEL_CREDIT_COSTS,
+  DEFAULT_MODEL_COST,
+  type BusinessProfile,
+} from '@/lib/business';
 import { getPlanForProfileFromDB } from '@/lib/businessServer';
 
 export async function GET() {
@@ -42,11 +46,12 @@ export async function GET() {
     .eq('year_month', yearMonth)
     .maybeSingle();
 
+  // Single unified credit pool — `credits` is the only balance that matters.
   const { data: balance } = await supabase
     .from('user_credit_balances')
-    .select('credits, video_credits')
+    .select('credits')
     .eq('user_id', user.id)
-    .maybeSingle<{ credits: number; video_credits: number }>();
+    .maybeSingle<{ credits: number }>();
 
   if (error) {
     return NextResponse.json({ error: 'Usage lookup failed' }, { status: 500 });
@@ -60,8 +65,9 @@ export async function GET() {
     access_tier: plan.id,
     plan_name: plan.name,
     credit_balance: balance?.credits ?? null,
-    video_credit_balance: balance?.video_credits ?? null,
-    image_cost: MODEL_CREDIT_COSTS.image,
-    video_cost: MODEL_CREDIT_COSTS.video,
+    // Per-model credit costs so the UI can show what the selected model costs.
+    model_costs: MODEL_CREDIT_COSTS,
+    image_cost: DEFAULT_MODEL_COST.image,
+    video_cost: DEFAULT_MODEL_COST.video,
   });
 }

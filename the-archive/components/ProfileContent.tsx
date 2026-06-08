@@ -259,7 +259,6 @@ export default function ProfileContent({
   const displayName = profile.full_name || profile.email?.split('@')[0] || 'MEMBER';
   const currentPlan = getPlanForProfile(profile);
   const imageCredits = creditBalance?.credits ?? 0;
-  const videoCredits = creditBalance?.video_credits ?? 0;
   const topUpTransactions = creditTransactions.filter((t) => t.amount > 0);
   const usageTransactions = creditTransactions.filter((t) => t.amount < 0);
   const creditsSpent = usageTransactions.reduce((sum, t) => sum + Math.abs(t.amount), 0);
@@ -308,9 +307,7 @@ export default function ProfileContent({
           {activeTab === 'credits' && (
             <CreditsTab
               imageCredits={imageCredits}
-              videoCredits={videoCredits}
               imagePct={imagePct}
-              planImageMax={planImageMax}
               creditsSpent={creditsSpent}
               updatedAt={creditBalance?.updated_at}
               topUpTransactions={topUpTransactions}
@@ -323,7 +320,6 @@ export default function ProfileContent({
             <SubscriptionTab
               plan={currentPlan}
               imageCredits={imageCredits}
-              videoCredits={videoCredits}
               onTopUp={() => setShowTopUpModal(true)}
             />
           )}
@@ -792,9 +788,7 @@ function PersonalTab({
 
 function CreditsTab({
   imageCredits,
-  videoCredits,
   imagePct,
-  planImageMax,
   creditsSpent,
   updatedAt,
   topUpTransactions,
@@ -802,9 +796,7 @@ function CreditsTab({
   onTopUp,
 }: {
   imageCredits: number;
-  videoCredits: number;
   imagePct: number;
-  planImageMax: number;
   creditsSpent: number;
   updatedAt: string | undefined;
   topUpTransactions: CreditTransaction[];
@@ -842,7 +834,7 @@ function CreditsTab({
 
           <div className="mt-6 flex items-center justify-between gap-3 border-t border-white/5 pt-5">
             <div className="font-mono text-[10px] uppercase tracking-widest text-white/45">
-              {videoCredits.toLocaleString()} video credits
+              Credits never expire
             </div>
             <button
               type="button"
@@ -915,16 +907,13 @@ function CreditsTab({
 function SubscriptionTab({
   plan,
   imageCredits,
-  videoCredits,
   onTopUp,
 }: {
   plan: ReturnType<typeof getPlanForProfile>;
   imageCredits: number;
-  videoCredits: number;
   onTopUp: () => void;
 }) {
   const imageMax = Math.max(plan.monthlyImageLimit, imageCredits, 1);
-  const videoMax = Math.max(plan.monthlyVideoLimit, videoCredits, 1);
 
   return (
     <div className="space-y-4">
@@ -944,8 +933,7 @@ function SubscriptionTab({
         </div>
 
         <div className="mt-8 grid gap-5">
-          <CreditMeter label="Plan images" value={imageCredits} max={imageMax} />
-          <CreditMeter label="Video credits" value={videoCredits} max={videoMax} />
+          <CreditMeter label="Credit balance" value={imageCredits} max={imageMax} />
         </div>
 
         <div className="mt-8 flex flex-wrap gap-3 border-t border-white/5 pt-6">

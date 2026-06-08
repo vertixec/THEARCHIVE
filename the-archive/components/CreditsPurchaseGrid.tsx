@@ -51,9 +51,8 @@ export default function CreditsPurchaseGrid({ packs }: Props) {
                 )}
               </div>
 
-              <div className="mb-8 grid grid-cols-2 gap-px bg-white/10">
-                <Stat label="Image credits" value={pack.image_credits} />
-                <Stat label="Video credits" value={pack.video_credits} />
+              <div className="mb-8 bg-white/10 p-px">
+                <Stat label="Credits" value={pack.image_credits + pack.video_credits} />
               </div>
 
               <button

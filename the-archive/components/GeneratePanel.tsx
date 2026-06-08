@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { GenerationUsage } from '@/lib/types';
+import { MODEL_OPTIONS, creditCostFor, defaultSelection } from '@/lib/modelOptions';
 import { useAuth } from './AuthContext';
 import { useGenerate } from './GenerateContext';
 import { useToast } from './Toast';
@@ -44,6 +45,10 @@ export default function GeneratePanel() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [usage, setUsage] = useState<GenerationUsage | null>(null);
   const [selectedModel, setSelectedModel] = useState(IMAGE_MODELS[0].id);
+  // Per-model option selection (quality / format / resolution / duration).
+  const [modelOptions, setModelOptions] = useState<Record<string, string>>(() =>
+    defaultSelection(IMAGE_MODELS[0].id),
+  );
   const [error, setError] = useState<string | null>(null);
   const [showTopUpModal, setShowTopUpModal] = useState(false);
 
@@ -51,13 +56,17 @@ export default function GeneratePanel() {
   // Tools (currently image-based) always show the image credit footer.
   const footerType: 'image' | 'video' = isTools ? 'image' : generationType;
   const models = useMemo(() => (generationType === 'image' ? IMAGE_MODELS : VIDEO_MODELS), [generationType]);
-  const used = footerType === 'image' ? usage?.image_count ?? 0 : usage?.video_count ?? 0;
-  const limit = footerType === 'image' ? usage?.image_limit ?? 10 : usage?.video_limit ?? 2;
-  const cost = footerType === 'image' ? usage?.image_cost ?? 1 : usage?.video_cost ?? 5;
+  const optionControls = isTools ? [] : MODEL_OPTIONS[selectedModel]?.controls ?? [];
+  // Cost is dynamic: model + selected options (quality / format / resolution /
+  // duration). In tools mode the runner shows its own cost.
+  const cost = isTools
+    ? usage?.image_cost ?? 12
+    : creditCostFor(selectedModel, modelOptions, generationType);
   const planName = usage?.plan_name ?? 'Community';
-  const balance = footerType === 'image' ? usage?.credit_balance : usage?.video_credit_balance;
-  const remaining = Math.max(limit - used, 0);
-  const canGenerate = prompt.trim().length > 0 && remaining > 0 && !isGenerating;
+  // Single unified credit pool — the only spend gate now.
+  const balance = usage?.credit_balance ?? null;
+  const hasCredits = balance == null || balance >= cost;
+  const canGenerate = prompt.trim().length > 0 && hasCredits && !isGenerating;
 
   const loadUsage = useCallback(async () => {
     try {
@@ -93,6 +102,11 @@ export default function GeneratePanel() {
     setSelectedModel(nextModels[0].id);
   }, [generationType]);
 
+  // Reset the option selection to the model's defaults whenever the model changes.
+  useEffect(() => {
+    setModelOptions(defaultSelection(selectedModel));
+  }, [selectedModel]);
+
   const handleGenerate = async () => {
     if (!canGenerate) return;
 
@@ -109,6 +123,7 @@ export default function GeneratePanel() {
           model: selectedModel,
           generationType,
           referenceImageUrls,
+          options: modelOptions,
         }),
       });
 
@@ -140,7 +155,6 @@ export default function GeneratePanel() {
             ? {
                 ...current,
                 credit_balance: payload.credits.credits ?? current.credit_balance,
-                video_credit_balance: payload.credits.video_credits ?? current.video_credit_balance,
               }
             : current
         );
@@ -338,11 +352,15 @@ export default function GeneratePanel() {
                       onChange={(event) => setSelectedModel(event.target.value)}
                       className="w-full h-11 appearance-none [color-scheme:dark] bg-black border border-white/10 focus:border-acid hover:border-white/25 outline-none pl-3 pr-8 font-mono text-[10px] uppercase tracking-widest text-acid transition-colors cursor-pointer"
                     >
-                      {models.map((model) => (
-                        <option key={model.id} value={model.id}>
-                          {model.label} - {model.description}
-                        </option>
-                      ))}
+                      {models.map((model) => {
+                        const modelCost = usage?.model_costs?.[model.id];
+                        return (
+                          <option key={model.id} value={model.id}>
+                            {model.label}
+                            {typeof modelCost === 'number' ? ` - ${modelCost} cr` : ''} - {model.description}
+                          </option>
+                        );
+                      })}
                     </select>
                     <svg
                       viewBox="0 0 24 24"
@@ -359,18 +377,59 @@ export default function GeneratePanel() {
                   </div>
                 </section>
 
+                {optionControls.length > 0 && (
+                  <section className="shrink-0 grid grid-cols-2 gap-2">
+                    {optionControls.map((control) => (
+                      <div key={control.key} className="relative min-w-0">
+                        <label
+                          htmlFor={`opt-${control.key}`}
+                          className="mb-1 block font-mono text-[8px] uppercase tracking-widest text-white/40"
+                        >
+                          {control.label}
+                        </label>
+                        <select
+                          id={`opt-${control.key}`}
+                          value={modelOptions[control.key] ?? control.default}
+                          onChange={(event) =>
+                            setModelOptions((prev) => ({ ...prev, [control.key]: event.target.value }))
+                          }
+                          className="h-9 w-full cursor-pointer appearance-none [color-scheme:dark] border border-white/10 bg-black pl-2 pr-6 font-mono text-[9px] uppercase tracking-widest text-white/80 outline-none transition-colors hover:border-white/25 focus:border-acid"
+                        >
+                          {control.options.map((opt) => (
+                            <option key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </option>
+                          ))}
+                        </select>
+                        <svg
+                          viewBox="0 0 24 24"
+                          className="pointer-events-none absolute bottom-2.5 right-2 h-3 w-3 text-acid/50"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          aria-hidden="true"
+                        >
+                          <path d="m6 9 6 6 6-6" />
+                        </svg>
+                      </div>
+                    ))}
+                  </section>
+                )}
+
                 {error && (
                   <div className="shrink-0 rounded-2xl border border-danger/30 bg-danger/5 px-3 py-2 font-mono text-[9px] uppercase tracking-widest text-danger">
                     {error}
                   </div>
                 )}
 
-                <div className="shrink-0">
+                <div className="shrink-0 flex justify-center mt-2 mb-4">
                   <button
                     type="button"
                     onClick={handleGenerate}
                     disabled={!canGenerate}
-                    className={`generate-shine relative w-full overflow-hidden rounded-full bg-acid text-black font-oswald text-sm uppercase tracking-[0.25em] py-3.5 hover:bg-white transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed ${
+                    className={`generate-shine relative mx-auto w-2/3 overflow-hidden rounded-full bg-acid text-black font-oswald text-sm uppercase tracking-[0.25em] py-3.5 hover:bg-white transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed ${
                       canGenerate ? 'shadow-[0_0_30px_rgba(200,255,0,0.45)]' : 'shadow-none'
                     }`}
                   >
@@ -392,17 +451,14 @@ export default function GeneratePanel() {
           )}
 
           <footer className="shrink-0 border-t border-white/10 px-5 py-4 text-center">
-            <div className="font-mono text-[9px] uppercase tracking-widest text-acid">
-              {remaining}/{limit} {footerType === 'image' ? 'images' : 'videos'} remaining this month
-            </div>
+            {typeof balance === 'number' && (
+              <div className="font-mono text-[9px] uppercase tracking-widest text-acid">
+                Balance: {balance.toLocaleString()} credits
+              </div>
+            )}
             <div className="mt-1 font-mono text-[8px] uppercase tracking-widest text-white/35">
               Cost: {cost} {cost === 1 ? 'credit' : 'credits'} per {footerType}
             </div>
-            {typeof balance === 'number' && (
-              <div className="mt-1 font-mono text-[8px] uppercase tracking-widest text-white/35">
-                Balance: {balance} {footerType === 'image' ? 'image' : 'video'} credits
-              </div>
-            )}
             {usage?.access_tier !== 'admin' && (
               typeof balance === 'number' && balance < cost ? (
                 <button
