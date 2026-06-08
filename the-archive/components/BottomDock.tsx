@@ -75,10 +75,10 @@ function DockButton({
         onFocus={() => onHover(title)}
         onBlur={() => onHover(null)}
         aria-label={title}
-        className={`h-12 w-12 flex items-center justify-center rounded-2xl transition-all duration-200 ease-out will-change-transform ${
+        className={`dock-icon h-12 w-12 flex items-center justify-center rounded-2xl transition-all duration-200 ease-out will-change-transform ${
           active
             ? 'bg-acid text-black shadow-[0_0_22px_rgba(200,255,0,0.35)]'
-            : 'bg-white/[0.04] text-white/70 hover:bg-acid hover:text-black'
+            : 'bg-white/[0.04] text-white/70 hover:bg-acid hover:text-black hover:shadow-[0_0_24px_rgba(200,255,0,0.5)]'
         } ${hovered ? '-translate-y-3 scale-[1.28]' : 'scale-100'}`}
       >
         {children}
@@ -114,10 +114,10 @@ function DockLink({
         onFocus={() => onHover(title)}
         onBlur={() => onHover(null)}
         aria-label={title}
-        className={`h-12 w-12 flex items-center justify-center rounded-2xl transition-all duration-200 ease-out will-change-transform ${
+        className={`dock-icon h-12 w-12 flex items-center justify-center rounded-2xl transition-all duration-200 ease-out will-change-transform ${
           active
             ? 'bg-acid text-black shadow-[0_0_22px_rgba(200,255,0,0.35)]'
-            : 'bg-white/[0.04] text-white/70 hover:bg-acid hover:text-black'
+            : 'bg-white/[0.04] text-white/70 hover:bg-acid hover:text-black hover:shadow-[0_0_24px_rgba(200,255,0,0.5)]'
         } ${hovered ? '-translate-y-3 scale-[1.28]' : 'scale-100'}`}
       >
         {children}

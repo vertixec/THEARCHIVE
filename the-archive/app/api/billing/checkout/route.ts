@@ -12,6 +12,10 @@ type IntentResult = {
 };
 
 function siteUrl(request: NextRequest): string {
+  // In production set NEXT_PUBLIC_SITE_URL to the canonical site origin.
+  // The request.nextUrl.origin fallback can be wrong behind a proxy/CDN
+  // (it may reflect an internal host), which would produce a broken
+  // post-checkout redirect URL.
   const envUrl = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '');
   if (envUrl) return envUrl;
   const origin = request.nextUrl.origin;

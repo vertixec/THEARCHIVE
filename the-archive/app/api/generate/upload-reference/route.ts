@@ -7,6 +7,9 @@ import {
   rehostUrlToFal,
 } from '@/lib/falReference';
 
+export const runtime = 'nodejs';
+export const maxDuration = 60;
+
 const MAX_FILE_BYTES = 15 * 1024 * 1024;
 
 export async function POST(req: NextRequest) {

@@ -43,6 +43,18 @@ export default function AuthCallback() {
         return;
       }
 
+      // Confirm a session actually exists. An expired/invalid link can reach
+      // here without an error but also without setting a session — in that case
+      // don't pretend the user is logged in.
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session) {
+        router.push("/login?error=link_expired");
+        return;
+      }
+
       router.push(type === "recovery" ? "/auth/reset-password" : "/");
     };
 

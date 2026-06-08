@@ -99,6 +99,7 @@ export default function GeneratePanel() {
     setError(null);
 
     try {
+      // 1) Submit: charges credits and enqueues the job on the FAL queue.
       const response = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -117,41 +118,66 @@ export default function GeneratePanel() {
         setError(payload.error || 'Monthly limit reached');
         return;
       }
-
       if (response.status === 401) {
         showToast('LOGIN REQUIRED');
         setError('Login required');
         return;
       }
-
       if (response.status === 403) {
         showToast('UPGRADE REQUIRED');
         setError(payload.error || 'Upgrade required');
         return;
       }
-
-      if (!response.ok) {
+      if (!response.ok || !payload.jobId) {
         throw new Error(payload.error || 'Generation failed');
       }
 
-      setUsage((current) => {
-        if (!current) return current;
-        const nextUsage = generationType === 'image'
-          ? { ...current, image_count: current.image_count + 1 }
-          : { ...current, video_count: current.video_count + 1 };
+      // Credits are deducted at submit — reflect the new balance immediately.
+      if (payload.credits && typeof payload.credits === 'object') {
+        setUsage((current) =>
+          current
+            ? {
+                ...current,
+                credit_balance: payload.credits.credits ?? current.credit_balance,
+                video_credit_balance: payload.credits.video_credits ?? current.video_credit_balance,
+              }
+            : current
+        );
+      }
 
-        if (payload.credits && typeof payload.credits === 'object') {
-          return {
-            ...nextUsage,
-            credit_balance: payload.credits.credits ?? nextUsage.credit_balance,
-            video_credit_balance: payload.credits.video_credits ?? nextUsage.video_credit_balance,
-          };
+      // 2) Poll the job status until it completes or fails.
+      const POLL_INTERVAL = 3000;
+      const MAX_ATTEMPTS = 120; // ~6 minutes
+      let attempts = 0;
+
+      while (attempts < MAX_ATTEMPTS) {
+        await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL));
+        attempts += 1;
+
+        const statusRes = await fetch(`/api/generate/status?jobId=${encodeURIComponent(payload.jobId)}`);
+        if (!statusRes.ok) continue; // transient; keep polling
+        const statusPayload = await statusRes.json();
+
+        if (statusPayload.status === 'completed') {
+          // Monthly counter advances on completion (server-side).
+          setUsage((current) => {
+            if (!current) return current;
+            return generationType === 'image'
+              ? { ...current, image_count: current.image_count + 1 }
+              : { ...current, video_count: current.video_count + 1 };
+          });
+          showToast('GENERATION READY');
+          markNewCreation();
+          return;
         }
 
-        return nextUsage;
-      });
-      showToast('GENERATION READY');
-      markNewCreation();
+        if (statusPayload.status === 'failed') {
+          throw new Error(statusPayload.error || 'Generation failed');
+        }
+        // status === 'queued' -> keep polling
+      }
+
+      throw new Error('Generation timed out. Check your Creations shortly.');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Generation failed';
       setError(message);
@@ -213,6 +239,11 @@ export default function GeneratePanel() {
             <div aria-hidden="true" />
           </header>
 
+          {/* Indeterminate progress while a generation is in flight */}
+          <div className="shrink-0 h-0.5 w-full bg-black/40 overflow-hidden">
+            {isGenerating && <div className="panel-progress-bar h-full w-full" />}
+          </div>
+
           {/* Mode toggle: freeform Generate vs Tools */}
           <div className="shrink-0 px-4 pt-3">
             <div className="grid grid-cols-2 gap-1 rounded-full border border-white/10 bg-black/[0.18] p-1">
@@ -221,8 +252,8 @@ export default function GeneratePanel() {
                   key={mode}
                   type="button"
                   onClick={() => setPanelMode(mode)}
-                  className={`h-8 rounded-full font-mono text-[10px] uppercase tracking-[0.2em] transition-all duration-200 ${
-                    panelMode === mode ? 'bg-acid text-black' : 'text-white/60 hover:text-white'
+                  className={`dock-icon h-8 rounded-full font-mono text-[10px] uppercase tracking-[0.2em] transition-all duration-200 ${
+                    panelMode === mode ? 'bg-acid text-black shadow-[0_0_18px_rgba(200,255,0,0.35)]' : 'text-white/60 hover:text-white'
                   }`}
                 >
                   {mode === 'generate' ? 'Generate' : 'Tools'}
@@ -292,19 +323,33 @@ export default function GeneratePanel() {
                     ))}
                   </div>
 
-                  <select
-                    id="generate-model"
-                    aria-label="Model"
-                    value={selectedModel}
-                    onChange={(event) => setSelectedModel(event.target.value)}
-                    className="flex-1 min-w-0 h-11 bg-black border border-white/10 focus:border-acid outline-none px-3 font-mono text-[10px] uppercase tracking-widest text-acid"
-                  >
-                    {models.map((model) => (
-                      <option key={model.id} value={model.id}>
-                        {model.label} - {model.description}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="relative flex-1 min-w-0">
+                    <select
+                      id="generate-model"
+                      aria-label="Model"
+                      value={selectedModel}
+                      onChange={(event) => setSelectedModel(event.target.value)}
+                      className="w-full h-11 appearance-none [color-scheme:dark] bg-black border border-white/10 focus:border-acid hover:border-white/25 outline-none pl-3 pr-8 font-mono text-[10px] uppercase tracking-widest text-acid transition-colors cursor-pointer"
+                    >
+                      {models.map((model) => (
+                        <option key={model.id} value={model.id}>
+                          {model.label} - {model.description}
+                        </option>
+                      ))}
+                    </select>
+                    <svg
+                      viewBox="0 0 24 24"
+                      className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-acid/60"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="m6 9 6 6 6-6" />
+                    </svg>
+                  </div>
                 </section>
 
                 {error && (
@@ -313,18 +358,26 @@ export default function GeneratePanel() {
                   </div>
                 )}
 
-                <div className="shrink-0 flex justify-center">
+                <div className="shrink-0">
                   <button
                     type="button"
                     onClick={handleGenerate}
                     disabled={!canGenerate}
-                    className="generate-shine relative overflow-hidden rounded-full bg-acid text-black font-oswald text-sm uppercase tracking-[0.25em] px-10 py-3 hover:bg-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    className={`generate-shine relative w-full overflow-hidden rounded-full bg-acid text-black font-oswald text-sm uppercase tracking-[0.25em] py-3.5 hover:bg-white transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed ${
+                      canGenerate ? 'shadow-[0_0_30px_rgba(200,255,0,0.45)]' : 'shadow-none'
+                    }`}
                   >
                     <span className="relative z-10 flex items-center justify-center gap-2">
                       <span>{isGenerating ? 'Generating...' : 'Generate'}</span>
-                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
-                        <path d="M13 2 3 14h7l-1 8 11-13h-7l1-7z" />
-                      </svg>
+                      {isGenerating ? (
+                        <svg viewBox="0 0 24 24" className="h-4 w-4 animate-spin" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
+                          <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                        </svg>
+                      ) : (
+                        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+                          <path d="M13 2 3 14h7l-1 8 11-13h-7l1-7z" />
+                        </svg>
+                      )}
                     </span>
                   </button>
                 </div>

@@ -29,8 +29,8 @@ export default function ReferenceImages({ label = 'Reference images' }: { label?
       {referenceImageUrls.length > 0 ? (
         <div className="grid grid-cols-3 gap-2">
           {referenceImageUrls.map((url, index) => (
-            <div key={`${url}-${index}`} className="relative aspect-square border border-white/10 bg-black overflow-hidden">
-              <img src={url} alt={`Reference ${index + 1}`} className="h-full w-full object-cover pointer-events-none" />
+            <div key={`${url}-${index}`} className="panel-fade-in group relative aspect-square border border-white/10 bg-black overflow-hidden hover:border-acid/40 transition-colors">
+              <img src={url} alt={`Reference ${index + 1}`} className="h-full w-full object-cover pointer-events-none transition-transform duration-500 ease-out group-hover:scale-110" />
               <button
                 type="button"
                 onClick={() => removeReferenceImageUrl(index)}

@@ -27,6 +27,11 @@ export default function AuthForm() {
         showToast('ACCESS GRANTED');
         router.push('/');
       } else if (mode === 'register') {
+        if (password.length < 8) {
+          showToast('ACCESS KEY MUST BE AT LEAST 8 CHARACTERS');
+          setLoading(false);
+          return;
+        }
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
@@ -54,7 +59,7 @@ export default function AuthForm() {
         setMode('login');
       }
     } catch (error: any) {
-      showToast(error.message.toUpperCase());
+      showToast(String(error?.message ?? 'Something went wrong').toUpperCase());
     } finally {
       setLoading(false);
     }

@@ -32,7 +32,7 @@ export default function ResetPasswordPage() {
         window.location.href = '/login';
       }, 1500);
     } catch (error: any) {
-      showToast(error.message.toUpperCase());
+      showToast(String(error?.message ?? 'Something went wrong').toUpperCase());
     } finally {
       setLoading(false);
     }

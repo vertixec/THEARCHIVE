@@ -266,6 +266,67 @@
   display: none;
 }
 
+/* Generate panel — generating progress bar (indeterminate) */
+@keyframes panel-progress-indeterminate {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(450%); }
+}
+
+.panel-progress-bar {
+  position: relative;
+  overflow: hidden;
+}
+
+.panel-progress-bar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  width: 22%;
+  background: linear-gradient(90deg, transparent, #c8ff00, transparent);
+  box-shadow: 0 0 14px rgba(200, 255, 0, 0.6);
+  animation: panel-progress-indeterminate 1.1s ease-in-out infinite;
+}
+
+/* Generate panel — soft fade-in (reference thumbs, etc.) */
+@keyframes panel-fade-in-up {
+  from { opacity: 0; transform: translateY(6px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.panel-fade-in {
+  animation: panel-fade-in-up 0.35s cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+/* Bottom Dock icon hover shine */
+@keyframes dock-shine-sweep {
+  0% { transform: translateX(-180%) skewX(-22deg); }
+  100% { transform: translateX(260%) skewX(-22deg); }
+}
+
+.dock-icon {
+  position: relative;
+  overflow: hidden;
+}
+
+.dock-icon::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 45%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+  transform: translateX(-180%) skewX(-22deg);
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0;
+}
+
+.dock-icon:hover::after {
+  opacity: 1;
+  animation: dock-shine-sweep 0.75s ease-out;
+}
+
 /* Custom Cursor */
 .custom-cursor {
   position: fixed;

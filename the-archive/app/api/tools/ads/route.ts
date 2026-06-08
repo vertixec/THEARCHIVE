@@ -1,6 +1,7 @@
 import { fal } from '@fal-ai/client';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabaseServer';
+import { createAdminClient } from '@/lib/supabaseAdmin';
 import {
   canAccessFeature,
   MODEL_CREDIT_COSTS,
@@ -12,8 +13,11 @@ import { buildAdPrompts } from '@/lib/tools/prompts/ads';
 import { getTool } from '@/lib/tools/registry';
 import { AD_ANGLE_OPTIONS } from '@/lib/tools/adsAngles';
 
-// Five parallel image edits can run long; give the function room.
-export const maxDuration = 300;
+// NOTE: On Vercel Hobby the cap is 60s. Five parallel GPT Image 2 edits can
+// exceed that — this tool should be migrated to the async queue flow (like
+// /api/generate) before relying on it in production on Hobby.
+export const runtime = 'nodejs';
+export const maxDuration = 60;
 
 const GPT_IMAGE_EDIT = 'openai/gpt-image-2/edit';
 
@@ -127,7 +131,6 @@ export async function POST(req: NextRequest) {
   }
 
   const imageCount = usage?.image_count ?? 0;
-  const videoCount = usage?.video_count ?? 0;
 
   if (imageCount + outputs > plan.monthlyImageLimit) {
     return NextResponse.json(
@@ -185,7 +188,6 @@ export async function POST(req: NextRequest) {
 
   // Spend only for what we actually produced ----------------------------
   const spendAmount = MODEL_CREDIT_COSTS.image * succeeded.length;
-  let spendResult: CreditSpendResult | null = null;
   const { data: spendData, error: spendError } = await supabase.rpc('spend_generation_credits', {
     p_generation_type: 'image',
     p_amount: spendAmount,
@@ -193,40 +195,41 @@ export async function POST(req: NextRequest) {
     p_prompt: offer.slice(0, 160),
   });
 
-  if (!spendError && Array.isArray(spendData) && spendData[0]) {
-    spendResult = spendData[0] as CreditSpendResult;
-    if (!spendResult.ok) {
-      return NextResponse.json({ error: 'Not enough credits' }, { status: 429 });
-    }
-  } else if (spendError && spendError.code !== '42883' && spendError.code !== 'PGRST202') {
+  if (spendError || !Array.isArray(spendData) || !spendData[0]) {
+    // Fail closed — never let images through uncharged (e.g. missing RPC).
     console.error('Credit spend failed:', spendError);
     return NextResponse.json({ error: 'Credit spend failed' }, { status: 500 });
   }
+  const spendResult = spendData[0] as CreditSpendResult;
+  if (!spendResult.ok) {
+    return NextResponse.json({ error: 'Not enough credits' }, { status: 429 });
+  }
 
+  // refund_generation_credits ADDS credits, so it must run via the service role
+  // (never client-callable) with an explicit user id.
   const refund = async (reason: string) => {
-    if (!spendResult?.ok) return;
-    await supabase.rpc('refund_generation_credits', {
-      p_generation_type: 'image',
-      p_amount: spendAmount,
-      p_reason: reason,
-    });
+    try {
+      const admin = createAdminClient();
+      await admin.rpc('refund_generation_credits', {
+        p_generation_type: 'image',
+        p_amount: spendAmount,
+        p_reason: reason,
+        p_user_id: user.id,
+      });
+    } catch (refundErr) {
+      console.error('Refund failed:', { reason, userId: user.id, refundErr });
+    }
   };
 
   // Usage + history ------------------------------------------------------
-  const { error: upsertError } = await supabase
-    .from('user_generation_usage')
-    .upsert(
-      {
-        user_id: user.id,
-        year_month: yearMonth,
-        image_count: imageCount + succeeded.length,
-        video_count: videoCount,
-      },
-      { onConflict: 'user_id,year_month' }
-    );
+  // Counter is written server-side via RPC (the table is read-only for clients).
+  const { error: usageRpcError } = await supabase.rpc('increment_generation_usage', {
+    p_generation_type: 'image',
+    p_amount: succeeded.length,
+  });
 
-  if (upsertError) {
-    await refund('usage_upsert_failed');
+  if (usageRpcError) {
+    await refund('usage_update_failed');
     return NextResponse.json({ error: 'Usage update failed', refunded: true }, { status: 500 });
   }
 

@@ -205,6 +205,7 @@ export default function CreationsContent() {
         supabase
           .from('generations')
           .select('id, user_id, created_at, prompt, model, generation_type, result_url, reference_image_url, is_saved')
+          .eq('status', 'completed')
           .order('created_at', { ascending: false }),
         supabase
           .from('user_likes')
