@@ -35,6 +35,7 @@ export default function ToolRunner({
   }
 
   const hasAngles = !!tool.angleOptions?.length;
+  const outputNoun = tool.outputNoun ?? 'result';
   const setValue = (key: string, value: string) => setValues((prev) => ({ ...prev, [key]: value }));
   const toggleAngle = (id: string) =>
     setSelectedAngles((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -246,7 +247,7 @@ export default function ToolRunner({
                   ? 'Pick an angle'
                   : results
                   ? 'Generate again'
-                  : `Generate ${runCount} ${runCount === 1 ? 'ad' : 'ads'}`}
+                  : `Generate ${runCount} ${runCount === 1 ? outputNoun : `${outputNoun}s`}`}
               </span>
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
                 <path d="M13 2 3 14h7l-1 8 11-13h-7l1-7z" />

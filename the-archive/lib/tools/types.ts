@@ -50,6 +50,8 @@ export interface ToolDefinition {
   endpoint?: string;
   /** How many results a single run produces (the MAX). */
   outputCount: number;
+  /** Singular noun for one output, used in the run button (e.g. 'ad', 'image'). Defaults to 'result'. */
+  outputNoun?: string;
   /**
    * When present, the user selects WHICH angles to generate (chips). The number
    * of outputs equals the number of selected angles. Only id + label are public.

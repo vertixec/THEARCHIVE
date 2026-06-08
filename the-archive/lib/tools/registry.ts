@@ -15,6 +15,7 @@ export const TOOLS: ToolDefinition[] = [
     kind: 'image-batch',
     endpoint: '/api/tools/ads',
     outputCount: 5,
+    outputNoun: 'ad',
     angleOptions: AD_ANGLE_OPTIONS,
     creditType: 'image',
     creditCost: 5,
@@ -45,6 +46,24 @@ export const TOOLS: ToolDefinition[] = [
         placeholder: 'E.g.: women 25-40 interested in skincare',
       },
     ],
+  },
+  {
+    id: 'style-transfer',
+    name: 'Style Transfer',
+    tagline: 'Borrow any look',
+    description:
+      'Drop a reference and steal its visual style — palette, lighting, texture and mood. Then either write a prompt to create something new in that style, or add a second image to re-skin it with the reference look.',
+    icon: 'style',
+    status: 'live',
+    kind: 'image-batch',
+    endpoint: '/api/tools/style-transfer',
+    outputCount: 1,
+    outputNoun: 'image',
+    creditType: 'image',
+    creditCost: 1,
+    // Custom UI: rendered by StyleTransferRunner (two labeled slots), not the
+    // generic ToolRunner — so no declarative inputs here.
+    inputs: [],
   },
   {
     id: 'reels',

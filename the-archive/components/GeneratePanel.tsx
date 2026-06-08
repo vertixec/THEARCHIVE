@@ -11,6 +11,7 @@ import CreditsTopUpModal from './CreditsTopUpModal';
 import ReferenceImages from './generate/ReferenceImages';
 import ToolsGallery from './generate/ToolsGallery';
 import ToolRunner from './generate/ToolRunner';
+import StyleTransferRunner from './generate/StyleTransferRunner';
 
 const IMAGE_MODELS = [
   { id: 'gpt-image-2', label: 'GPT Image 2', description: 'High fidelity, text-aware' },
@@ -264,7 +265,13 @@ export default function GeneratePanel() {
 
           {isTools ? (
             <div className="flex-1 min-h-0 flex flex-col px-4 py-3">
-              {activeToolId ? <ToolRunner toolId={activeToolId} onSpend={applyToolSpend} /> : <ToolsGallery />}
+              {activeToolId === 'style-transfer' ? (
+                <StyleTransferRunner onSpend={applyToolSpend} />
+              ) : activeToolId ? (
+                <ToolRunner toolId={activeToolId} onSpend={applyToolSpend} />
+              ) : (
+                <ToolsGallery />
+              )}
             </div>
           ) : (
             <div className="flex-1 min-h-0 flex flex-col px-4 py-3 gap-3">

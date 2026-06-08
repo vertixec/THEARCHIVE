@@ -16,6 +16,17 @@ function ToolIcon({ icon }: { icon: string }) {
       </svg>
     );
   }
+  if (icon === 'style') {
+    return (
+      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="13.5" cy="6.5" r="1.5" />
+        <circle cx="17.5" cy="10.5" r="1.5" />
+        <circle cx="8.5" cy="7.5" r="1.5" />
+        <circle cx="6.5" cy="12.5" r="1.5" />
+        <path d="M12 2a10 10 0 0 0 0 20 2.5 2.5 0 0 0 2-4 2.5 2.5 0 0 1 2-4h2a4 4 0 0 0 4-4 10 10 0 0 0-10-8z" />
+      </svg>
+    );
+  }
   // ads (default)
   return (
     <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
