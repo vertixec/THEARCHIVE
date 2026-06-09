@@ -24,7 +24,7 @@ function ToastItem({ msg, onRemove }: { msg: string; onRemove: () => void }) {
       cancelAnimationFrame(frame);
       clearTimeout(hideTimer);
     };
-  }, []);
+  }, [onRemove]);
 
   return (
     <div

@@ -58,8 +58,8 @@ export default function AuthForm() {
         showToast('RECOVERY EMAIL SENT — CHECK YOUR INBOX');
         setMode('login');
       }
-    } catch (error: any) {
-      showToast(String(error?.message ?? 'Something went wrong').toUpperCase());
+    } catch (error: unknown) {
+      showToast((error instanceof Error ? error.message : 'Something went wrong').toUpperCase());
     } finally {
       setLoading(false);
     }

@@ -646,3 +646,386 @@ Import trace for requested module:
  GET /visuals 200 in 1496ms (compile: 131ms, proxy.ts: 951ms, render: 414ms)
  GET /visuals 200 in 881ms (compile: 3ms, proxy.ts: 436ms, render: 443ms)
  GET /visuals 200 in 950ms (compile: 6ms, proxy.ts: 578ms, render: 366ms)
+ GET /visuals 200 in 1344ms (compile: 4ms, proxy.ts: 494ms, render: 846ms)
+ GET /systems 200 in 1249ms (compile: 100ms, proxy.ts: 434ms, render: 715ms)
+ GET /profile 200 in 576ms (compile: 7ms, proxy.ts: 510ms, render: 59ms)
+ GET /profile 200 in 3.5s (compile: 2.1s, proxy.ts: 340ms, render: 1069ms)
+ GET /login 200 in 56ms (compile: 20ms, proxy.ts: 7ms, render: 28ms)
+ GET / 200 in 668ms (compile: 27ms, proxy.ts: 627ms, render: 14ms)
+ GET /visuals 200 in 886ms (compile: 39ms, proxy.ts: 365ms, render: 482ms)
+ GET /visuals 200 in 1010ms (compile: 53ms, proxy.ts: 416ms, render: 540ms)
+ GET /api/generate/usage 200 in 3.9s (compile: 2.8s, render: 1099ms)
+ GET /api/generate/usage 200 in 1620ms (compile: 4ms, render: 1616ms)
+ GET /community 200 in 1202ms (compile: 24ms, proxy.ts: 449ms, render: 729ms)
+ GET /community?tab=workflows 200 in 988ms (compile: 10ms, proxy.ts: 391ms, render: 586ms)
+ GET /community?tab=drops 200 in 894ms (compile: 3ms, proxy.ts: 352ms, render: 539ms)
+ GET /community 200 in 950ms (compile: 4ms, proxy.ts: 355ms, render: 591ms)
+ GET /community?tab=drops 200 in 920ms (compile: 4ms, proxy.ts: 375ms, render: 542ms)
+ GET /community 200 in 1025ms (compile: 4ms, proxy.ts: 436ms, render: 584ms)
+ GET /community?tab=workflows 200 in 978ms (compile: 4ms, proxy.ts: 394ms, render: 580ms)
+ GET /community 200 in 937ms (compile: 4ms, proxy.ts: 355ms, render: 578ms)
+ GET /community?tab=workflows 200 in 1011ms (compile: 4ms, proxy.ts: 382ms, render: 625ms)
+ GET /community?tab=drops 200 in 996ms (compile: 4ms, proxy.ts: 370ms, render: 622ms)
+ GET /community?tab=workflows 200 in 1054ms (compile: 3ms, proxy.ts: 427ms, render: 624ms)
+ GET /community?tab=drops 200 in 1121ms (compile: 3ms, proxy.ts: 364ms, render: 753ms)
+ GET /community?tab=workflows 200 in 987ms (compile: 4ms, proxy.ts: 428ms, render: 555ms)
+ GET /community?tab=drops 200 in 908ms (compile: 4ms, proxy.ts: 352ms, render: 552ms)
+ GET /community 200 in 928ms (compile: 5ms, proxy.ts: 352ms, render: 571ms)
+ GET /visuals 200 in 1158ms (compile: 3ms, proxy.ts: 723ms, render: 432ms)
+ GET /visuals 200 in 4.3s (compile: 95ms, proxy.ts: 1364ms, render: 2.9s)
+ GET /api/generate/usage 200 in 1907ms (compile: 24ms, render: 1883ms)
+○ Compiling /pricing ...
+ GET /pricing 200 in 8.1s (compile: 62ms, proxy.ts: 7.0s, render: 1064ms)
+○ Compiling /api/generate/usage ...
+ GET /pricing 200 in 2.9s (compile: 81ms, proxy.ts: 2.2s, render: 636ms)
+ GET /api/generate/usage 200 in 13.2s (compile: 10.1s, render: 3.1s)
+ GET /pricing 200 in 7.5s (compile: 7ms, proxy.ts: 5.5s, render: 2.0s)
+⚠ Found a change in next.config.ts. Restarting the server to apply the changes...
+▲ Next.js 16.1.6 (webpack)
+- Local:         http://localhost:3001
+- Network:       http://192.168.3.17:3001
+- Environments: .env.local
+
+✓ Starting...
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+✓ Ready in 2.2s
+⨯ ./node_modules/next/dist/build/webpack/loaders/next-middleware-loader.js?absolutePagePath=C%3A%5CUsers%5Cjorge%5CVERTIX-VAULT%5C01-PROYECTOS%5CTHE%20ARCHIVE%5CTHEARCHIVE%5Cthe-archive%5Cproxy.ts&page=%2Fproxy&rootDir=C%3A%5CUsers%5Cjorge%5CVERTIX-VAULT%5C01-PROYECTOS%5CTHE%20ARCHIVE%5CTHEARCHIVE%5Cthe-archive&matchers=&preferredRegion=&middlewareConfig=e30%3D!
+Error: Invariant: Expected to inject all imports, found // OPTIONAL_IMPORT:incrementalCacheHandler
+○ Compiling proxy ...
+⨯ ./node_modules/next/dist/build/webpack/loaders/next-middleware-loader.js?absolutePagePath=C%3A%5CUsers%5Cjorge%5CVERTIX-VAULT%5C01-PROYECTOS%5CTHE%20ARCHIVE%5CTHEARCHIVE%5Cthe-archive%5Cproxy.ts&page=%2Fproxy&rootDir=C%3A%5CUsers%5Cjorge%5CVERTIX-VAULT%5C01-PROYECTOS%5CTHE%20ARCHIVE%5CTHEARCHIVE%5Cthe-archive&matchers=&preferredRegion=&middlewareConfig=e30%3D!
+Error: Invariant: Expected to inject all imports, found // OPTIONAL_IMPORT:incrementalCacheHandler
+Error: Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:
+  - react:      19.2.3
+  - react-dom:  19.2.7
+Learn more: https://react.dev/warnings/version-mismatch
+    at ignore-listed frames
+Error: Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:
+  - react:      19.2.3
+  - react-dom:  19.2.7
+Learn more: https://react.dev/warnings/version-mismatch
+    at ignore-listed frames
+Error: Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:
+  - react:      19.2.3
+  - react-dom:  19.2.7
+Learn more: https://react.dev/warnings/version-mismatch
+    at ignore-listed frames
+⚠ Found a change in next.config.ts. Restarting the server to apply the changes...
+▲ Next.js 16.2.7 (webpack)
+- Local:         http://localhost:3001
+- Network:       http://192.168.3.17:3001
+- Environments: .env.local
+✓ Ready in 0ms
+
+○ Compiling / ...
+⨯ Error: ENOENT: no such file or directory, open 'C:\Users\jorge\VERTIX-VAULT\01-PROYECTOS\THE ARCHIVE\THEARCHIVE\the-archive\.next\dev\required-server-files.json'
+    at ignore-listed frames {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\jorge\\VERTIX-VAULT\\01-PROYECTOS\\THE ARCHIVE\\THEARCHIVE\\the-archive\\.next\\dev\\required-server-files.json',
+  page: '/'
+}
+⨯ Error: ENOENT: no such file or directory, open 'C:\Users\jorge\VERTIX-VAULT\01-PROYECTOS\THE ARCHIVE\THEARCHIVE\the-archive\.next\dev\required-server-files.json'
+    at ignore-listed frames {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\jorge\\VERTIX-VAULT\\01-PROYECTOS\\THE ARCHIVE\\THEARCHIVE\\the-archive\\.next\\dev\\required-server-files.json',
+  page: '/'
+}
+○ Compiling /_error ...
+⨯ Error: ENOENT: no such file or directory, open 'C:\Users\jorge\VERTIX-VAULT\01-PROYECTOS\THE ARCHIVE\THEARCHIVE\the-archive\.next\dev\required-server-files.json'
+    at ignore-listed frames {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\jorge\\VERTIX-VAULT\\01-PROYECTOS\\THE ARCHIVE\\THEARCHIVE\\the-archive\\.next\\dev\\required-server-files.json'
+}
+⨯ Error: ENOENT: no such file or directory, open 'C:\Users\jorge\VERTIX-VAULT\01-PROYECTOS\THE ARCHIVE\THEARCHIVE\the-archive\.next\dev\required-server-files.json'
+    at ignore-listed frames {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\jorge\\VERTIX-VAULT\\01-PROYECTOS\\THE ARCHIVE\\THEARCHIVE\\the-archive\\.next\\dev\\required-server-files.json'
+}
+Error: ENOENT: no such file or directory, open 'C:\Users\jorge\VERTIX-VAULT\01-PROYECTOS\THE ARCHIVE\THEARCHIVE\the-archive\.next\dev\required-server-files.json'
+    at ignore-listed frames {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\jorge\\VERTIX-VAULT\\01-PROYECTOS\\THE ARCHIVE\\THEARCHIVE\\the-archive\\.next\\dev\\required-server-files.json',
+  page: '/'
+}
+⨯ Error: ENOENT: no such file or directory, open 'C:\Users\jorge\VERTIX-VAULT\01-PROYECTOS\THE ARCHIVE\THEARCHIVE\the-archive\.next\dev\required-server-files.json'
+    at ignore-listed frames {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\jorge\\VERTIX-VAULT\\01-PROYECTOS\\THE ARCHIVE\\THEARCHIVE\\the-archive\\.next\\dev\\required-server-files.json'
+}
+Error: ENOENT: no such file or directory, open 'C:\Users\jorge\VERTIX-VAULT\01-PROYECTOS\THE ARCHIVE\THEARCHIVE\the-archive\.next\dev\required-server-files.json'
+    at ignore-listed frames {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\jorge\\VERTIX-VAULT\\01-PROYECTOS\\THE ARCHIVE\\THEARCHIVE\\the-archive\\.next\\dev\\required-server-files.json'
+}
+ GET / 500 in 15.3s (proxy.ts: 2.1s)
+ GET / 500 in 15.3s (proxy.ts: 2.1s)
+Error: ENOENT: no such file or directory, open 'C:\Users\jorge\VERTIX-VAULT\01-PROYECTOS\THE ARCHIVE\THEARCHIVE\the-archive\.next\dev\required-server-files.json'
+    at ignore-listed frames {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\jorge\\VERTIX-VAULT\\01-PROYECTOS\\THE ARCHIVE\\THEARCHIVE\\the-archive\\.next\\dev\\required-server-files.json',
+  page: '/'
+}
+⨯ Error: ENOENT: no such file or directory, open 'C:\Users\jorge\VERTIX-VAULT\01-PROYECTOS\THE ARCHIVE\THEARCHIVE\the-archive\.next\dev\required-server-files.json'
+    at ignore-listed frames {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\jorge\\VERTIX-VAULT\\01-PROYECTOS\\THE ARCHIVE\\THEARCHIVE\\the-archive\\.next\\dev\\required-server-files.json'
+}
+Error: ENOENT: no such file or directory, open 'C:\Users\jorge\VERTIX-VAULT\01-PROYECTOS\THE ARCHIVE\THEARCHIVE\the-archive\.next\dev\required-server-files.json'
+    at ignore-listed frames {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\jorge\\VERTIX-VAULT\\01-PROYECTOS\\THE ARCHIVE\\THEARCHIVE\\the-archive\\.next\\dev\\required-server-files.json'
+}
+⨯ Error: ENOENT: no such file or directory, open 'C:\Users\jorge\VERTIX-VAULT\01-PROYECTOS\THE ARCHIVE\THEARCHIVE\the-archive\.next\dev\required-server-files.json'
+    at ignore-listed frames {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\jorge\\VERTIX-VAULT\\01-PROYECTOS\\THE ARCHIVE\\THEARCHIVE\\the-archive\\.next\\dev\\required-server-files.json',
+  page: '/'
+}
+⨯ Error: ENOENT: no such file or directory, open 'C:\Users\jorge\VERTIX-VAULT\01-PROYECTOS\THE ARCHIVE\THEARCHIVE\the-archive\.next\dev\required-server-files.json'
+    at ignore-listed frames {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\jorge\\VERTIX-VAULT\\01-PROYECTOS\\THE ARCHIVE\\THEARCHIVE\\the-archive\\.next\\dev\\required-server-files.json'
+}
+Error: ENOENT: no such file or directory, open 'C:\Users\jorge\VERTIX-VAULT\01-PROYECTOS\THE ARCHIVE\THEARCHIVE\the-archive\.next\dev\required-server-files.json'
+    at ignore-listed frames {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\jorge\\VERTIX-VAULT\\01-PROYECTOS\\THE ARCHIVE\\THEARCHIVE\\the-archive\\.next\\dev\\required-server-files.json',
+  page: '/'
+}
+⨯ Error: ENOENT: no such file or directory, open 'C:\Users\jorge\VERTIX-VAULT\01-PROYECTOS\THE ARCHIVE\THEARCHIVE\the-archive\.next\dev\required-server-files.json'
+    at ignore-listed frames {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\jorge\\VERTIX-VAULT\\01-PROYECTOS\\THE ARCHIVE\\THEARCHIVE\\the-archive\\.next\\dev\\required-server-files.json'
+}
+Error: ENOENT: no such file or directory, open 'C:\Users\jorge\VERTIX-VAULT\01-PROYECTOS\THE ARCHIVE\THEARCHIVE\the-archive\.next\dev\required-server-files.json'
+    at ignore-listed frames {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\jorge\\VERTIX-VAULT\\01-PROYECTOS\\THE ARCHIVE\\THEARCHIVE\\the-archive\\.next\\dev\\required-server-files.json'
+}
+ GET / 500 in 1606ms (proxy.ts: 195ms)
+ GET / 500 in 1606ms (proxy.ts: 195ms)
+⨯ Error: ENOENT: no such file or directory, open 'C:\Users\jorge\VERTIX-VAULT\01-PROYECTOS\THE ARCHIVE\THEARCHIVE\the-archive\.next\dev\required-server-files.json'
+    at ignore-listed frames {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\jorge\\VERTIX-VAULT\\01-PROYECTOS\\THE ARCHIVE\\THEARCHIVE\\the-archive\\.next\\dev\\required-server-files.json',
+  page: '/'
+}
+⨯ Error: ENOENT: no such file or directory, open 'C:\Users\jorge\VERTIX-VAULT\01-PROYECTOS\THE ARCHIVE\THEARCHIVE\the-archive\.next\dev\required-server-files.json'
+    at ignore-listed frames {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\jorge\\VERTIX-VAULT\\01-PROYECTOS\\THE ARCHIVE\\THEARCHIVE\\the-archive\\.next\\dev\\required-server-files.json'
+}
+Error: ENOENT: no such file or directory, open 'C:\Users\jorge\VERTIX-VAULT\01-PROYECTOS\THE ARCHIVE\THEARCHIVE\the-archive\.next\dev\required-server-files.json'
+    at ignore-listed frames {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\jorge\\VERTIX-VAULT\\01-PROYECTOS\\THE ARCHIVE\\THEARCHIVE\\the-archive\\.next\\dev\\required-server-files.json',
+  page: '/'
+}
+⨯ Error: ENOENT: no such file or directory, open 'C:\Users\jorge\VERTIX-VAULT\01-PROYECTOS\THE ARCHIVE\THEARCHIVE\the-archive\.next\dev\required-server-files.json'
+    at ignore-listed frames {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\jorge\\VERTIX-VAULT\\01-PROYECTOS\\THE ARCHIVE\\THEARCHIVE\\the-archive\\.next\\dev\\required-server-files.json'
+}
+Error: ENOENT: no such file or directory, open 'C:\Users\jorge\VERTIX-VAULT\01-PROYECTOS\THE ARCHIVE\THEARCHIVE\the-archive\.next\dev\required-server-files.json'
+    at ignore-listed frames {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\jorge\\VERTIX-VAULT\\01-PROYECTOS\\THE ARCHIVE\\THEARCHIVE\\the-archive\\.next\\dev\\required-server-files.json'
+}
+ GET / 500 in 1059ms (proxy.ts: 13ms)
+ GET / 500 in 1060ms (proxy.ts: 13ms)
+⨯ Error: ENOENT: no such file or directory, open 'C:\Users\jorge\VERTIX-VAULT\01-PROYECTOS\THE ARCHIVE\THEARCHIVE\the-archive\.next\dev\required-server-files.json'
+    at ignore-listed frames {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\jorge\\VERTIX-VAULT\\01-PROYECTOS\\THE ARCHIVE\\THEARCHIVE\\the-archive\\.next\\dev\\required-server-files.json',
+  page: '/pricing'
+}
+⨯ Error: ENOENT: no such file or directory, open 'C:\Users\jorge\VERTIX-VAULT\01-PROYECTOS\THE ARCHIVE\THEARCHIVE\the-archive\.next\dev\required-server-files.json'
+    at ignore-listed frames {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\jorge\\VERTIX-VAULT\\01-PROYECTOS\\THE ARCHIVE\\THEARCHIVE\\the-archive\\.next\\dev\\required-server-files.json'
+}
+Error: ENOENT: no such file or directory, open 'C:\Users\jorge\VERTIX-VAULT\01-PROYECTOS\THE ARCHIVE\THEARCHIVE\the-archive\.next\dev\required-server-files.json'
+    at ignore-listed frames {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\jorge\\VERTIX-VAULT\\01-PROYECTOS\\THE ARCHIVE\\THEARCHIVE\\the-archive\\.next\\dev\\required-server-files.json',
+  page: '/pricing'
+}
+⨯ Error: ENOENT: no such file or directory, open 'C:\Users\jorge\VERTIX-VAULT\01-PROYECTOS\THE ARCHIVE\THEARCHIVE\the-archive\.next\dev\required-server-files.json'
+    at ignore-listed frames {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\jorge\\VERTIX-VAULT\\01-PROYECTOS\\THE ARCHIVE\\THEARCHIVE\\the-archive\\.next\\dev\\required-server-files.json'
+}
+Error: ENOENT: no such file or directory, open 'C:\Users\jorge\VERTIX-VAULT\01-PROYECTOS\THE ARCHIVE\THEARCHIVE\the-archive\.next\dev\required-server-files.json'
+    at ignore-listed frames {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\jorge\\VERTIX-VAULT\\01-PROYECTOS\\THE ARCHIVE\\THEARCHIVE\\the-archive\\.next\\dev\\required-server-files.json'
+}
+ GET /pricing 500 in 3.7s (proxy.ts: 6ms)
+ GET /pricing 500 in 3.7s (proxy.ts: 6ms)
+⨯ Error: ENOENT: no such file or directory, open 'C:\Users\jorge\VERTIX-VAULT\01-PROYECTOS\THE ARCHIVE\THEARCHIVE\the-archive\.next\dev\required-server-files.json'
+    at ignore-listed frames {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\jorge\\VERTIX-VAULT\\01-PROYECTOS\\THE ARCHIVE\\THEARCHIVE\\the-archive\\.next\\dev\\required-server-files.json',
+  page: '/login'
+}
+⨯ Error: ENOENT: no such file or directory, open 'C:\Users\jorge\VERTIX-VAULT\01-PROYECTOS\THE ARCHIVE\THEARCHIVE\the-archive\.next\dev\required-server-files.json'
+    at ignore-listed frames {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\jorge\\VERTIX-VAULT\\01-PROYECTOS\\THE ARCHIVE\\THEARCHIVE\\the-archive\\.next\\dev\\required-server-files.json',
+  page: '/'
+}
+⨯ Error: ENOENT: no such file or directory, open 'C:\Users\jorge\VERTIX-VAULT\01-PROYECTOS\THE ARCHIVE\THEARCHIVE\the-archive\.next\dev\required-server-files.json'
+    at ignore-listed frames {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\jorge\\VERTIX-VAULT\\01-PROYECTOS\\THE ARCHIVE\\THEARCHIVE\\the-archive\\.next\\dev\\required-server-files.json'
+}
+⨯ Error: ENOENT: no such file or directory, open 'C:\Users\jorge\VERTIX-VAULT\01-PROYECTOS\THE ARCHIVE\THEARCHIVE\the-archive\.next\dev\required-server-files.json'
+    at ignore-listed frames {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\jorge\\VERTIX-VAULT\\01-PROYECTOS\\THE ARCHIVE\\THEARCHIVE\\the-archive\\.next\\dev\\required-server-files.json'
+}
+Error: ENOENT: no such file or directory, open 'C:\Users\jorge\VERTIX-VAULT\01-PROYECTOS\THE ARCHIVE\THEARCHIVE\the-archive\.next\dev\required-server-files.json'
+    at ignore-listed frames {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\jorge\\VERTIX-VAULT\\01-PROYECTOS\\THE ARCHIVE\\THEARCHIVE\\the-archive\\.next\\dev\\required-server-files.json',
+  page: '/login'
+}
+Error: ENOENT: no such file or directory, open 'C:\Users\jorge\VERTIX-VAULT\01-PROYECTOS\THE ARCHIVE\THEARCHIVE\the-archive\.next\dev\required-server-files.json'
+    at ignore-listed frames {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\jorge\\VERTIX-VAULT\\01-PROYECTOS\\THE ARCHIVE\\THEARCHIVE\\the-archive\\.next\\dev\\required-server-files.json',
+  page: '/'
+}
+⨯ Error: ENOENT: no such file or directory, open 'C:\Users\jorge\VERTIX-VAULT\01-PROYECTOS\THE ARCHIVE\THEARCHIVE\the-archive\.next\dev\required-server-files.json'
+    at ignore-listed frames {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\jorge\\VERTIX-VAULT\\01-PROYECTOS\\THE ARCHIVE\\THEARCHIVE\\the-archive\\.next\\dev\\required-server-files.json'
+}
+⨯ Error: ENOENT: no such file or directory, open 'C:\Users\jorge\VERTIX-VAULT\01-PROYECTOS\THE ARCHIVE\THEARCHIVE\the-archive\.next\dev\required-server-files.json'
+    at ignore-listed frames {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\jorge\\VERTIX-VAULT\\01-PROYECTOS\\THE ARCHIVE\\THEARCHIVE\\the-archive\\.next\\dev\\required-server-files.json'
+}
+Error: ENOENT: no such file or directory, open 'C:\Users\jorge\VERTIX-VAULT\01-PROYECTOS\THE ARCHIVE\THEARCHIVE\the-archive\.next\dev\required-server-files.json'
+    at ignore-listed frames {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\jorge\\VERTIX-VAULT\\01-PROYECTOS\\THE ARCHIVE\\THEARCHIVE\\the-archive\\.next\\dev\\required-server-files.json'
+}
+Error: ENOENT: no such file or directory, open 'C:\Users\jorge\VERTIX-VAULT\01-PROYECTOS\THE ARCHIVE\THEARCHIVE\the-archive\.next\dev\required-server-files.json'
+    at ignore-listed frames {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\jorge\\VERTIX-VAULT\\01-PROYECTOS\\THE ARCHIVE\\THEARCHIVE\\the-archive\\.next\\dev\\required-server-files.json'
+}
+ GET /login 500 in 5.6s (proxy.ts: 34ms)
+ GET /login 500 in 5.6s (proxy.ts: 34ms)
+ GET / 500 in 5.6s (proxy.ts: 847ms)
+ GET / 500 in 5.6s (proxy.ts: 847ms)
+⨯ Error: ENOENT: no such file or directory, open 'C:\Users\jorge\VERTIX-VAULT\01-PROYECTOS\THE ARCHIVE\THEARCHIVE\the-archive\.next\dev\required-server-files.json'
+    at ignore-listed frames {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\jorge\\VERTIX-VAULT\\01-PROYECTOS\\THE ARCHIVE\\THEARCHIVE\\the-archive\\.next\\dev\\required-server-files.json',
+  page: '/api/billing/packs'
+}
+⨯ Error: ENOENT: no such file or directory, open 'C:\Users\jorge\VERTIX-VAULT\01-PROYECTOS\THE ARCHIVE\THEARCHIVE\the-archive\.next\dev\required-server-files.json'
+    at ignore-listed frames {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\jorge\\VERTIX-VAULT\\01-PROYECTOS\\THE ARCHIVE\\THEARCHIVE\\the-archive\\.next\\dev\\required-server-files.json'
+}
+Error: ENOENT: no such file or directory, open 'C:\Users\jorge\VERTIX-VAULT\01-PROYECTOS\THE ARCHIVE\THEARCHIVE\the-archive\.next\dev\required-server-files.json'
+    at ignore-listed frames {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\jorge\\VERTIX-VAULT\\01-PROYECTOS\\THE ARCHIVE\\THEARCHIVE\\the-archive\\.next\\dev\\required-server-files.json',
+  page: '/api/billing/packs'
+}
+⨯ Error: ENOENT: no such file or directory, open 'C:\Users\jorge\VERTIX-VAULT\01-PROYECTOS\THE ARCHIVE\THEARCHIVE\the-archive\.next\dev\required-server-files.json'
+    at ignore-listed frames {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\jorge\\VERTIX-VAULT\\01-PROYECTOS\\THE ARCHIVE\\THEARCHIVE\\the-archive\\.next\\dev\\required-server-files.json'
+}
+Error: ENOENT: no such file or directory, open 'C:\Users\jorge\VERTIX-VAULT\01-PROYECTOS\THE ARCHIVE\THEARCHIVE\the-archive\.next\dev\required-server-files.json'
+    at ignore-listed frames {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\jorge\\VERTIX-VAULT\\01-PROYECTOS\\THE ARCHIVE\\THEARCHIVE\\the-archive\\.next\\dev\\required-server-files.json'
+}
+ GET /api/billing/packs 500 in 2.5s
+ GET /api/billing/packs 500 in 2.5s
+[?25h

@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabaseServer';
 import BoardContent from './BoardContent';
+import type { AnyItem } from '@/lib/types';
 
 interface Props {
   params: Promise<{ boardId: string }>;
@@ -37,7 +38,7 @@ export default async function BoardPage({ params }: Props) {
   const communityIds = boardItems.filter(bi => bi.item_type === 'community').map(bi => bi.item_id);
   const workflowIds  = boardItems.filter(bi => bi.item_type === 'workflow').map(bi => bi.item_id);
 
-  const fetchPromises: PromiseLike<any[]>[] = [];
+  const fetchPromises: PromiseLike<AnyItem[]>[] = [];
 
   if (visualIds.length > 0)
     fetchPromises.push(supabase.from('prompts').select('*').in('id', visualIds)
@@ -60,7 +61,7 @@ export default async function BoardPage({ params }: Props) {
 
   const sortedItems = boardItems
     .map(bi => allItems.find(item => item.id.toString() === bi.item_id && item._itemType === bi.item_type))
-    .filter(Boolean);
+    .filter((item): item is AnyItem => Boolean(item));
 
   return <BoardContent board={board} initialItems={sortedItems} />;
 }

@@ -3,6 +3,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabaseServer';
 import { createAdminClient } from '@/lib/supabaseAdmin';
 import {
+  enforceRateLimit,
+  refundCreditOperation,
+  reserveCredits,
+} from '@/lib/generationSecurity';
+import {
   canAccessFeature,
   type BusinessProfile,
 } from '@/lib/business';
@@ -32,12 +37,6 @@ import {
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
-type CreditSpendResult = {
-  ok: boolean;
-  credits: number;
-  video_credits: number;
-};
-
 // Generous ceiling: only guards against abusive payloads, not real creative
 // prompts. Matches GPT Image 2's prompt limit; FAL enforces per-model limits
 // and we surface those errors. (Previously 2000, which wrongly rejected long
@@ -59,7 +58,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { prompt, model, generationType, referenceImageUrl, referenceImageUrls, options } = await req.json();
+  const rateLimitResponse = await enforceRateLimit(supabase, 'generate', 10, 60);
+  if (rateLimitResponse) return rateLimitResponse;
+
+  const body = await req.json().catch(() => null);
+  if (!body || typeof body !== 'object') {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+  }
+  const { prompt, model, generationType, referenceImageUrl, referenceImageUrls, options } = body;
   const cleanPrompt = typeof prompt === 'string' ? prompt.trim() : '';
   const type: GenerationType = generationType === 'video' ? 'video' : 'image';
 
@@ -68,6 +74,9 @@ export async function POST(req: NextRequest) {
     : typeof referenceImageUrl === 'string' && referenceImageUrl.length > 0
       ? [referenceImageUrl]
       : [];
+  if (referenceList.length > 3) {
+    return NextResponse.json({ error: 'A maximum of 3 reference images is allowed' }, { status: 400 });
+  }
 
   if (!cleanPrompt) {
     return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
@@ -149,14 +158,41 @@ export async function POST(req: NextRequest) {
 
   const endpoint = resolveEndpoint(type, modelId, hasReference);
 
+  let reservation;
+  try {
+    reservation = await reserveCredits({
+      supabase,
+      generationType: type,
+      amount: generationCost,
+      model: resolvedModel,
+      tool: 'generate',
+      prompt: cleanPrompt,
+    });
+  } catch (error) {
+    console.error('Credit reservation failed:', error);
+    return NextResponse.json({ error: 'Credit reservation failed' }, { status: 500 });
+  }
+  if (!reservation.ok) {
+    return NextResponse.json({ error: 'Not enough credits' }, { status: 429 });
+  }
+
+  const refund = async (reason: string) => {
+    try {
+      await refundCreditOperation(reservation.operation_id, reason);
+    } catch (refundErr) {
+      console.error('Refund failed:', { reason, userId: user.id, refundErr });
+    }
+  };
+
   let preparedReferenceList: string[] = [];
   try {
     preparedReferenceList = hasReference ? await prepareReferenceUrls(referenceList) : [];
   } catch (error) {
-    if (error instanceof ReferenceImageAccessError) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
-    }
-    throw error;
+    await refund('reference_failed');
+    const message = error instanceof ReferenceImageAccessError
+      ? error.message
+      : 'Reference preparation failed';
+    return NextResponse.json({ error: message, refunded: true }, { status: 400 });
   }
 
   const input = buildFalInput(type, endpoint, cleanPrompt, preparedReferenceList);
@@ -169,37 +205,6 @@ export async function POST(req: NextRequest) {
   } else {
     Object.assign(input, modelParams);
   }
-
-  // 1) Charge credits FIRST (atomic, fail closed). Refunded on any failure.
-  const { data: spendData, error: spendError } = await supabase.rpc('spend_generation_credits', {
-    p_generation_type: type,
-    p_amount: generationCost,
-    p_model: resolvedModel,
-    p_prompt: cleanPrompt,
-  });
-
-  if (spendError || !Array.isArray(spendData) || !spendData[0]) {
-    console.error('Credit spend failed:', spendError);
-    return NextResponse.json({ error: 'Credit spend failed' }, { status: 500 });
-  }
-  const spendResult = spendData[0] as CreditSpendResult;
-  if (!spendResult.ok) {
-    return NextResponse.json({ error: 'Not enough credits' }, { status: 429 });
-  }
-
-  const refund = async (reason: string) => {
-    try {
-      const admin = createAdminClient();
-      await admin.rpc('refund_generation_credits', {
-        p_generation_type: type,
-        p_amount: generationCost,
-        p_reason: reason,
-        p_user_id: user.id,
-      });
-    } catch (refundErr) {
-      console.error('Refund failed:', { reason, userId: user.id, refundErr });
-    }
-  };
 
   // 2) Enqueue the job on the FAL queue (returns immediately with a request id).
   let requestId = '';
@@ -221,7 +226,8 @@ export async function POST(req: NextRequest) {
   }
 
   // 3) Record the queued job. The /status endpoint finalizes it on completion.
-  const { data: generation, error: insertError } = await supabase
+  const admin = createAdminClient();
+  const { data: generation, error: insertError } = await admin
     .from('generations')
     .insert({
       user_id: user.id,
@@ -233,6 +239,7 @@ export async function POST(req: NextRequest) {
       // Persist exactly what we charged so the status poller refunds the right
       // amount on failure (cost now varies by model).
       credit_cost: generationCost,
+      credit_operation_id: reservation.operation_id,
       fal_request_id: requestId,
       fal_endpoint: endpoint,
     })
@@ -248,6 +255,6 @@ export async function POST(req: NextRequest) {
     jobId: generation.id,
     status: 'queued',
     generationType: type,
-    credits: spendResult,
+    credits: { credits: reservation.credits },
   });
 }

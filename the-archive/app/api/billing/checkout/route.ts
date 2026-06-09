@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabaseServer';
 import { createCheckoutForPack } from '@/lib/lemonsqueezy';
+import { isBillingEnabled } from '@/lib/billing';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,6 +24,9 @@ function siteUrl(request: NextRequest): string {
 }
 
 export async function POST(request: NextRequest) {
+  if (!isBillingEnabled()) {
+    return NextResponse.json({ error: 'Payments are coming soon' }, { status: 503 });
+  }
   const supabase = await createClient();
   const {
     data: { user },

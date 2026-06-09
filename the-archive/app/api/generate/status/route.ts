@@ -2,7 +2,7 @@ import { fal } from '@fal-ai/client';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabaseServer';
 import { createAdminClient } from '@/lib/supabaseAdmin';
-import { creditCostForModel } from '@/lib/business';
+import { completeCreditOperation, refundCreditOperation } from '@/lib/generationSecurity';
 import {
   extractResultUrl,
   getApiKey,
@@ -26,6 +26,7 @@ type GenerationRow = {
   fal_endpoint: string | null;
   model: string | null;
   credit_cost: number | null;
+  credit_operation_id: string | null;
 };
 
 export async function GET(req: NextRequest) {
@@ -50,7 +51,7 @@ export async function GET(req: NextRequest) {
 
   const { data: job, error: jobError } = await supabase
     .from('generations')
-    .select('id, user_id, generation_type, status, result_url, fal_request_id, fal_endpoint, model, credit_cost')
+    .select('id, user_id, generation_type, status, result_url, fal_request_id, fal_endpoint, model, credit_cost, credit_operation_id')
     .eq('id', jobId)
     .eq('user_id', user.id)
     .maybeSingle<GenerationRow>();
@@ -64,6 +65,11 @@ export async function GET(req: NextRequest) {
 
   // Already finalized — return the terminal state.
   if (job.status === 'completed') {
+    if (job.credit_operation_id) {
+      await completeCreditOperation(job.credit_operation_id, job.id).catch((error) => {
+        console.error('Credit completion retry failed:', error);
+      });
+    }
     return NextResponse.json({ status: 'completed', url: job.result_url });
   }
   if (job.status === 'failed') {
@@ -75,19 +81,11 @@ export async function GET(req: NextRequest) {
   }
 
   const type = job.generation_type;
-  // Refund exactly what was charged at submit time. Prefer the persisted
-  // credit_cost; fall back to the model's catalog cost for older rows.
-  const generationCost = job.credit_cost ?? creditCostForModel(job.model, type);
 
   const refund = async (reason: string) => {
+    if (!job.credit_operation_id) return;
     try {
-      const admin = createAdminClient();
-      await admin.rpc('refund_generation_credits', {
-        p_generation_type: type,
-        p_amount: generationCost,
-        p_reason: reason,
-        p_user_id: job.user_id,
-      });
+      await refundCreditOperation(job.credit_operation_id, reason);
     } catch (refundErr) {
       console.error('Refund failed:', { reason, userId: job.user_id, refundErr });
     }
@@ -96,7 +94,8 @@ export async function GET(req: NextRequest) {
   // Claim the finalization atomically so concurrent polls can't double-count
   // usage or double-refund: only the poll that flips 'queued' -> X acts on it.
   const finalizeFailed = async (userMessage: string) => {
-    const { data: claimed } = await supabase
+    const admin = createAdminClient();
+    const { data: claimed } = await admin
       .from('generations')
       .update({ status: 'failed' })
       .eq('id', job.id)
@@ -153,7 +152,8 @@ export async function GET(req: NextRequest) {
   }
 
   // Claim completion atomically; only the winning poll records usage.
-  const { data: claimed, error: claimError } = await supabase
+  const admin = createAdminClient();
+  const { data: claimed, error: claimError } = await admin
     .from('generations')
     .update({ status: 'completed', result_url: resultUrl })
     .eq('id', job.id)
@@ -165,6 +165,14 @@ export async function GET(req: NextRequest) {
   }
 
   if (claimed && claimed.length > 0) {
+    if (job.credit_operation_id) {
+      try {
+        await completeCreditOperation(job.credit_operation_id, job.id);
+      } catch (error) {
+        console.error('Credit completion failed:', error);
+        return NextResponse.json({ error: 'Could not finalize credits' }, { status: 500 });
+      }
+    }
     // One generation = 1 toward the monthly counter (written server-side).
     const { error: usageRpcError } = await supabase.rpc('increment_generation_usage', {
       p_generation_type: type,

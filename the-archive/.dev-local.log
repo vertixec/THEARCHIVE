@@ -1,0 +1,27 @@
+
+> the-archive@0.1.0 dev
+> next dev --webpack -p 3001
+
+▲ Next.js 16.2.7 (webpack)
+- Local:         http://localhost:3001
+- Network:       http://192.168.3.17:3001
+- Environments: .env.local
+✓ Ready in 381ms
+
+ GET / 200 in 1731ms (next.js: 1399ms, proxy.ts: 150ms, application-code: 182ms)
+ GET /pricing 200 in 2.1s (next.js: 696ms, proxy.ts: 59ms, application-code: 1301ms)
+ GET /login 200 in 1051ms (next.js: 941ms, proxy.ts: 7ms, application-code: 102ms)
+ GET /api/billing/packs 200 in 622ms (next.js: 354ms, application-code: 268ms)
+ POST /api/billing/checkout 503 in 375ms (next.js: 365ms, application-code: 10ms)
+ GET / 200 in 787ms (next.js: 43ms, proxy.ts: 596ms, application-code: 148ms)
+ GET /visuals 200 in 2.1s (next.js: 1088ms, proxy.ts: 547ms, application-code: 440ms)
+ GET /profile 200 in 2.5s (next.js: 796ms, proxy.ts: 499ms, application-code: 1243ms)
+ GET /creations 200 in 908ms (next.js: 486ms, proxy.ts: 390ms, application-code: 32ms)
+ GET /visuals 200 in 844ms (next.js: 9ms, proxy.ts: 403ms, application-code: 432ms)
+ GET /api/generate/usage 200 in 2.3s (next.js: 706ms, application-code: 1559ms)
+ POST /api/generate 500 in 1538ms (next.js: 904ms, application-code: 634ms)
+ GET /api/generate/usage 200 in 1492ms (next.js: 6ms, application-code: 1486ms)
+ GET / 200 in 399ms (next.js: 86ms, proxy.ts: 19ms, application-code: 294ms)
+ GET /pricing 200 in 1322ms (next.js: 847ms, proxy.ts: 9ms, application-code: 466ms)
+ GET /login 200 in 935ms (next.js: 752ms, proxy.ts: 9ms, application-code: 174ms)
+ GET /api/billing/packs 200 in 568ms (next.js: 384ms, application-code: 184ms)

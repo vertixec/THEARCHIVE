@@ -77,7 +77,7 @@ export default function LockedCommunity({ previews }: { previews: string[] }) {
             href="/pricing"
             className="border border-white/15 px-8 py-3 font-mono text-[10px] uppercase tracking-[0.25em] text-white/60 transition-colors hover:border-acid hover:text-acid"
           >
-            See What's Inside
+            See What&apos;s Inside
           </a>
         </div>
 

@@ -1176,9 +1176,9 @@ function CircularProgress({ pct, size = 80 }: { pct: number; size?: number }) {
 }
 
 function UsageChart({ transactions }: { transactions: CreditTransaction[] }) {
+  const [now] = useState(() => Date.now());
   const bars = useMemo(() => {
     const days = 30;
-    const now = Date.now();
     const buckets = new Array(days).fill(0);
     for (const t of transactions) {
       const ts = new Date(t.created_at).getTime();
@@ -1188,7 +1188,7 @@ function UsageChart({ transactions }: { transactions: CreditTransaction[] }) {
       }
     }
     return buckets;
-  }, [transactions]);
+  }, [now, transactions]);
 
   const max = Math.max(...bars, 1);
   const hasData = bars.some((b) => b > 0);

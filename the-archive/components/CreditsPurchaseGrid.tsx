@@ -10,9 +10,10 @@ interface Props {
   packs: CreditPack[];
   /** When false, the buy buttons send the visitor to /login first. */
   isAuthed?: boolean;
+  billingEnabled?: boolean;
 }
 
-export default function CreditsPurchaseGrid({ packs, isAuthed = true }: Props) {
+export default function CreditsPurchaseGrid({ packs, isAuthed = true, billingEnabled = false }: Props) {
   const router = useRouter();
   const [pendingPackId, setPendingPackId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -49,7 +50,7 @@ export default function CreditsPurchaseGrid({ packs, isAuthed = true }: Props) {
       <div className="grid gap-px border border-white/10 bg-white/10 md:grid-cols-3">
         {packs.map((pack) => {
           const isPending = pendingPackId === pack.id;
-          const isLocked = !pack.lemonsqueezy_variant_id;
+          const isLocked = !billingEnabled || !pack.lemonsqueezy_variant_id;
           const { credits, images, videos, savings, badge } = packDisplay(pack, baseline);
           const featured = badge === 'Most Popular';
           return (
@@ -105,7 +106,7 @@ export default function CreditsPurchaseGrid({ packs, isAuthed = true }: Props) {
                 }
               >
                 {isLocked
-                  ? 'Coming soon'
+                  ? 'Payments coming soon'
                   : isPending
                     ? 'Redirecting...'
                     : isAuthed

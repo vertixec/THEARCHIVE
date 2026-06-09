@@ -84,19 +84,22 @@ const requiredCurrentTables = [
 ];
 
 for (const table of requiredCurrentTables) {
-  (await tableExists(table)) ? ok(`Existing table ${table}`) : fail(`Missing existing table ${table}`);
+  if (await tableExists(table)) ok(`Existing table ${table}`);
+  else fail(`Missing existing table ${table}`);
 }
 
 console.log('');
 console.log('New business columns on profiles');
 for (const column of ['access_tier', 'plan_id', 'skool_member_id', 'stripe_customer_id', 'onboarding_completed']) {
-  (await columnExists('profiles', column)) ? ok(`profiles.${column} already exists`) : warn(`profiles.${column} missing`, 'migration will add it');
+  if (await columnExists('profiles', column)) ok(`profiles.${column} already exists`);
+  else warn(`profiles.${column} missing`, 'migration will add it');
 }
 
 console.log('');
 console.log('New business tables');
 for (const table of ['plans', 'user_credit_balances', 'credit_transactions']) {
-  (await tableExists(table)) ? ok(`${table} already exists`) : warn(`${table} missing`, 'migration will create it');
+  if (await tableExists(table)) ok(`${table} already exists`);
+  else warn(`${table} missing`, 'migration will create it');
 }
 
 console.log('');

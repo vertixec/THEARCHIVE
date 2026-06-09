@@ -1,0 +1,7 @@
+[browser] Detected `scroll-behavior: smooth` on the `<html>` element. To disable smooth scrolling during route transitions, add `data-scroll-behavior="smooth"` to your <html> element. Learn more: https://nextjs.org/docs/messages/missing-data-scroll-behavior
+Rate limit check failed: {
+  code: 'PGRST202',
+  details: 'Searched for the function public.consume_api_rate_limit with parameters p_bucket, p_limit, p_window_seconds or with a single unnamed json/jsonb parameter, but no matches were found in the schema cache.',
+  hint: null,
+  message: 'Could not find the function public.consume_api_rate_limit(p_bucket, p_limit, p_window_seconds) in the schema cache'
+}

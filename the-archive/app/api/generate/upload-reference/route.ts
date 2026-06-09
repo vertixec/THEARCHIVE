@@ -3,9 +3,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabaseServer';
 import {
   ReferenceImageAccessError,
+  isSupportedRasterBytes,
   rehostBlobToFal,
   rehostUrlToFal,
 } from '@/lib/falReference';
+import { enforceRateLimit } from '@/lib/generationSecurity';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -26,6 +28,8 @@ export async function POST(req: NextRequest) {
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+  const rateLimitResponse = await enforceRateLimit(supabase, 'upload-reference', 20, 600);
+  if (rateLimitResponse) return rateLimitResponse;
 
   fal.config({ credentials: apiKey });
 
@@ -43,19 +47,15 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'File exceeds 15MB' }, { status: 413 });
       }
 
-      const rejected =
-        file.type &&
-        !file.type.startsWith('image/') &&
-        !file.type.startsWith('video/') &&
-        !file.type.startsWith('application/octet-stream');
-      if (rejected) {
+      if (!file.type.startsWith('image/') || file.type === 'image/svg+xml') {
         return NextResponse.json({ error: 'Only image files are supported' }, { status: 400 });
       }
 
-      const safeType = file.type && (file.type.startsWith('image/') || file.type.startsWith('video/'))
-        ? file.type
-        : 'image/png';
-      const blob = new Blob([await file.arrayBuffer()], { type: safeType });
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      if (!isSupportedRasterBytes(bytes.subarray(0, 16))) {
+        return NextResponse.json({ error: 'File is not a supported raster image' }, { status: 400 });
+      }
+      const blob = new Blob([bytes.buffer], { type: file.type });
       const url = await rehostBlobToFal(blob);
       return NextResponse.json({ url });
     }
@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
     }
     console.error('upload-reference failed:', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Reference upload failed' },
+      { error: 'Reference upload failed' },
       { status: 500 }
     );
   }

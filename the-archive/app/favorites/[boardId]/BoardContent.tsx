@@ -6,6 +6,7 @@ import Link from 'next/link';
 import Card from '@/components/Card';
 import { useSync } from '@/components/SyncContext';
 import { supabase } from '@/lib/supabaseClient';
+import type { AnyItem } from '@/lib/types';
 
 interface Board {
   id: string;
@@ -15,13 +16,13 @@ interface Board {
 
 interface Props {
   board: Board;
-  initialItems: any[];
+  initialItems: AnyItem[];
 }
 
 export default function BoardContent({ board, initialItems }: Props) {
   const { setStatus } = useSync();
   const router = useRouter();
-  const [items, setItems] = useState<any[]>(initialItems);
+  const [items, setItems] = useState<AnyItem[]>(initialItems);
   const [flippedId, setFlippedId] = useState<string | null>(null);
   const [currentSource, setCurrentSource] = useState('ALL');
   const [isDeleting, setIsDeleting] = useState(false);
@@ -139,7 +140,7 @@ export default function BoardContent({ board, initialItems }: Props) {
                 cardTitle={cardTitle}
                 secondaryLabel={secondaryLabel}
                 bottomLabel={bottomLabel}
-                itemType={item._itemType}
+                itemType={item._itemType ?? 'visual'}
                 initialIsLiked={true}
                 onToggle={(id, type, newLiked) => {
                   if (!newLiked) handleRemoveFromVault(id, type);

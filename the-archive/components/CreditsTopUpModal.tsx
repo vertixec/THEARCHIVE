@@ -14,6 +14,7 @@ export default function CreditsTopUpModal({ open, onClose }: Props) {
   const [packs, setPacks] = useState<CreditPack[] | null>(null);
   const [pendingPackId, setPendingPackId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [billingEnabled, setBillingEnabled] = useState(false);
   const loading = open && packs === null && error === null;
 
   useEffect(() => {
@@ -25,6 +26,7 @@ export default function CreditsTopUpModal({ open, onClose }: Props) {
         const data = await res.json();
         if (cancelled) return;
         setPacks((data.packs ?? []) as CreditPack[]);
+        setBillingEnabled(data.billing_enabled === true);
       } catch {
         if (cancelled) return;
         setError('Could not load packs');
@@ -102,7 +104,7 @@ export default function CreditsTopUpModal({ open, onClose }: Props) {
           <div className="mt-8 grid gap-px border border-white/10 bg-white/10 md:grid-cols-3">
             {packs.map((pack) => {
               const isPending = pendingPackId === pack.id;
-              const isLocked = !pack.lemonsqueezy_variant_id;
+              const isLocked = !billingEnabled || !pack.lemonsqueezy_variant_id;
               const { credits, images, videos, savings, badge } = packDisplay(pack, baseline);
               return (
                 <button
@@ -143,7 +145,7 @@ export default function CreditsTopUpModal({ open, onClose }: Props) {
                     ≈ {images} images · {videos} videos
                   </span>
                   <span className="mt-4 border border-current px-3 py-1.5 font-mono text-[9px] uppercase tracking-[0.25em]">
-                    {isLocked ? 'Coming soon' : isPending ? 'Redirecting' : 'Buy'}
+                    {isLocked ? 'Payments coming soon' : isPending ? 'Redirecting' : 'Buy'}
                   </span>
                 </button>
               );

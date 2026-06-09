@@ -152,7 +152,10 @@ export default function CreationsContent() {
     const nextSaved = !item.is_saved;
     setItems((current) => current.map((entry) => (entry.id === item.id ? { ...entry, is_saved: nextSaved } : entry)));
 
-    const { error: generationError } = await supabase.from('generations').update({ is_saved: nextSaved }).eq('id', item.id);
+    const { error: generationError } = await supabase.rpc('set_generation_saved', {
+      p_generation_id: item.id,
+      p_is_saved: nextSaved,
+    });
     const { error: deleteLikeError } = await supabase
       .from('user_likes')
       .delete()

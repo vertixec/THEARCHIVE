@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabaseServer';
 import type { CreditPack } from '@/lib/types';
 import CreditsPurchaseGrid from '@/components/CreditsPurchaseGrid';
+import { isBillingEnabled } from '@/lib/billing';
 
 export const dynamic = 'force-dynamic';
 
@@ -50,7 +51,11 @@ export default async function PricingPage({
           </div>
         )}
 
-        <CreditsPurchaseGrid packs={(packs ?? []) as CreditPack[]} isAuthed={!!user} />
+        <CreditsPurchaseGrid
+          packs={(packs ?? []) as CreditPack[]}
+          isAuthed={!!user}
+          billingEnabled={isBillingEnabled()}
+        />
 
         {/* Brief access note (content access is separate from credits) */}
         <section className="mt-16 grid gap-px border border-white/10 bg-white/10 md:grid-cols-2">

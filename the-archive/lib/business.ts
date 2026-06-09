@@ -177,6 +177,7 @@ export function getPlanForProfile(profile?: BusinessProfile | null) {
 }
 
 export function canAccessFeature(profile: BusinessProfile | null | undefined, feature: Feature) {
+  if (!isActivePlatformUser(profile)) return false;
   return getPlanForProfile(profile).features.includes(feature);
 }
 
@@ -186,8 +187,7 @@ export function isAccessTier(value: unknown): value is AccessTier {
 
 export function isActivePlatformUser(profile?: BusinessProfile | null) {
   if (!profile) return false;
+  if (profile.status !== 'active') return false;
   if (profile.role === 'admin') return true;
-  if (profile.status === 'banned') return false;
   return ['free', 'community', 'pro'].includes(resolveAccessTier(profile));
 }
-

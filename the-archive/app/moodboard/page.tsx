@@ -1,6 +1,11 @@
 import { createClient } from '@/lib/supabaseServer';
 import MoodboardContent from './MoodboardContent';
 
+type BoardItemRow = {
+  board_id: string;
+  image_url: string | null;
+};
+
 export default async function MoodboardPage() {
   const supabase = await createClient();
 
@@ -17,7 +22,7 @@ export default async function MoodboardPage() {
     .order('created_at', { ascending: false });
 
   const boardIds = (boards || []).map(b => b.id);
-  let boardItemsList: any[] = [];
+  let boardItemsList: BoardItemRow[] = [];
 
   if (boardIds.length > 0) {
     const { data } = await supabase

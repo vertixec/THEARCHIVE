@@ -31,8 +31,8 @@ export default function ResetPasswordPage() {
       setTimeout(() => {
         window.location.href = '/login';
       }, 1500);
-    } catch (error: any) {
-      showToast(String(error?.message ?? 'Something went wrong').toUpperCase());
+    } catch (error: unknown) {
+      showToast((error instanceof Error ? error.message : 'Something went wrong').toUpperCase());
     } finally {
       setLoading(false);
     }
