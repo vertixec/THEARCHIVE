@@ -19,6 +19,8 @@ import CreditsTopUpModal from '@/components/CreditsTopUpModal';
 type CreditBalance = {
   credits: number;
   video_credits: number;
+  monthly_credits?: number;
+  monthly_credits_reset_at?: string | null;
   updated_at: string;
 };
 
@@ -258,7 +260,10 @@ export default function ProfileContent({
 
   const displayName = profile.full_name || profile.email?.split('@')[0] || 'MEMBER';
   const currentPlan = getPlanForProfile(profile);
-  const imageCredits = creditBalance?.credits ?? 0;
+  // Two buckets: monthly community allowance (resets) + purchased (persists).
+  const monthlyCredits = creditBalance?.monthly_credits ?? 0;
+  const purchasedCredits = creditBalance?.credits ?? 0;
+  const imageCredits = monthlyCredits + purchasedCredits;
   const topUpTransactions = creditTransactions.filter((t) => t.amount > 0);
   const usageTransactions = creditTransactions.filter((t) => t.amount < 0);
   const creditsSpent = usageTransactions.reduce((sum, t) => sum + Math.abs(t.amount), 0);
@@ -307,6 +312,9 @@ export default function ProfileContent({
           {activeTab === 'credits' && (
             <CreditsTab
               imageCredits={imageCredits}
+              monthlyCredits={monthlyCredits}
+              purchasedCredits={purchasedCredits}
+              monthlyGrant={currentPlan.monthlyCreditGrant}
               imagePct={imagePct}
               creditsSpent={creditsSpent}
               updatedAt={creditBalance?.updated_at}
@@ -788,6 +796,9 @@ function PersonalTab({
 
 function CreditsTab({
   imageCredits,
+  monthlyCredits,
+  purchasedCredits,
+  monthlyGrant,
   imagePct,
   creditsSpent,
   updatedAt,
@@ -796,6 +807,9 @@ function CreditsTab({
   onTopUp,
 }: {
   imageCredits: number;
+  monthlyCredits: number;
+  purchasedCredits: number;
+  monthlyGrant: number;
   imagePct: number;
   creditsSpent: number;
   updatedAt: string | undefined;
@@ -832,9 +846,32 @@ function CreditsTab({
             <CircularProgress pct={imagePct} size={92} />
           </div>
 
+          {monthlyGrant > 0 && (
+            <div className="mt-5 grid grid-cols-2 gap-px border border-white/10 bg-white/10">
+              <div className="bg-dark p-3">
+                <p className="font-mono text-[8px] uppercase tracking-widest text-acid">Community</p>
+                <p className="mt-1 font-bebas text-2xl leading-none text-white">
+                  {monthlyCredits.toLocaleString()}
+                </p>
+                <p className="mt-1 font-mono text-[8px] uppercase tracking-widest text-white/35">
+                  of {monthlyGrant.toLocaleString()} / mo · resets monthly
+                </p>
+              </div>
+              <div className="bg-dark p-3">
+                <p className="font-mono text-[8px] uppercase tracking-widest text-white/50">Purchased</p>
+                <p className="mt-1 font-bebas text-2xl leading-none text-white">
+                  {purchasedCredits.toLocaleString()}
+                </p>
+                <p className="mt-1 font-mono text-[8px] uppercase tracking-widest text-white/35">
+                  never expire
+                </p>
+              </div>
+            </div>
+          )}
+
           <div className="mt-6 flex items-center justify-between gap-3 border-t border-white/5 pt-5">
             <div className="font-mono text-[10px] uppercase tracking-widest text-white/45">
-              Credits never expire
+              {monthlyGrant > 0 ? 'Monthly resets · purchased never expire' : 'Credits never expire'}
             </div>
             <button
               type="button"
@@ -944,23 +981,27 @@ function SubscriptionTab({
           >
             Top-up credits
           </button>
-          <Link
-            href="/pricing"
+          <button
+            type="button"
+            onClick={onTopUp}
             className="border border-white/15 bg-panel/40 px-5 py-2.5 font-mono text-[10px] uppercase tracking-widest text-white/70 hover:border-acid hover:text-acid transition-colors"
           >
-            Compare plans
-          </Link>
+            Buy credits
+          </button>
         </div>
       </Card>
 
       <Card>
         <h2 className="mb-5 font-mono text-[10px] uppercase tracking-[0.25em] text-white/55">
-          Plan limits
+          How credits work
         </h2>
         <div className="grid grid-cols-2 gap-px bg-white/10">
-          <PlanDatum label="Images / month" value={plan.monthlyImageLimit.toLocaleString()} />
-          <PlanDatum label="Videos / month" value={plan.monthlyVideoLimit.toLocaleString()} />
+          <PlanDatum label="Image" value="2–70 cr" />
+          <PlanDatum label="Video" value="65–550 cr" />
         </div>
+        <p className="mt-4 font-mono text-[9px] uppercase leading-relaxed tracking-widest text-white/35">
+          Cost depends on the model and options you pick. Credits never expire.
+        </p>
       </Card>
     </div>
   );

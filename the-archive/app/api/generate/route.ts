@@ -134,14 +134,14 @@ export async function POST(req: NextRequest) {
   const generationCost = creditCostFor(resolvedModel, selection, type);
 
   // Fast-fail UX hint only; the authoritative atomic charge happens below.
-  // Single unified credit pool — images and videos both draw from `credits`.
+  // Spendable balance = monthly community allowance + purchased credits.
   const { data: balance } = await supabase
     .from('user_credit_balances')
-    .select('credits')
+    .select('credits, monthly_credits')
     .eq('user_id', user.id)
-    .maybeSingle<{ credits: number }>();
+    .maybeSingle<{ credits: number; monthly_credits: number }>();
 
-  if (balance && balance.credits < generationCost) {
+  if (balance && (balance.credits + (balance.monthly_credits ?? 0)) < generationCost) {
     return NextResponse.json({ error: 'Not enough credits' }, { status: 429 });
   }
 

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import type { CreditPack } from '@/lib/types';
 import { buyPack } from '@/lib/buyPack';
+import { baselinePerCredit, packDisplay } from '@/lib/creditPacks';
 
 interface Props {
   open: boolean;
@@ -56,6 +57,8 @@ export default function CreditsTopUpModal({ open, onClose }: Props) {
     }
   }
 
+  const baseline = packs ? baselinePerCredit(packs) : 0;
+
   return (
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4"
@@ -100,6 +103,7 @@ export default function CreditsTopUpModal({ open, onClose }: Props) {
             {packs.map((pack) => {
               const isPending = pendingPackId === pack.id;
               const isLocked = !pack.lemonsqueezy_variant_id;
+              const { credits, images, videos, savings, badge } = packDisplay(pack, baseline);
               return (
                 <button
                   key={pack.id}
@@ -107,7 +111,8 @@ export default function CreditsTopUpModal({ open, onClose }: Props) {
                   disabled={isPending || isLocked}
                   onClick={() => handleBuy(pack.id)}
                   className={
-                    'flex flex-col items-start bg-dark p-5 text-left transition-colors ' +
+                    'relative flex flex-col items-start bg-dark p-5 text-left transition-colors ' +
+                    (badge === 'Most Popular' ? 'ring-1 ring-inset ring-acid/60 ' : '') +
                     (isLocked
                       ? 'cursor-not-allowed opacity-40'
                       : isPending
@@ -115,12 +120,27 @@ export default function CreditsTopUpModal({ open, onClose }: Props) {
                         : 'hover:bg-acid hover:text-black')
                   }
                 >
-                  <span className="font-mono text-[10px] uppercase tracking-[0.25em] text-acid group-hover:text-black">
-                    ${pack.price_usd}
+                  {badge && (
+                    <span className="absolute right-0 top-0 bg-acid px-2 py-0.5 font-mono text-[8px] font-bold uppercase tracking-[0.25em] text-black">
+                      {badge}
+                    </span>
+                  )}
+                  <span className="flex items-center gap-1.5">
+                    <span className="font-mono text-[10px] uppercase tracking-[0.25em] text-acid group-hover:text-black">
+                      ${pack.price_usd}
+                    </span>
+                    {savings > 0 && (
+                      <span className="border border-acid/40 px-1 py-0.5 font-mono text-[7px] uppercase tracking-widest text-acid">
+                        Save {savings}%
+                      </span>
+                    )}
                   </span>
                   <span className="mt-2 font-bebas text-3xl uppercase">{pack.name}</span>
                   <span className="mt-3 font-mono text-[9px] uppercase tracking-widest text-white/55">
-                    +{pack.image_credits + pack.video_credits} credits
+                    +{credits} credits
+                  </span>
+                  <span className="mt-1 font-mono text-[8px] uppercase tracking-widest text-white/35">
+                    ≈ {images} images · {videos} videos
                   </span>
                   <span className="mt-4 border border-current px-3 py-1.5 font-mono text-[9px] uppercase tracking-[0.25em]">
                     {isLocked ? 'Coming soon' : isPending ? 'Redirecting' : 'Buy'}

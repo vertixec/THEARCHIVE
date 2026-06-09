@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { GenerationUsage } from '@/lib/types';
 import { MODEL_OPTIONS, creditCostFor, defaultSelection } from '@/lib/modelOptions';
@@ -67,6 +66,10 @@ export default function GeneratePanel() {
   const balance = usage?.credit_balance ?? null;
   const hasCredits = balance == null || balance >= cost;
   const canGenerate = prompt.trim().length > 0 && hasCredits && !isGenerating;
+  // Only paid tiers can generate video (free/visitor are image-only). The
+  // server enforces this too; here we just hide the unusable toggle.
+  const canVideo = ['community', 'pro', 'admin'].includes(usage?.access_tier ?? '');
+  const genTypes = canVideo ? (['image', 'video'] as const) : (['image'] as const);
 
   const loadUsage = useCallback(async () => {
     try {
@@ -106,6 +109,11 @@ export default function GeneratePanel() {
   useEffect(() => {
     setModelOptions(defaultSelection(selectedModel));
   }, [selectedModel]);
+
+  // Free/visitor tiers can't generate video — snap back to image if needed.
+  useEffect(() => {
+    if (!canVideo && generationType === 'video') setGenerationType('image');
+  }, [canVideo, generationType, setGenerationType]);
 
   const handleGenerate = async () => {
     if (!canGenerate) return;
@@ -313,7 +321,7 @@ export default function GeneratePanel() {
 
                 <section className="shrink-0 flex items-center gap-2">
                   <div className="flex items-center gap-1.5 rounded-full border border-white/10 bg-black/[0.18] p-1 backdrop-blur-2xl shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] shrink-0">
-                    {(['image', 'video'] as const).map((type) => (
+                    {genTypes.map((type) => (
                       <button
                         key={type}
                         type="button"
@@ -456,6 +464,14 @@ export default function GeneratePanel() {
                 Balance: {balance.toLocaleString()} credits
               </div>
             )}
+            {typeof usage?.monthly_credits === 'number' && usage.monthly_credits > 0 && (
+              <div className="mt-0.5 font-mono text-[8px] uppercase tracking-widest text-white/45">
+                {usage.monthly_credits.toLocaleString()} community
+                {typeof usage.purchased_credits === 'number' && usage.purchased_credits > 0
+                  ? ` + ${usage.purchased_credits.toLocaleString()} purchased`
+                  : ''}
+              </div>
+            )}
             <div className="mt-1 font-mono text-[8px] uppercase tracking-widest text-white/35">
               Cost: {cost} {cost === 1 ? 'credit' : 'credits'} per {footerType}
             </div>
@@ -473,17 +489,17 @@ export default function GeneratePanel() {
                   <span>Buy Credits</span>
                 </button>
               ) : (
-                <Link
-                  href="/pricing"
-                  onClick={closePanel}
-                  className="mt-3 flex items-center justify-center gap-2 border border-acid/40 bg-acid/10 px-4 py-2.5 font-mono text-[10px] uppercase tracking-[0.25em] text-acid transition-colors hover:border-acid hover:bg-acid hover:text-black"
+                <button
+                  type="button"
+                  onClick={() => setShowTopUpModal(true)}
+                  className="mt-3 flex w-full items-center justify-center gap-2 border border-acid/40 bg-acid/10 px-4 py-2.5 font-mono text-[10px] uppercase tracking-[0.25em] text-acid transition-colors hover:border-acid hover:bg-acid hover:text-black"
                 >
                   <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <path d="M12 19V5" />
-                    <path d="m5 12 7-7 7 7" />
+                    <path d="M12 5v14" />
+                    <path d="M5 12h14" />
                   </svg>
-                  <span>Upgrade Plan</span>
-                </Link>
+                  <span>Buy Credits</span>
+                </button>
               )
             )}
           </footer>

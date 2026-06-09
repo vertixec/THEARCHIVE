@@ -13,6 +13,8 @@ export const dynamic = 'force-dynamic';
 type CreditBalance = {
   credits: number;
   video_credits: number;
+  monthly_credits: number;
+  monthly_credits_reset_at: string | null;
   updated_at: string;
 };
 
@@ -46,7 +48,7 @@ export default async function ProfilePage() {
     getTopCategories(supabase, user.id),
     supabase
       .from('user_credit_balances')
-      .select('credits, video_credits, updated_at')
+      .select('credits, video_credits, monthly_credits, monthly_credits_reset_at, updated_at')
       .eq('user_id', user.id)
       .maybeSingle<CreditBalance>(),
     supabase

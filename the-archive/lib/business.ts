@@ -28,6 +28,12 @@ export type PlanConfig = {
   monthlyImageLimit: number;
   monthlyVideoLimit: number;
   signupCredits: number;
+  // Credits granted to this tier at the start of every monthly cycle. These
+  // live in a SEPARATE bucket (user_credit_balances.monthly_credits) that is
+  // reset each month (use-it-or-lose-it) and spent BEFORE purchased credits.
+  // Only the community tier gets an allowance today. See
+  // supabase/community_monthly_credits.sql for the matching DB logic.
+  monthlyCreditGrant: number;
   features: Feature[];
 };
 
@@ -40,6 +46,7 @@ export const PLAN_CONFIG: Record<AccessTier, PlanConfig> = {
     monthlyImageLimit: 0,
     monthlyVideoLimit: 0,
     signupCredits: 0,
+    monthlyCreditGrant: 0,
     features: [],
   },
   free: {
@@ -52,7 +59,8 @@ export const PLAN_CONFIG: Record<AccessTier, PlanConfig> = {
     // 60 unified credits ≈ 5 medium gpt-image-2 images. The monthly image
     // count (5) is the hard guardrail that caps free-tier FAL spend.
     signupCredits: 60,
-    features: ['view_visuals', 'generate_image', 'create_moodboard', 'save_favorite'],
+    monthlyCreditGrant: 0,
+    features: ['view_visuals', 'view_systems', 'generate_image', 'create_moodboard', 'save_favorite'],
   },
   community: {
     id: 'community',
@@ -62,6 +70,8 @@ export const PLAN_CONFIG: Record<AccessTier, PlanConfig> = {
     monthlyImageLimit: 50,
     monthlyVideoLimit: 5,
     signupCredits: 0,
+    // Skool community perk: 800 credits refreshed every month.
+    monthlyCreditGrant: 800,
     features: [
       'view_visuals',
       'view_systems',
@@ -81,6 +91,7 @@ export const PLAN_CONFIG: Record<AccessTier, PlanConfig> = {
     monthlyImageLimit: 100,
     monthlyVideoLimit: 10,
     signupCredits: 0,
+    monthlyCreditGrant: 0,
     features: [
       'view_visuals',
       'view_systems',
@@ -99,6 +110,7 @@ export const PLAN_CONFIG: Record<AccessTier, PlanConfig> = {
     monthlyImageLimit: 9999,
     monthlyVideoLimit: 9999,
     signupCredits: 0,
+    monthlyCreditGrant: 0,
     features: [
       'view_visuals',
       'view_systems',

@@ -14,9 +14,11 @@ En **Products → New Product**, crea uno por uno (one-time payment, no subscrip
 
 | Product name | Price USD | Description sugerida |
 |---|---|---|
-| Starter Pack | $5.00 | 50 image credits + 5 video credits |
-| Creator Pack | $15.00 | 200 image credits + 20 video credits |
-| Studio Pack | $30.00 | 500 image credits + 60 video credits |
+| Starter Pack | $5.00 | 250 credits — credits never expire |
+| Creator Pack | $15.00 | 800 credits — credits never expire |
+| Studio Pack | $30.00 | 1700 credits — credits never expire |
+
+> Nota: el modelo es de **pool único de créditos** (no se separan imagen/video). El costo se descuenta por generación según el modelo elegido (gpt-image-2 desde 2 cr, video desde 65 cr).
 
 Cada Product tiene un default Variant. Anota los 3 `variant_id` (los ves en la URL del variant, o en la API explorer).
 

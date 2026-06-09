@@ -115,11 +115,11 @@ export async function POST(req: NextRequest) {
 
   const { data: balance } = await supabase
     .from('user_credit_balances')
-    .select('credits')
+    .select('credits, monthly_credits')
     .eq('user_id', user.id)
-    .maybeSingle<{ credits: number }>();
+    .maybeSingle<{ credits: number; monthly_credits: number }>();
 
-  if (balance && balance.credits < maxCost) {
+  if (balance && (balance.credits + (balance.monthly_credits ?? 0)) < maxCost) {
     return NextResponse.json(
       { error: `You need ${maxCost} credits for this tool` },
       { status: 429 }

@@ -58,8 +58,16 @@ export interface GenerationUsage {
   video_limit: number;
   access_tier?: string;
   plan_name?: string;
-  // Single unified credit pool.
+  // Spendable TOTAL = monthly community allowance + purchased credits.
   credit_balance?: number | null;
+  /** Purchased credits (never expire). */
+  purchased_credits?: number | null;
+  /** This cycle's community allowance remaining (resets monthly). */
+  monthly_credits?: number;
+  /** Full monthly allowance for this tier (0 if none). */
+  monthly_credit_grant?: number;
+  /** When the current monthly allowance was last granted. */
+  monthly_credits_reset_at?: string | null;
   /** Per-model credit cost map, keyed by model id. */
   model_costs?: Record<string, number>;
   /** Default cost for an image / video when no specific model is selected. */

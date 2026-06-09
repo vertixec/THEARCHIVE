@@ -1,17 +1,7 @@
-import { createClient } from '@/lib/supabaseServer';
-import WorkflowsContent from './WorkflowsContent';
+import { redirect } from 'next/navigation';
 
-const PAGE_SIZE = 60;
-
-export default async function WorkflowsPage() {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from('workflows')
-    .select('*')
-    .order('created_at', { ascending: false })
-    .limit(PAGE_SIZE);
-
-  const items = data || [];
-
-  return <WorkflowsContent initialItems={items} hasMore={items.length === PAGE_SIZE} />;
+// Workflows now live inside the Community members hub as a sub-tab.
+// This route is kept so old links keep working.
+export default function WorkflowsPage() {
+  redirect('/community?tab=workflows');
 }

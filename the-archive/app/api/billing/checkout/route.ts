@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
       userEmail: user.email ?? '',
       intentId: intent.intent_id,
       packId: pack.id,
-      redirectUrl: `${siteUrl(request)}/credits?success=1&intent=${intent.intent_id}`,
+      redirectUrl: `${siteUrl(request)}/pricing?success=1&intent=${intent.intent_id}`,
     });
   } catch (err) {
     console.error('Lemon Squeezy checkout error', err);

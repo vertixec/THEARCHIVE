@@ -46,16 +46,21 @@ export async function GET() {
     .eq('year_month', yearMonth)
     .maybeSingle();
 
-  // Single unified credit pool — `credits` is the only balance that matters.
+  // Two-bucket balance: purchased `credits` + monthly community allowance.
+  // The spendable total is what gates a generation.
   const { data: balance } = await supabase
     .from('user_credit_balances')
-    .select('credits')
+    .select('credits, monthly_credits, monthly_credits_reset_at')
     .eq('user_id', user.id)
-    .maybeSingle<{ credits: number }>();
+    .maybeSingle<{ credits: number; monthly_credits: number; monthly_credits_reset_at: string | null }>();
 
   if (error) {
     return NextResponse.json({ error: 'Usage lookup failed' }, { status: 500 });
   }
+
+  const purchasedCredits = balance?.credits ?? null;
+  const monthlyCredits = balance?.monthly_credits ?? 0;
+  const totalCredits = balance ? (balance.credits + (balance.monthly_credits ?? 0)) : null;
 
   return NextResponse.json({
     image_count: data?.image_count ?? 0,
@@ -64,7 +69,14 @@ export async function GET() {
     video_limit: plan.monthlyVideoLimit,
     access_tier: plan.id,
     plan_name: plan.name,
-    credit_balance: balance?.credits ?? null,
+    // credit_balance is the spendable TOTAL (monthly + purchased) so the UI's
+    // existing gating keeps working. The breakdown fields below let the UI show
+    // "X de comunidad + Y comprados" and the monthly grant amount.
+    credit_balance: totalCredits,
+    purchased_credits: purchasedCredits,
+    monthly_credits: monthlyCredits,
+    monthly_credit_grant: plan.monthlyCreditGrant,
+    monthly_credits_reset_at: balance?.monthly_credits_reset_at ?? null,
     // Per-model credit costs so the UI can show what the selected model costs.
     model_costs: MODEL_CREDIT_COSTS,
     image_cost: DEFAULT_MODEL_COST.image,

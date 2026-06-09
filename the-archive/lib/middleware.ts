@@ -19,10 +19,13 @@ const PUBLIC_PATHS = [
   '/upgrade',
 ];
 
+// NOTE: /community and /workflows are intentionally NOT hard-gated here.
+// They render an in-page LOCKED TEASER for non-members (blurred previews +
+// CTA to join the Skool community) instead of a jarring redirect — the teaser
+// drives conversion. Access to the real content is still enforced server-side
+// inside those pages via canAccessFeature(). /systems keeps the hard redirect.
 const PREMIUM_ROUTE_FEATURES: Array<{ prefix: string; feature: Feature }> = [
   { prefix: '/systems', feature: 'view_systems' },
-  { prefix: '/workflows', feature: 'view_workflows' },
-  { prefix: '/community', feature: 'view_community' },
 ];
 
 function isPublicPath(pathname: string) {
@@ -142,7 +145,11 @@ export async function updateSession(request: NextRequest) {
     }
   }
 
-  if (user && isInactivePage) {
+  // Auto-escape ONLY applies to the inactive-membership page: a member who
+  // reactivates shouldn't stay stuck there. It must NOT fire on /upgrade —
+  // a gated (but active) user redirected to /upgrade needs to actually SEE it,
+  // not get bounced to the homepage.
+  if (user && pathname === '/inactive-membership') {
     const { data: profile } = await supabase
       .from('profiles')
       .select('id, status, role')
