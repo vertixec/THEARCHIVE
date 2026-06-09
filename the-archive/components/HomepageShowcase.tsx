@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSync } from "@/components/SyncContext";
 import Link from "next/link";
+import Image from "next/image";
 
 interface Asset {
   id: string;
@@ -157,9 +158,15 @@ export default function HomepageShowcase() {
             transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
             className="absolute inset-0"
           >
-            <div 
-              className="w-full h-full bg-cover bg-center brightness-[0.85]"
-              style={{ backgroundImage: `url(${currentAsset.image_url})` }}
+            <Image
+              src={currentAsset.image_url}
+              alt={currentAsset.title || currentAsset.category || "The Archive visual"}
+              fill
+              priority
+              sizes="100vw"
+              quality={76}
+              unoptimized={currentAsset.image_url.startsWith("https://cdn.midjourney.com/")}
+              className="object-cover brightness-[0.85]"
             />
           </motion.div>
         </AnimatePresence>

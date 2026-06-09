@@ -1,4 +1,4 @@
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import {
   canAccessFeature,
@@ -41,9 +41,7 @@ function getRequiredFeature(pathname: string) {
 
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({
-    request: {
-      headers: request.headers,
-    },
+    request,
   })
 
   const supabase = createServerClient(
@@ -51,48 +49,28 @@ export async function updateSession(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        get(name: string) {
-          return request.cookies.get(name)?.value
+        getAll() {
+          return request.cookies.getAll()
         },
-        set(name: string, value: string, options: CookieOptions) {
-          request.cookies.set({
-            name,
-            value,
-            ...options,
-          })
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) =>
+            request.cookies.set(name, value)
+          )
           response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
+            request,
           })
-          response.cookies.set({
-            name,
-            value,
-            ...options,
-          })
-        },
-        remove(name: string, options: CookieOptions) {
-          request.cookies.set({
-            name,
-            value: '',
-            ...options,
-          })
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          })
-          response.cookies.set({
-            name,
-            value: '',
-            ...options,
-          })
+          cookiesToSet.forEach(({ name, value, options }) =>
+            response.cookies.set(name, value, options)
+          )
         },
       },
     }
   )
 
-  const { data: { user } } = await supabase.auth.getUser()
+  // Keep this immediately after client creation so refreshed auth cookies are
+  // available to both this request and the browser response.
+  const { data } = await supabase.auth.getClaims()
+  const userId = data?.claims?.sub
 
   const pathname = request.nextUrl.pathname
   const isAuthPage = pathname.startsWith('/login')
@@ -101,26 +79,28 @@ export async function updateSession(request: NextRequest) {
                         request.nextUrl.pathname.includes('.') ||
                         request.nextUrl.pathname === '/favicon.ico'
 
-  if (!user && !isPublicPath(pathname) && !isPublicAsset) {
+  if (!userId && !isPublicPath(pathname) && !isPublicAsset) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
-    return NextResponse.redirect(url)
+    const redirectResponse = NextResponse.redirect(url)
+    response.cookies.getAll().forEach((cookie) => redirectResponse.cookies.set(cookie))
+    return redirectResponse
   }
 
-  if (user && !isAuthPage && !isInactivePage && !isPublicAsset) {
+  if (userId && !isAuthPage && !isInactivePage && !isPublicAsset) {
     let profile: BusinessProfile | null = null
 
     const expandedProfile = await supabase
       .from('profiles')
       .select('id, status, role, access_tier, plan_id')
-      .eq('id', user.id)
+      .eq('id', userId)
       .maybeSingle<BusinessProfile>()
 
     if (expandedProfile.error) {
       const fallbackProfile = await supabase
         .from('profiles')
         .select('id, status, role')
-        .eq('id', user.id)
+        .eq('id', userId)
         .maybeSingle<BusinessProfile>()
 
       if (fallbackProfile.error) return response
@@ -132,7 +112,9 @@ export async function updateSession(request: NextRequest) {
     if (!isActivePlatformUser(profile)) {
       const url = request.nextUrl.clone()
       url.pathname = '/inactive-membership'
-      return NextResponse.redirect(url)
+      const redirectResponse = NextResponse.redirect(url)
+      response.cookies.getAll().forEach((cookie) => redirectResponse.cookies.set(cookie))
+      return redirectResponse
     }
 
     const requiredFeature = getRequiredFeature(pathname)
@@ -141,7 +123,9 @@ export async function updateSession(request: NextRequest) {
       url.pathname = '/upgrade'
       url.searchParams.set('from', pathname)
       url.searchParams.set('tier', resolveAccessTier(profile))
-      return NextResponse.redirect(url)
+      const redirectResponse = NextResponse.redirect(url)
+      response.cookies.getAll().forEach((cookie) => redirectResponse.cookies.set(cookie))
+      return redirectResponse
     }
   }
 
@@ -149,17 +133,19 @@ export async function updateSession(request: NextRequest) {
   // reactivates shouldn't stay stuck there. It must NOT fire on /upgrade —
   // a gated (but active) user redirected to /upgrade needs to actually SEE it,
   // not get bounced to the homepage.
-  if (user && pathname === '/inactive-membership') {
+  if (userId && pathname === '/inactive-membership') {
     const { data: profile } = await supabase
       .from('profiles')
       .select('id, status, role')
-      .eq('id', user.id)
+      .eq('id', userId)
       .maybeSingle<BusinessProfile>()
 
     if (profile?.status === 'active' && ['member', 'admin'].includes(profile?.role ?? '')) {
       const url = request.nextUrl.clone()
       url.pathname = '/'
-      return NextResponse.redirect(url)
+      const redirectResponse = NextResponse.redirect(url)
+      response.cookies.getAll().forEach((cookie) => redirectResponse.cookies.set(cookie))
+      return redirectResponse
     }
   }
 

@@ -49,6 +49,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="scroll-smooth">
+      <head>
+        <link rel="preconnect" href="https://cdn.midjourney.com" crossOrigin="anonymous" />
+        <link rel="preconnect" href="https://images.higgs.ai" crossOrigin="anonymous" />
+        <link rel="preconnect" href="https://higgsfield.ai" crossOrigin="anonymous" />
+      </head>
       <body suppressHydrationWarning className={`${anton.variable} ${mono.variable} ${oswald.variable} ${bebas.variable} ${space.variable} antialiased selection:bg-acid selection:text-black`}>
         <div className="film-grain"></div>
         <ErrorBoundary>

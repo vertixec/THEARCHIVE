@@ -1,4 +1,4 @@
-/* eslint-disable @next/next/no-img-element */
+import Image from 'next/image';
 
 const SKOOL_URL =
   process.env.NEXT_PUBLIC_SKOOL_URL ||
@@ -26,13 +26,17 @@ export default function LockedCommunity({ previews }: { previews: string[] }) {
       <div className="absolute inset-0 grid grid-cols-2 gap-1 md:grid-cols-3 opacity-40">
         {tiles.map((src, i) =>
           src ? (
-            <img
-              key={i}
-              src={src}
-              alt=""
-              className="h-full w-full object-cover"
-              style={{ filter: 'blur(18px) saturate(0.7)', transform: 'scale(1.1)' }}
-            />
+            <div key={i} className="relative h-full w-full overflow-hidden">
+              <Image
+                src={src}
+                alt=""
+                fill
+                sizes="(min-width: 768px) 33vw, 50vw"
+                quality={35}
+                className="object-cover"
+                style={{ filter: 'blur(18px) saturate(0.7)', transform: 'scale(1.1)' }}
+              />
+            </div>
           ) : (
             <div key={i} className="h-full w-full bg-panel/40" />
           ),

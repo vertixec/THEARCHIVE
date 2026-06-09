@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import OptimizedImage from "next/image";
 import { useToast } from "./Toast";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "./AuthContext";
@@ -55,6 +56,7 @@ export default function Card({
   const [showCreateInput, setShowCreateInput] = useState(false);
   const [newBoardName, setNewBoardName] = useState('');
   const [isCreatingBoard, setIsCreatingBoard] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
 
   useEffect(() => {
     setIsLiked(initialIsLiked);
@@ -63,6 +65,10 @@ export default function Card({
   useEffect(() => {
     setDisplayLikeCount(likeCount);
   }, [likeCount]);
+
+  useEffect(() => {
+    setImageLoaded(false);
+  }, [item.image_url]);
 
   const toggleLike = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -124,6 +130,7 @@ export default function Card({
   const displayImg =
     item.image_url ||
     "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=500";
+  const bypassOptimizer = displayImg.startsWith("https://cdn.midjourney.com/");
   const instructions = item.instructions || "";
 
   const fetchBoards = async () => {
@@ -225,12 +232,22 @@ export default function Card({
         {/* Front */}
         <div className="absolute inset-0 backface-hidden bg-black border border-white/5 overflow-hidden">
           <div className="scanline"></div>
-          <img
+          <div
+            className={`absolute inset-0 bg-[linear-gradient(110deg,#090909_25%,#181818_45%,#090909_65%)] bg-[length:200%_100%] transition-opacity duration-500 ${
+              imageLoaded ? 'opacity-0' : 'animate-pulse opacity-100'
+            }`}
+          />
+          <OptimizedImage
             src={displayImg}
             alt={cardTitle}
+            fill
+            sizes="(min-width: 1280px) 20vw, (min-width: 1024px) 25vw, (min-width: 768px) 33vw, 50vw"
+            quality={68}
+            unoptimized={bypassOptimizer}
             draggable
             onDragStart={handleImageDragStart}
-            className={`w-full h-full object-cover filter transition-all duration-700 ease-out ${highlighted ? 'grayscale-0 brightness-110 contrast-100 scale-105' : forceColor ? 'grayscale-0 brightness-100 contrast-100 group-hover:scale-105' : 'grayscale-0 brightness-100 md:grayscale md:contrast-125 md:brightness-75 group-hover:grayscale-0 group-hover:brightness-100 group-hover:scale-105'}`}
+            onLoad={() => setImageLoaded(true)}
+            className={`object-cover filter transition-all duration-700 ease-out ${imageLoaded ? 'opacity-100' : 'opacity-0'} ${highlighted ? 'grayscale-0 brightness-110 contrast-100 scale-105' : forceColor ? 'grayscale-0 brightness-100 contrast-100 group-hover:scale-105' : 'grayscale-0 brightness-100 md:grayscale md:contrast-125 md:brightness-75 group-hover:grayscale-0 group-hover:brightness-100 group-hover:scale-105'}`}
           />
           {highlighted && (
             <div className="absolute inset-0 z-[60] border-2 border-acid shadow-[inset_0_0_15px_#c8ff00,0_0_20px_#c8ff00] pointer-events-none animate-pulse" />

@@ -1,14 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from './Toast';
 
 type Mode = 'login' | 'register' | 'forgot';
 
 export default function AuthForm() {
-  const router = useRouter();
   const [mode, setMode] = useState<Mode>('login');
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -25,7 +23,9 @@ export default function AuthForm() {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         showToast('ACCESS GRANTED');
-        router.push('/');
+        // Use a full navigation so protected routes are requested with the new
+        // auth cookies instead of reusing unauthenticated prefetched responses.
+        window.location.assign('/');
       } else if (mode === 'register') {
         if (password.length < 8) {
           showToast('ACCESS KEY MUST BE AT LEAST 8 CHARACTERS');
