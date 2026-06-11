@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabaseServer';
-import { createCheckoutForPack } from '@/lib/lemonsqueezy';
+import { createOrder } from '@/lib/paypal';
 import { isBillingEnabled } from '@/lib/billing';
 
 export const dynamic = 'force-dynamic';
@@ -50,21 +50,15 @@ export async function POST(request: NextRequest) {
 
   const { data: pack, error: packError } = await supabase
     .from('credit_packs')
-    .select('id, name, lemonsqueezy_variant_id, is_active')
+    .select('id, name, is_active')
     .eq('id', packId)
-    .maybeSingle<{ id: string; name: string; lemonsqueezy_variant_id: string | null; is_active: boolean }>();
+    .maybeSingle<{ id: string; name: string; is_active: boolean }>();
 
   if (packError) {
     return NextResponse.json({ error: packError.message }, { status: 500 });
   }
   if (!pack || !pack.is_active) {
     return NextResponse.json({ error: 'Pack not found or inactive' }, { status: 404 });
-  }
-  if (!pack.lemonsqueezy_variant_id) {
-    return NextResponse.json(
-      { error: 'This pack is not yet wired to Lemon Squeezy. Contact support.' },
-      { status: 503 }
-    );
   }
 
   const { data: intentData, error: intentError } = await supabase.rpc('create_payment_intent', {
@@ -77,19 +71,21 @@ export async function POST(request: NextRequest) {
   }
 
   const intent = intentData[0] as IntentResult;
+  const base = siteUrl(request);
 
   let checkoutUrl: string;
   try {
-    checkoutUrl = await createCheckoutForPack({
-      variantId: pack.lemonsqueezy_variant_id,
-      userId: user.id,
-      userEmail: user.email ?? '',
+    const order = await createOrder({
+      amountUsd: Number(intent.amount_usd).toFixed(2),
       intentId: intent.intent_id,
-      packId: pack.id,
-      redirectUrl: `${siteUrl(request)}/pricing?success=1&intent=${intent.intent_id}`,
+      packName: pack.name,
+      // PayPal appends ?token=<orderId>&PayerID=... to the return URL.
+      returnUrl: `${base}/api/billing/capture?intent=${intent.intent_id}`,
+      cancelUrl: `${base}/pricing?canceled=1`,
     });
+    checkoutUrl = order.approveUrl;
   } catch (err) {
-    console.error('Lemon Squeezy checkout error', err);
+    console.error('PayPal checkout error', err);
     return NextResponse.json({ error: 'Checkout creation failed' }, { status: 502 });
   }
 
