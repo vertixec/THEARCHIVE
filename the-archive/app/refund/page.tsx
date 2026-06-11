@@ -31,8 +31,7 @@ export default function RefundPage() {
               <Link href="/credits" className="text-acid underline-offset-4 hover:underline">
                 credits page
               </Link>
-              {' '}before checkout. All payments are processed securely by our payment provider,
-              Lemon Squeezy, which acts as Merchant of Record.
+              {' '}before checkout. All payments are processed securely through PayPal.
             </p>
           </section>
 
