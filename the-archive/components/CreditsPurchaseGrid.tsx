@@ -50,7 +50,7 @@ export default function CreditsPurchaseGrid({ packs, isAuthed = true, billingEna
       <div className="grid gap-px border border-white/10 bg-white/10 md:grid-cols-3">
         {packs.map((pack) => {
           const isPending = pendingPackId === pack.id;
-          const isLocked = !billingEnabled || !pack.lemonsqueezy_variant_id;
+          const isLocked = !billingEnabled;
           const { credits, images, videos, savings, badge } = packDisplay(pack, baseline);
           const featured = badge === 'Most Popular';
           return (

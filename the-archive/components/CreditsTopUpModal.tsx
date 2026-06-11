@@ -104,7 +104,7 @@ export default function CreditsTopUpModal({ open, onClose }: Props) {
           <div className="mt-8 grid gap-px border border-white/10 bg-white/10 md:grid-cols-3">
             {packs.map((pack) => {
               const isPending = pendingPackId === pack.id;
-              const isLocked = !billingEnabled || !pack.lemonsqueezy_variant_id;
+              const isLocked = !billingEnabled;
               const { credits, images, videos, savings, badge } = packDisplay(pack, baseline);
               return (
                 <button
