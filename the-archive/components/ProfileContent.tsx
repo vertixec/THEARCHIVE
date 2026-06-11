@@ -1179,19 +1179,28 @@ function UsageChart({ transactions }: { transactions: CreditTransaction[] }) {
   const [now] = useState(() => Date.now());
   const bars = useMemo(() => {
     const days = 30;
+    const dayMs = 1000 * 60 * 60 * 24;
     const buckets = new Array(days).fill(0);
     for (const t of transactions) {
       const ts = new Date(t.created_at).getTime();
-      const diffDays = Math.floor((now - ts) / (1000 * 60 * 60 * 24));
+      const diffDays = Math.floor((now - ts) / dayMs);
       if (diffDays >= 0 && diffDays < days) {
         buckets[days - 1 - diffDays] += Math.abs(t.amount);
       }
     }
-    return buckets;
+    return buckets.map((value, i) => {
+      const diffDays = days - 1 - i;
+      const date = new Date(now - diffDays * dayMs);
+      const label =
+        diffDays === 0
+          ? 'Today'
+          : date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      return { value, label };
+    });
   }, [now, transactions]);
 
-  const max = Math.max(...bars, 1);
-  const hasData = bars.some((b) => b > 0);
+  const max = Math.max(...bars.map((b) => b.value), 1);
+  const hasData = bars.some((b) => b.value > 0);
 
   if (!hasData) {
     return (
@@ -1206,15 +1215,22 @@ function UsageChart({ transactions }: { transactions: CreditTransaction[] }) {
   return (
     <div>
       <div className="flex h-32 items-end gap-1">
-        {bars.map((value, i) => {
-          const h = Math.max(2, Math.round((value / max) * 100));
+        {bars.map((bar, i) => {
+          const h = Math.max(2, Math.round((bar.value / max) * 100));
           return (
-            <div
-              key={i}
-              className="flex-1 bg-acid/70 hover:bg-acid transition-colors"
-              style={{ height: `${h}%` }}
-              title={`${value} credits`}
-            />
+            <div key={i} className="group relative flex h-full flex-1 items-end">
+              <div
+                className="w-full bg-acid/70 transition-colors group-hover:bg-acid"
+                style={{ height: `${h}%` }}
+              />
+              {/* Hover tooltip — real consumption for this day */}
+              <div className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 hidden -translate-x-1/2 whitespace-nowrap border border-acid/40 bg-dark px-2.5 py-1.5 text-center group-hover:block">
+                <div className="font-bebas text-xl leading-none text-acid">{bar.value}</div>
+                <div className="mt-0.5 font-mono text-[8px] uppercase tracking-widest text-white/45">
+                  credits · {bar.label}
+                </div>
+              </div>
+            </div>
           );
         })}
       </div>

@@ -67,12 +67,13 @@ export default function CreditsPurchaseGrid({ packs, isAuthed = true, billingEna
                 </div>
               )}
               <div className="mb-6 flex min-h-24 flex-col gap-3">
-                <div className="flex items-center gap-2">
-                  <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-acid">
-                    ${pack.price_usd}
+                <div className="flex items-center gap-3">
+                  <p className="font-bebas text-6xl leading-none tracking-tight text-acid">
+                    <span className="align-super text-2xl">$</span>
+                    {pack.price_usd}
                   </p>
                   {savings > 0 && (
-                    <span className="border border-acid/40 px-1.5 py-0.5 font-mono text-[8px] uppercase tracking-widest text-acid">
+                    <span className="bg-acid/10 border border-acid/50 px-2 py-1 font-mono text-[11px] font-bold uppercase tracking-widest text-acid">
                       Save {savings}%
                     </span>
                   )}
@@ -97,21 +98,28 @@ export default function CreditsPurchaseGrid({ packs, isAuthed = true, billingEna
                 disabled={isPending || isLocked}
                 onClick={() => handleBuy(pack.id)}
                 className={
-                  'block w-full border px-5 py-3 text-center font-mono text-[10px] uppercase tracking-[0.25em] transition-colors ' +
+                  'group/btn flex w-full items-center justify-center gap-2 border-2 px-5 py-4 text-center font-anton text-xl uppercase tracking-wide transition-all duration-200 ' +
                   (isLocked
                     ? 'cursor-not-allowed border-white/10 text-white/30'
                     : isPending
                       ? 'cursor-wait border-acid/40 bg-acid/10 text-acid'
-                      : 'border-acid bg-acid text-black hover:bg-white')
+                      : 'border-acid bg-acid text-black hover:bg-white hover:shadow-[0_0_30px_rgba(200,255,0,0.35)]')
                 }
               >
-                {isLocked
-                  ? 'Payments coming soon'
-                  : isPending
-                    ? 'Redirecting...'
-                    : isAuthed
-                      ? `Buy for $${pack.price_usd}`
-                      : 'Sign in to buy'}
+                {isLocked ? (
+                  'Payments coming soon'
+                ) : isPending ? (
+                  'Redirecting...'
+                ) : isAuthed ? (
+                  <>
+                    Get {pack.name}
+                    <span className="transition-transform duration-200 group-hover/btn:translate-x-1">
+                      &rarr;
+                    </span>
+                  </>
+                ) : (
+                  'Sign in to buy'
+                )}
               </button>
             </article>
           );
