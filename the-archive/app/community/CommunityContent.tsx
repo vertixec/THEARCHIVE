@@ -3,10 +3,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Grid from '@/components/Grid';
+import DropsGrid from '@/components/DropsGrid';
 import { useSync } from '@/components/SyncContext';
 import { useToast } from '@/components/Toast';
 import { supabase } from '@/lib/supabaseClient';
-import type { CommunityVisual, Workflow } from '@/lib/types';
+import type { CommunityVisual, Workflow, CommunityDrop } from '@/lib/types';
 
 const PAGE_SIZE = 60;
 
@@ -24,12 +25,16 @@ export default function CommunityContent({
   visualsHasMore: initialVisualsHasMore,
   initialWorkflows,
   workflowsHasMore: initialWorkflowsHasMore,
+  initialDrops,
+  dropsHasMore: initialDropsHasMore,
 }: {
   initialTab: CommunityTab;
   initialVisuals: CommunityVisual[];
   visualsHasMore: boolean;
   initialWorkflows: Workflow[];
   workflowsHasMore: boolean;
+  initialDrops: CommunityDrop[];
+  dropsHasMore: boolean;
 }) {
   const { setStatus } = useSync();
   const { showToast } = useToast();
@@ -40,6 +45,8 @@ export default function CommunityContent({
   const [visualsHasMore, setVisualsHasMore] = useState(initialVisualsHasMore);
   const [workflows, setWorkflows] = useState<Workflow[]>(initialWorkflows);
   const [workflowsHasMore, setWorkflowsHasMore] = useState(initialWorkflowsHasMore);
+  const [drops, setDrops] = useState<CommunityDrop[]>(initialDrops);
+  const [dropsHasMore, setDropsHasMore] = useState(initialDropsHasMore);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const isLoadingRef = useRef(false);
 
@@ -61,6 +68,7 @@ export default function CommunityContent({
     if (isLoadingRef.current) return;
     if (tab === 'visuals' && !visualsHasMore) return;
     if (tab === 'workflows' && !workflowsHasMore) return;
+    if (tab === 'drops' && !dropsHasMore) return;
     isLoadingRef.current = true;
     setIsLoadingMore(true);
     try {
@@ -91,6 +99,20 @@ export default function CommunityContent({
         } else {
           setWorkflowsHasMore(false);
         }
+      } else if (tab === 'drops') {
+        const { data, error } = await supabase
+          .from('community_drops')
+          .select('*')
+          .order('is_featured', { ascending: false })
+          .order('created_at', { ascending: false })
+          .range(drops.length, drops.length + PAGE_SIZE - 1);
+        if (error) throw error;
+        if (data && data.length > 0) {
+          setDrops((prev) => [...prev, ...data]);
+          setDropsHasMore(data.length === PAGE_SIZE);
+        } else {
+          setDropsHasMore(false);
+        }
       }
     } catch {
       showToast('ERROR LOADING MORE ITEMS');
@@ -100,8 +122,8 @@ export default function CommunityContent({
     }
   };
 
-  const hasMore = tab === 'visuals' ? visualsHasMore : tab === 'workflows' ? workflowsHasMore : false;
-  const loadedCount = tab === 'visuals' ? visuals.length : workflows.length;
+  const hasMore = tab === 'visuals' ? visualsHasMore : tab === 'workflows' ? workflowsHasMore : dropsHasMore;
+  const loadedCount = tab === 'visuals' ? visuals.length : tab === 'workflows' ? workflows.length : drops.length;
 
   return (
     <div id="view-content">
@@ -133,7 +155,7 @@ export default function CommunityContent({
       </header>
 
       {tab === 'drops' ? (
-        <DropsEmptyState />
+        <DropsGrid drops={drops} />
       ) : (
         <Grid
           items={tab === 'visuals' ? visuals : workflows}
@@ -143,7 +165,7 @@ export default function CommunityContent({
         />
       )}
 
-      {tab !== 'drops' && hasMore && (
+      {hasMore && (
         <div className="flex justify-center py-10">
           <button
             onClick={loadMore}
@@ -154,20 +176,6 @@ export default function CommunityContent({
           </button>
         </div>
       )}
-    </div>
-  );
-}
-
-function DropsEmptyState() {
-  return (
-    <div className="flex flex-col items-center justify-center gap-4 py-28 px-6 text-center">
-      <span className="bg-white/10 text-white/60 font-mono text-[9px] px-3 py-1 uppercase tracking-[0.3em]">
-        Coming soon
-      </span>
-      <h2 className="font-anton text-4xl md:text-6xl uppercase tracking-tighter text-white/80">Exclusive Drops</h2>
-      <p className="font-mono text-[10px] md:text-xs text-white/40 max-w-md uppercase tracking-wider leading-relaxed">
-        Member-only releases — packs, templates and resources. Dropping here soon.
-      </p>
     </div>
   );
 }

@@ -39,6 +39,20 @@ export interface Workflow {
   tools: string;
 }
 
+export type DropKind = 'html' | 'pack' | 'template' | 'resource';
+
+export interface CommunityDrop {
+  id: string;
+  created_at: string;
+  title: string;
+  description: string | null;
+  kind: DropKind | string;
+  /** File in Storage (HTML / .zip / etc.) — opened or downloaded on demand. */
+  file_url: string;
+  thumbnail_url: string | null;
+  is_featured: boolean;
+}
+
 export interface Generation {
   id: string;
   user_id: string;

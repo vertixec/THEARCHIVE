@@ -67,8 +67,8 @@ export default async function CommunityPage({
     return <LockedCommunity previews={previews} />;
   }
 
-  // The members hub pulls both feeds up front so switching sub-tabs is instant.
-  const [visualsResult, workflowsResult] = await Promise.all([
+  // The members hub pulls every feed up front so switching sub-tabs is instant.
+  const [visualsResult, workflowsResult, dropsResult] = await Promise.all([
     supabase
       .from('community_visuals')
       .select('*')
@@ -80,10 +80,17 @@ export default async function CommunityPage({
       .select('*')
       .order('created_at', { ascending: false })
       .limit(PAGE_SIZE),
+    supabase
+      .from('community_drops')
+      .select('*')
+      .order('is_featured', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(PAGE_SIZE),
   ]);
 
   const visuals = visualsResult.data || [];
   const workflows = workflowsResult.data || [];
+  const drops = dropsResult.data || [];
 
   return (
     <CommunityContent
@@ -92,6 +99,8 @@ export default async function CommunityPage({
       visualsHasMore={visuals.length === PAGE_SIZE}
       initialWorkflows={workflows}
       workflowsHasMore={workflows.length === PAGE_SIZE}
+      initialDrops={drops}
+      dropsHasMore={drops.length === PAGE_SIZE}
     />
   );
 }
