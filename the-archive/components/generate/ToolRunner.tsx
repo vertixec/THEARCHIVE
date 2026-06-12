@@ -141,7 +141,7 @@ export default function ToolRunner({
                 />
               )}
               {input.helpText && (
-                <p className="mt-1 font-mono text-[8px] uppercase tracking-widest text-white/25">{input.helpText}</p>
+                <p className="mt-1 font-mono text-[9px] uppercase tracking-widest text-white/25">{input.helpText}</p>
               )}
             </div>
           );
@@ -254,7 +254,7 @@ export default function ToolRunner({
               </svg>
             </span>
           </button>
-          <div className="font-mono text-[8px] uppercase tracking-widest text-white/35">
+          <div className="font-mono text-[9px] uppercase tracking-widest text-white/35">
             Cost: {runCost} {runCost === 1 ? 'credit' : 'credits'}
           </div>
         </div>

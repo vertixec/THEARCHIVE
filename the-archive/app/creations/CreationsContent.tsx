@@ -377,7 +377,7 @@ export default function CreationsContent() {
                         </svg>
                       </CardActionButton>
                     </div>
-                    <span className="truncate font-mono text-[8px] uppercase tracking-widest text-white/30">{item.model}</span>
+                    <span className="truncate font-mono text-[9px] uppercase tracking-widest text-white/30">{item.model}</span>
                   </div>
                   <p className="line-clamp-3 font-mono text-[9px] uppercase leading-relaxed text-white/55">{item.prompt}</p>
                 </div>

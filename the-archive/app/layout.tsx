@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Anton, JetBrains_Mono, Oswald, Bebas_Neue, Space_Mono } from "next/font/google";
+import { Anton, Oswald, Space_Mono } from "next/font/google";
 import "./globals.css";
 import { ToastProvider } from "@/components/Toast";
 import { SyncProvider } from "@/components/SyncContext";
@@ -15,19 +15,8 @@ const anton = Anton({
   subsets: ["latin"],
 });
 
-const mono = JetBrains_Mono({
-  variable: "--font-mono",
-  subsets: ["latin"],
-});
-
 const oswald = Oswald({
   variable: "--font-oswald",
-  subsets: ["latin"],
-});
-
-const bebas = Bebas_Neue({
-  weight: "400",
-  variable: "--font-bebas",
   subsets: ["latin"],
 });
 
@@ -54,7 +43,7 @@ export default function RootLayout({
         <link rel="preconnect" href="https://images.higgs.ai" crossOrigin="anonymous" />
         <link rel="preconnect" href="https://higgsfield.ai" crossOrigin="anonymous" />
       </head>
-      <body suppressHydrationWarning className={`${anton.variable} ${mono.variable} ${oswald.variable} ${bebas.variable} ${space.variable} antialiased selection:bg-acid selection:text-black`}>
+      <body suppressHydrationWarning className={`${anton.variable} ${oswald.variable} ${space.variable} antialiased selection:bg-acid selection:text-black`}>
         <div className="film-grain"></div>
         <ErrorBoundary>
           <SyncProvider>

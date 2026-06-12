@@ -96,7 +96,7 @@ export default function Navigation() {
               <div className="h-[1px] w-2/3 bg-white group-hover:bg-acid transition-colors"></div>
               <div className="h-[1px] w-full bg-white group-hover:bg-acid transition-colors"></div>
             </div>
-            <span className="font-space text-[8px] md:text-[10px] tracking-[0.25em] md:tracking-[0.3em] text-white/70 group-hover:text-acid font-bold">INDEX</span>
+            <span className="font-space text-[9px] md:text-[10px] tracking-[0.25em] md:tracking-[0.3em] text-white/70 group-hover:text-acid font-bold">INDEX</span>
           </button>
         </div>
 
@@ -119,10 +119,10 @@ export default function Navigation() {
             {/* Content Wrapper for Centering */}
             <div className="flex-1 flex flex-col items-center justify-center min-h-[600px] py-20">
               {/* Corner Decorators (Internal) */}
-              <div className="corner-l corner-top-left border-acid/30" />
-              <div className="corner-l corner-top-right border-acid/30" />
-              <div className="corner-l corner-bottom-left border-acid/30" />
-              <div className="corner-l corner-bottom-right border-acid/30" />
+              <div className="corner-l corner-top-left" />
+              <div className="corner-l corner-top-right" />
+              <div className="corner-l corner-bottom-left" />
+              <div className="corner-l corner-bottom-right" />
 
               {/* Nav Links */}
               <div className="flex flex-col gap-4 md:gap-8 text-center">
@@ -353,10 +353,10 @@ export default function Navigation() {
           </button>
 
           <div className="flex-1 flex flex-col items-center justify-center py-20">
-              <div className="corner-l corner-top-left border-acid/30" />
-              <div className="corner-l corner-top-right border-acid/30" />
-              <div className="corner-l corner-bottom-left border-acid/30" />
-              <div className="corner-l corner-bottom-right border-acid/30" />
+              <div className="corner-l corner-top-left" />
+              <div className="corner-l corner-top-right" />
+              <div className="corner-l corner-bottom-left" />
+              <div className="corner-l corner-bottom-right" />
 
              <div className="flex flex-col gap-6 text-center">
               {[

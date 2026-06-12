@@ -39,7 +39,7 @@ export default function BoardCard({ board }: BoardCardProps) {
 
       {/* Footer */}
       <div className="p-3 border-t border-white/10 group-hover:border-acid/20 transition-colors">
-        <div className="font-mono text-[8px] text-acid uppercase tracking-widest mb-1">VAULT</div>
+        <div className="font-mono text-[9px] text-acid uppercase tracking-widest mb-1">VAULT</div>
         <div className="font-anton text-base text-white uppercase leading-none truncate group-hover:text-acid transition-colors">
           {board.name}
         </div>

@@ -62,7 +62,7 @@ function ToolCard({ tool, onOpen }: { tool: ToolDefinition; onOpen: (id: string)
           <div className="flex items-center gap-2">
             <h3 className="font-oswald text-sm uppercase tracking-wide text-white">{tool.name}</h3>
             {!isLive && (
-              <span className="font-mono text-[8px] uppercase tracking-widest text-white/40 border border-white/15 px-1.5 py-0.5">
+              <span className="font-mono text-[9px] uppercase tracking-widest text-white/40 border border-white/15 px-1.5 py-0.5">
                 Soon
               </span>
             )}
@@ -70,7 +70,7 @@ function ToolCard({ tool, onOpen }: { tool: ToolDefinition; onOpen: (id: string)
           <p className="font-mono text-[9px] uppercase tracking-widest text-acid/70 mt-0.5">{tool.tagline}</p>
           <p className="mt-2 font-mono text-[10px] leading-relaxed text-white/45">{tool.description}</p>
           {isLive && (
-            <div className="mt-2.5 flex items-center gap-1.5 font-mono text-[8px] uppercase tracking-widest text-white/35">
+            <div className="mt-2.5 flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-widest text-white/35">
               <span className="text-acid/60">
                 {tool.angleOptions ? `up to ${tool.outputCount}` : tool.outputCount} results
               </span>

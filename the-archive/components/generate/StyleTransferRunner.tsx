@@ -59,7 +59,7 @@ function ImageSlot({
             isDragOver ? 'border-acid bg-acid/10' : 'border-white/15 bg-black/40 hover:border-white/25'
           } ${disabled ? 'opacity-40 cursor-not-allowed' : ''}`}
         >
-          <span className={`font-mono text-[8px] uppercase tracking-widest leading-relaxed ${isDragOver ? 'text-acid' : 'text-white/30'}`}>
+          <span className={`font-mono text-[9px] uppercase tracking-widest leading-relaxed ${isDragOver ? 'text-acid' : 'text-white/30'}`}>
             {isUploading ? 'Uploading...' : isDragOver ? 'Drop here' : hint}
           </span>
         </div>
@@ -196,7 +196,7 @@ export default function StyleTransferRunner({
             className="min-h-[80px] w-full resize-none bg-black border border-white/10 focus:border-acid outline-none p-3 font-mono text-[10px] leading-relaxed text-white placeholder:text-white/20 scroll-custom disabled:opacity-50"
             placeholder={contentUrl ? 'Optional: nudge the result (e.g. warmer tones)' : 'E.g.: a fox sitting in a forest at dawn'}
           />
-          <p className="mt-1 font-mono text-[8px] uppercase tracking-widest text-white/25">
+          <p className="mt-1 font-mono text-[9px] uppercase tracking-widest text-white/25">
             {contentUrl
               ? 'The 2nd image keeps its subject; the style reference sets the look.'
               : 'Describe the new subject — it will be rendered in the reference style.'}
@@ -258,7 +258,7 @@ export default function StyleTransferRunner({
             </svg>
           </span>
         </button>
-        <div className="font-mono text-[8px] uppercase tracking-widest text-white/35">
+        <div className="font-mono text-[9px] uppercase tracking-widest text-white/35">
           Cost: {tool.creditCost} {tool.creditCost === 1 ? 'credit' : 'credits'}
         </div>
       </div>

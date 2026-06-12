@@ -139,7 +139,7 @@ function Stat({ label, value }: { label: string; value: number }) {
   return (
     <div className="bg-black/60 p-4 text-center">
       <div className="font-bebas text-4xl text-white">{value}</div>
-      <div className="font-mono text-[8px] uppercase tracking-widest text-white/35">{label}</div>
+      <div className="font-mono text-[9px] uppercase tracking-widest text-white/35">{label}</div>
     </div>
   );
 }

@@ -39,7 +39,6 @@ export default function Card({
   onFlip,
   highlighted = false,
   onInteraction,
-  forceColor = false,
 }: AssetCardProps) {
   const { showToast } = useToast();
   const { openPanel } = useGenerate();
@@ -130,7 +129,11 @@ export default function Card({
   const displayImg =
     item.image_url ||
     "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=500";
-  const bypassOptimizer = displayImg.startsWith("https://cdn.midjourney.com/");
+  // Serve the original asset (PNG/WebP from Supabase, etc.) without Next.js
+  // re-encoding it to AVIF/WebP, which softened detail on the visuals grid.
+  const bypassOptimizer =
+    displayImg.startsWith("https://cdn.midjourney.com/") ||
+    displayImg.includes(".supabase.co/");
   const instructions = item.instructions || "";
 
   const fetchBoards = async () => {
@@ -242,19 +245,19 @@ export default function Card({
             alt={cardTitle}
             fill
             sizes="(min-width: 1280px) 20vw, (min-width: 1024px) 25vw, (min-width: 768px) 33vw, 50vw"
-            quality={68}
+            quality={90}
             unoptimized={bypassOptimizer}
             draggable
             onDragStart={handleImageDragStart}
             onLoad={() => setImageLoaded(true)}
-            className={`object-cover filter transition-all duration-700 ease-out ${imageLoaded ? 'opacity-100' : 'opacity-0'} ${highlighted ? 'grayscale-0 brightness-110 contrast-100 scale-105' : forceColor ? 'grayscale-0 brightness-100 contrast-100 group-hover:scale-105' : 'grayscale-0 brightness-100 md:grayscale md:contrast-125 md:brightness-75 group-hover:grayscale-0 group-hover:brightness-100 group-hover:scale-105'}`}
+            className={`object-cover filter transition-all duration-700 ease-out ${imageLoaded ? 'opacity-100' : 'opacity-0'} ${highlighted ? 'grayscale-0 brightness-110 contrast-100 scale-105' : 'grayscale-0 brightness-100 contrast-100 group-hover:scale-105'}`}
           />
           {highlighted && (
             <div className="absolute inset-0 z-[60] border-2 border-acid shadow-[inset_0_0_15px_#c8ff00,0_0_20px_#c8ff00] pointer-events-none animate-pulse" />
           )}
           <div className="absolute top-3 left-3 z-20">
             <span
-              className={`${secondaryLabel === "FEATURED" ? "bg-acid text-black" : "bg-black/80 text-white"} backdrop-blur-md text-[8px] font-mono px-2 py-0.5 border border-white/10 tracking-widest uppercase`}
+              className={`${secondaryLabel === "FEATURED" ? "bg-acid text-black" : "bg-black/80 text-white"} backdrop-blur-md text-[9px] font-mono px-2 py-0.5 border border-white/10 tracking-widest uppercase`}
             >
               {secondaryLabel}
             </span>
@@ -320,7 +323,7 @@ export default function Card({
         {/* Back */}
         <div className="absolute inset-0 backface-hidden rotate-y-180 bg-panel border border-acid/30 p-4 md:p-5 flex flex-col justify-between overflow-hidden">
           <div className="h-full flex flex-col">
-            <div className="flex justify-between items-start font-mono text-[8px] md:text-[9px] text-gray-500 border-b border-white/10 pb-2 md:pb-3 mb-3 md:mb-4 uppercase tracking-tighter relative">
+            <div className="flex justify-between items-start font-mono text-[9px] text-gray-500 border-b border-white/10 pb-2 md:pb-3 mb-3 md:mb-4 uppercase tracking-tighter relative">
               <div className="flex flex-col">
                 {itemType !== "workflow" ? (
                   <>
@@ -345,13 +348,13 @@ export default function Card({
             <div className="flex-grow overflow-y-auto pr-1 md:pr-2 scroll-custom">
               {itemType === "workflow" ? (
                 <div className="h-full flex flex-col justify-center items-center text-center px-1">
-                  <div className="font-mono text-[8px] md:text-[10px] text-acid/80 uppercase tracking-widest mb-2 md:mb-4 border-b border-acid pb-1">
+                  <div className="font-mono text-[9px] md:text-[10px] text-acid/80 uppercase tracking-widest mb-2 md:mb-4 border-b border-acid pb-1">
                     WORKFLOW ACCESS
                   </div>
                   <h3 className="font-anton text-lg md:text-2xl text-white uppercase mb-2 tracking-tight">
                     {item.name}
                   </h3>
-                  <div className="font-mono text-[8px] md:text-[10px] text-white/70 uppercase mb-4 md:mb-6 max-w-[180px] md:max-w-[200px] leading-tight md:leading-relaxed italic border-l border-acid/30 pl-2 md:pl-3 text-left">
+                  <div className="font-mono text-[9px] md:text-[10px] text-white/70 uppercase mb-4 md:mb-6 max-w-[180px] md:max-w-[200px] leading-tight md:leading-relaxed italic border-l border-acid/30 pl-2 md:pl-3 text-left">
                     {item.use_cases || "NO CASE DEFINED"}
                   </div>
                   <a
@@ -513,7 +516,7 @@ export default function Card({
                 className="absolute top-20 left-5 right-5 bg-black/98 border border-acid/60 p-4 z-[100] shadow-[0_0_30px_rgba(0,0,0,0.8)] backdrop-blur-2xl transition-all duration-300 animate-in fade-in zoom-in-95 cursor-default"
                 onClick={(e) => e.stopPropagation()} // Prevent card flip when clicking inside tooltip
               >
-                <div className="text-acid font-mono text-[8px] mb-3 border-b border-acid/20 pb-1 tracking-widest uppercase flex justify-between items-center">
+                <div className="text-acid font-mono text-[9px] mb-3 border-b border-acid/20 pb-1 tracking-widest uppercase flex justify-between items-center">
                   <span>Instructions</span>
                   <button
                     onClick={() => setShowTooltip(false)}
@@ -588,7 +591,7 @@ export default function Card({
                   /* Step 2: boards list */
                   <>
                     <div className="px-3 py-1.5 border-b border-white/10">
-                      <span className="font-mono text-[8px] text-acid/60 uppercase tracking-widest">Moodboards</span>
+                      <span className="font-mono text-[9px] text-acid/60 uppercase tracking-widest">Moodboards</span>
                     </div>
 
                     <div className="max-h-36 overflow-y-auto scroll-custom">
@@ -640,13 +643,13 @@ export default function Card({
                             <button
                               onClick={handleCreateAndAdd}
                               disabled={isCreatingBoard || !newBoardName.trim()}
-                              className="flex-1 py-1 bg-acid text-black font-mono text-[8px] uppercase tracking-widest disabled:opacity-40 hover:bg-acid/80 transition-colors"
+                              className="flex-1 py-1 bg-acid text-black font-mono text-[9px] uppercase tracking-widest disabled:opacity-40 hover:bg-acid/80 transition-colors"
                             >
                               {isCreatingBoard ? '...' : 'Create'}
                             </button>
                             <button
                               onClick={() => { setShowCreateInput(false); setNewBoardName(''); }}
-                              className="px-2 py-1 font-mono text-[8px] text-white/40 hover:text-white border border-white/10 hover:border-white/20 transition-colors"
+                              className="px-2 py-1 font-mono text-[9px] text-white/40 hover:text-white border border-white/10 hover:border-white/20 transition-colors"
                             >✕</button>
                           </div>
                         </div>

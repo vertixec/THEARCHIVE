@@ -4,11 +4,12 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   images: {
     formats: ['image/avif', 'image/webp'],
-    qualities: [35, 68, 76],
+    qualities: [35, 90],
     minimumCacheTTL: 86400,
     deviceSizes: [640, 750, 828, 1080, 1200, 1440, 1920],
     imageSizes: [96, 160, 240, 320, 480, 640],
     remotePatterns: [
+      { protocol: 'https', hostname: 'tskmcvnbtexfqojoixuv.supabase.co' },
       { protocol: 'https', hostname: 'cdn.midjourney.com' },
       { protocol: 'https', hostname: 'images.higgs.ai' },
       { protocol: 'https', hostname: 'higgsfield.ai' },

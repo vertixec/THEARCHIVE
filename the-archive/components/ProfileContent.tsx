@@ -849,20 +849,20 @@ function CreditsTab({
           {monthlyGrant > 0 && (
             <div className="mt-5 grid grid-cols-2 gap-px border border-white/10 bg-white/10">
               <div className="bg-dark p-3">
-                <p className="font-mono text-[8px] uppercase tracking-widest text-acid">Community</p>
+                <p className="font-mono text-[9px] uppercase tracking-widest text-acid">Community</p>
                 <p className="mt-1 font-bebas text-2xl leading-none text-white">
                   {monthlyCredits.toLocaleString()}
                 </p>
-                <p className="mt-1 font-mono text-[8px] uppercase tracking-widest text-white/35">
+                <p className="mt-1 font-mono text-[9px] uppercase tracking-widest text-white/35">
                   of {monthlyGrant.toLocaleString()} / mo · resets monthly
                 </p>
               </div>
               <div className="bg-dark p-3">
-                <p className="font-mono text-[8px] uppercase tracking-widest text-white/50">Purchased</p>
+                <p className="font-mono text-[9px] uppercase tracking-widest text-white/50">Purchased</p>
                 <p className="mt-1 font-bebas text-2xl leading-none text-white">
                   {purchasedCredits.toLocaleString()}
                 </p>
-                <p className="mt-1 font-mono text-[8px] uppercase tracking-widest text-white/35">
+                <p className="mt-1 font-mono text-[9px] uppercase tracking-widest text-white/35">
                   never expire
                 </p>
               </div>
@@ -1226,7 +1226,7 @@ function UsageChart({ transactions }: { transactions: CreditTransaction[] }) {
               {/* Hover tooltip — real consumption for this day */}
               <div className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 hidden -translate-x-1/2 whitespace-nowrap border border-acid/40 bg-dark px-2.5 py-1.5 text-center group-hover:block">
                 <div className="font-bebas text-xl leading-none text-acid">{bar.value}</div>
-                <div className="mt-0.5 font-mono text-[8px] uppercase tracking-widest text-white/45">
+                <div className="mt-0.5 font-mono text-[9px] uppercase tracking-widest text-white/45">
                   credits · {bar.label}
                 </div>
               </div>

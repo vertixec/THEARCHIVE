@@ -391,7 +391,7 @@ export default function GeneratePanel() {
                       <div key={control.key} className="relative min-w-0">
                         <label
                           htmlFor={`opt-${control.key}`}
-                          className="mb-1 block font-mono text-[8px] uppercase tracking-widest text-white/40"
+                          className="mb-1 block font-mono text-[9px] uppercase tracking-widest text-white/40"
                         >
                           {control.label}
                         </label>
@@ -465,14 +465,14 @@ export default function GeneratePanel() {
               </div>
             )}
             {typeof usage?.monthly_credits === 'number' && usage.monthly_credits > 0 && (
-              <div className="mt-0.5 font-mono text-[8px] uppercase tracking-widest text-white/45">
+              <div className="mt-0.5 font-mono text-[9px] uppercase tracking-widest text-white/45">
                 {usage.monthly_credits.toLocaleString()} community
                 {typeof usage.purchased_credits === 'number' && usage.purchased_credits > 0
                   ? ` + ${usage.purchased_credits.toLocaleString()} purchased`
                   : ''}
               </div>
             )}
-            <div className="mt-1 font-mono text-[8px] uppercase tracking-widest text-white/35">
+            <div className="mt-1 font-mono text-[9px] uppercase tracking-widest text-white/35">
               Cost: {cost} {cost === 1 ? 'credit' : 'credits'} per {footerType}
             </div>
             {usage?.access_tier !== 'admin' && (

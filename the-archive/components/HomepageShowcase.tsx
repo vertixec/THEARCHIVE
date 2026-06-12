@@ -27,7 +27,8 @@ export default function HomepageShowcase() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [progress, setProgress] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 });
+  const cursorDotRef = useRef<HTMLDivElement | null>(null);
+  const cursorRingRef = useRef<HTMLDivElement | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Fetch latest 7 assets
@@ -105,7 +106,14 @@ export default function HomepageShowcase() {
     };
 
     const handleMouseMove = (e: MouseEvent) => {
-      setCursorPos({ x: e.clientX, y: e.clientY });
+      if (cursorDotRef.current) {
+        cursorDotRef.current.style.left = `${e.clientX}px`;
+        cursorDotRef.current.style.top = `${e.clientY}px`;
+      }
+      if (cursorRingRef.current) {
+        cursorRingRef.current.style.left = `${e.clientX}px`;
+        cursorRingRef.current.style.top = `${e.clientY}px`;
+      }
     };
 
     window.addEventListener("keydown", handleKeyDown);
@@ -131,15 +139,9 @@ export default function HomepageShowcase() {
 
   return (
     <div className="fixed inset-0 bg-black overflow-hidden font-space select-none cursor-none" onClick={nextAsset}>
-      {/* Custom Cursor */}
-      <div 
-        className="custom-cursor" 
-        style={{ left: cursorPos.x, top: cursorPos.y }}
-      />
-      <div 
-        className="custom-cursor-ring" 
-        style={{ left: cursorPos.x, top: cursorPos.y }}
-      />
+      {/* Custom Cursor (positioned imperatively to avoid re-rendering on mousemove) */}
+      <div ref={cursorDotRef} className="custom-cursor" style={{ left: -100, top: -100 }} />
+      <div ref={cursorRingRef} className="custom-cursor-ring" style={{ left: -100, top: -100 }} />
 
       {/* Corner Decorations */}
       <div className="corner-l corner-top-left" />
@@ -164,7 +166,7 @@ export default function HomepageShowcase() {
               fill
               priority
               sizes="100vw"
-              quality={76}
+              quality={90}
               unoptimized={currentAsset.image_url.startsWith("https://cdn.midjourney.com/")}
               className="object-cover brightness-[0.85]"
             />
@@ -176,7 +178,7 @@ export default function HomepageShowcase() {
       
       {/* Top Center: Vertix OS Label */}
       <div className="absolute top-8 left-1/2 -translate-x-1/2 z-50 text-center">
-        <div className="text-[8px] md:text-[10px] tracking-[0.3em] text-white/50 mb-1">VERTIX OS</div>
+        <div className="text-[9px] md:text-[10px] tracking-[0.3em] text-white/50 mb-1">VERTIX OS</div>
         <div className="text-acid font-bold tracking-[0.25em] md:tracking-[0.3em] text-[9px] md:text-xs uppercase">
           {new Date().toLocaleDateString('en-US', { month: 'long', day: '2-digit', year: 'numeric' })}
         </div>
@@ -184,7 +186,7 @@ export default function HomepageShowcase() {
 
       {/* Top Right: Subcategory */}
       <div className="absolute top-8 right-8 z-50">
-        <div className="border border-white/20 px-2 py-0.5 md:px-3 md:py-1 text-[8px] md:text-[10px] tracking-widest text-white/70 backdrop-blur-sm uppercase">
+        <div className="border border-white/20 px-2 py-0.5 md:px-3 md:py-1 text-[9px] md:text-[10px] tracking-widest text-white/70 backdrop-blur-sm uppercase">
           {currentAsset.category?.toUpperCase() || "VISUALS"}
         </div>
       </div>
@@ -333,7 +335,7 @@ function LegalFooter() {
           <Link
             href={link.href}
             onClick={stop}
-            className="font-mono text-[8px] md:text-[9px] uppercase tracking-[0.2em] text-white/45 transition-colors hover:text-acid"
+            className="font-mono text-[9px] uppercase tracking-[0.2em] text-white/45 transition-colors hover:text-acid"
           >
             {link.label}
           </Link>

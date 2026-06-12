@@ -125,7 +125,7 @@ export default function ResetPasswordPage() {
           </div>
         </div>
 
-        <div className="mt-12 font-mono text-[8px] text-gray-600 uppercase tracking-[0.5em] flex gap-8">
+        <div className="mt-12 font-mono text-[9px] text-gray-600 uppercase tracking-[0.5em] flex gap-8">
           <span>Archive V1</span>
         </div>
       </div>

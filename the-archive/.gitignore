@@ -43,3 +43,7 @@ yarn-error.log*
 next-env.d.ts
 
 .vercel
+scripts/backup-originals/
+
+# local dev logs
+.dev-*.log

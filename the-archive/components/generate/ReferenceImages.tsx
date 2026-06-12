@@ -50,7 +50,7 @@ export default function ReferenceImages({ label = 'Reference images' }: { label?
                 isDragOver ? 'border-acid bg-acid/10' : 'border-white/15 bg-black/40 hover:border-white/25'
               }`}
             >
-              <span className={`font-mono text-[8px] uppercase tracking-widest leading-tight px-1 ${isDragOver ? 'text-acid' : 'text-white/30'}`}>
+              <span className={`font-mono text-[9px] uppercase tracking-widest leading-tight px-1 ${isDragOver ? 'text-acid' : 'text-white/30'}`}>
                 {isUploadingRef ? 'Uploading...' : isDragOver ? 'Drop here' : '+ Add'}
               </span>
             </div>

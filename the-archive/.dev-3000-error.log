@@ -1,8 +1,0 @@
-⨯ Another next dev server is already running.
-
-- Local:        http://localhost:3001
-- PID:          83644
-- Dir:          C:\Users\jorge\VERTIX-VAULT\01-PROYECTOS\THE ARCHIVE\THEARCHIVE\the-archive
-- Log:          .next\dev\logs\next-development.log
-
-Run taskkill /PID 83644 /F to stop it.

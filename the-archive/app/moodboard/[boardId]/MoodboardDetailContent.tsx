@@ -391,10 +391,10 @@ export default function MoodboardDetailContent({ board, items: initialItems }: P
       // ── Board name (adaptive font size) ──────────────────────────────────
       const MAX_NAME_W = CANVAS_W - PAD * 2;
       let fontSize = 240;
-      ctx.font = `bold ${fontSize}px "Bebas Neue", "Impact", sans-serif`;
+      ctx.font = `bold ${fontSize}px "Anton", "Impact", sans-serif`;
       while (ctx.measureText(board.name.toUpperCase()).width > MAX_NAME_W && fontSize > 80) {
         fontSize -= 8;
-        ctx.font = `bold ${fontSize}px "Bebas Neue", "Impact", sans-serif`;
+        ctx.font = `bold ${fontSize}px "Anton", "Impact", sans-serif`;
       }
       ctx.fillStyle = '#FFFFFF';
       ctx.textAlign = 'left';
@@ -630,11 +630,11 @@ export default function MoodboardDetailContent({ board, items: initialItems }: P
                           e.dataTransfer.setData('application/x-vertix-prompt', item.prompt_text);
                         }
                       }}
-                      className="w-full h-full object-cover transition-all duration-700 grayscale brightness-75 contrast-110 group-hover:grayscale-0 group-hover:brightness-100 group-hover:scale-105"
+                      className="w-full h-full object-cover transition-all duration-700 group-hover:scale-105"
                     />
 
-                    {/* Dark overlay */}
-                    <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-all duration-500 pointer-events-none" />
+                    {/* Subtle overlay for label legibility */}
+                    <div className="absolute inset-0 bg-black/0 transition-all duration-500 pointer-events-none" />
 
                     {/* Remove button */}
                     <button
@@ -647,7 +647,7 @@ export default function MoodboardDetailContent({ board, items: initialItems }: P
                       title="Remove from board"
                     >
                       {removingId === item.id ? (
-                        <span className="font-mono text-[8px]">...</span>
+                        <span className="font-mono text-[9px]">...</span>
                       ) : (
                         <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -657,7 +657,7 @@ export default function MoodboardDetailContent({ board, items: initialItems }: P
 
                     {/* Item type badge */}
                     <div className="absolute bottom-2 left-2 opacity-0 group-hover:opacity-100 transition-all duration-300">
-                      <span className="font-mono text-[8px] uppercase tracking-widest bg-black/80 backdrop-blur-sm text-white/60 px-1.5 py-0.5 border border-white/10">
+                      <span className="font-mono text-[9px] uppercase tracking-widest bg-black/80 backdrop-blur-sm text-white/60 px-1.5 py-0.5 border border-white/10">
                         {item.item_type}
                       </span>
                     </div>
