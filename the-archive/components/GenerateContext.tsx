@@ -4,6 +4,7 @@ import { createContext, ReactNode, useCallback, useContext, useState } from 'rea
 
 type GenerationType = 'image' | 'video';
 type PanelMode = 'generate' | 'tools';
+type PanelLayout = 'side' | 'bottom' | 'floating';
 
 export const MAX_REFERENCE_IMAGES = 3;
 
@@ -15,6 +16,7 @@ interface GenerateState {
   hasNewCreation: boolean;
   panelMode: PanelMode;
   activeToolId: string | null;
+  panelLayout: PanelLayout;
 }
 
 interface GenerateContextType extends GenerateState {
@@ -31,6 +33,7 @@ interface GenerateContextType extends GenerateState {
   setPanelMode: (mode: PanelMode) => void;
   openTool: (toolId: string) => void;
   closeTool: () => void;
+  setPanelLayout: (layout: PanelLayout) => void;
 }
 
 const GenerateContext = createContext<GenerateContextType | null>(null);
@@ -49,6 +52,7 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
   const [hasNewCreation, setHasNewCreation] = useState(false);
   const [panelMode, setPanelMode] = useState<PanelMode>('generate');
   const [activeToolId, setActiveToolId] = useState<string | null>(null);
+  const [panelLayout, setPanelLayout] = useState<PanelLayout>('side');
 
   const openPanel = useCallback((newPrompt = '', references: string | string[] | null = null) => {
     if (newPrompt) setPrompt(newPrompt);
@@ -93,6 +97,7 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
         hasNewCreation,
         panelMode,
         activeToolId,
+        panelLayout,
         openPanel,
         closePanel,
         togglePanel,
@@ -106,6 +111,7 @@ export function GenerateProvider({ children }: { children: ReactNode }) {
         setPanelMode,
         openTool,
         closeTool,
+        setPanelLayout,
       }}
     >
       {children}

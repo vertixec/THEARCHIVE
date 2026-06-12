@@ -5,13 +5,14 @@ import { usePathname } from 'next/navigation';
 import type { GenerationUsage } from '@/lib/types';
 import { MODEL_OPTIONS, creditCostFor, defaultSelection } from '@/lib/modelOptions';
 import { useAuth } from './AuthContext';
-import { useGenerate } from './GenerateContext';
+import { MAX_REFERENCE_IMAGES, useGenerate } from './GenerateContext';
 import { useToast } from './Toast';
 import CreditsTopUpModal from './CreditsTopUpModal';
 import ReferenceImages from './generate/ReferenceImages';
 import ToolsGallery from './generate/ToolsGallery';
 import ToolRunner from './generate/ToolRunner';
 import StyleTransferRunner from './generate/StyleTransferRunner';
+import { useReferenceUpload } from './generate/useReferenceUpload';
 
 const IMAGE_MODELS = [
   { id: 'gpt-image-2', label: 'GPT Image 2', description: 'High fidelity, text-aware' },
@@ -32,11 +33,13 @@ export default function GeneratePanel() {
     generationType,
     panelMode,
     activeToolId,
+    panelLayout,
     closePanel,
     setPrompt,
     setGenerationType,
     markNewCreation,
     setPanelMode,
+    removeReferenceImageUrl,
   } = useGenerate();
   const pathname = usePathname();
   const { user } = useAuth();
@@ -50,6 +53,7 @@ export default function GeneratePanel() {
   );
   const [error, setError] = useState<string | null>(null);
   const [showTopUpModal, setShowTopUpModal] = useState(false);
+  const { isDragOver, setIsDragOver, isUploadingRef, isAtReferenceLimit, handleReferenceDrop } = useReferenceUpload();
 
   const isTools = panelMode === 'tools';
   // Tools (currently image-based) always show the image credit footer.
@@ -232,12 +236,178 @@ export default function GeneratePanel() {
     showToast('PROMPT LOADED');
   }, [setPrompt, showToast]);
 
+  if (panelLayout === 'bottom') {
+    return (
+      <>
+        <aside
+          className={`fixed bottom-4 left-1/2 z-[200] w-[calc(100%-1.5rem)] max-w-[1180px] -translate-x-1/2 rounded-[28px] border border-white/15 bg-[#101214]/88 shadow-[0_32px_120px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-2xl transition-all duration-500 md:bottom-6 ${
+            isOpen ? 'translate-y-0 opacity-100' : 'pointer-events-none translate-y-[130%] opacity-0'
+          }`}
+          aria-hidden={!isOpen}
+        >
+          <div className="relative p-2.5 md:p-3">
+            {isGenerating && (
+              <div className="panel-progress-bar absolute inset-x-6 top-0 h-0.5 overflow-hidden rounded-full bg-black/40" />
+            )}
+
+            <div className="flex items-start gap-2">
+              <div
+                onDragEnter={(event) => { event.preventDefault(); event.stopPropagation(); setIsDragOver(true); }}
+                onDragOver={(event) => { event.preventDefault(); event.stopPropagation(); setIsDragOver(true); }}
+                onDragLeave={(event) => { event.preventDefault(); event.stopPropagation(); setIsDragOver(false); }}
+                onDrop={handleReferenceDrop}
+                className={`flex h-[74px] w-[74px] shrink-0 items-center justify-center overflow-hidden rounded-[20px] border border-dashed transition-all ${
+                  isDragOver
+                    ? 'border-acid bg-acid/15 text-acid'
+                    : 'border-white/15 bg-black/30 text-white/35 hover:border-acid/50 hover:text-acid'
+                }`}
+                title="Drop image reference"
+              >
+                {referenceImageUrls.length > 0 ? (
+                  <div className="grid h-full w-full grid-cols-2 gap-px bg-white/10">
+                    {referenceImageUrls.map((url, index) => (
+                      <button
+                        key={`${url}-${index}`}
+                        type="button"
+                        onClick={() => removeReferenceImageUrl(index)}
+                        className="group relative overflow-hidden bg-black"
+                        title="Remove reference"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={url} alt={`Reference ${index + 1}`} className="h-full w-full object-cover opacity-80 transition-all group-hover:scale-110 group-hover:opacity-35" />
+                        <span className="absolute inset-0 hidden items-center justify-center font-mono text-xs text-white group-hover:flex">X</span>
+                      </button>
+                    ))}
+                    {!isAtReferenceLimit && (
+                      <div className="flex items-center justify-center bg-black/80 font-mono text-lg text-acid/70">+</div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="px-2 text-center font-mono text-[8px] uppercase leading-relaxed tracking-widest">
+                    {isUploadingRef ? 'Uploading' : isDragOver ? 'Drop here' : '+ Reference'}
+                  </div>
+                )}
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <div className="flex min-w-0 items-center gap-3 rounded-[20px] border border-white/10 bg-black/30 px-4 transition-colors focus-within:border-acid/60">
+                  <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0 text-acid" fill="currentColor" aria-hidden="true">
+                    <path d="M13 2 3 14h7l-1 8 11-13h-7l1-7z" />
+                  </svg>
+                  <textarea
+                    id="infinite-generate-prompt"
+                    value={prompt}
+                    onChange={(event) => setPrompt(event.target.value)}
+                    onDragOver={(event) => {
+                      if (event.dataTransfer.types.includes('application/x-vertix-prompt')) {
+                        event.preventDefault();
+                        event.dataTransfer.dropEffect = 'copy';
+                      }
+                    }}
+                    onDrop={handlePromptDrop}
+                    rows={2}
+                    className="max-h-[72px] min-h-[72px] flex-1 resize-none bg-transparent py-4 font-mono text-[10px] leading-relaxed uppercase text-white outline-none placeholder:text-white/30 scroll-custom md:text-[11px]"
+                    placeholder="Describe what you want to create..."
+                  />
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleGenerate}
+                disabled={!canGenerate}
+                className="generate-shine relative h-[74px] shrink-0 overflow-hidden rounded-[20px] bg-acid px-5 font-oswald text-xs uppercase tracking-[0.18em] text-black transition-all hover:bg-white disabled:cursor-not-allowed disabled:opacity-30 md:w-36 md:text-sm"
+              >
+                <span className="relative z-10 flex flex-col items-center justify-center gap-1">
+                  <span>{isGenerating ? 'Generating...' : 'Generate'}</span>
+                  {!isGenerating && <span className="font-mono text-[8px] tracking-widest">{cost} credits</span>}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={closePanel}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-black/25 font-mono text-xs text-white/40 transition-colors hover:border-acid/60 hover:text-acid"
+                aria-label="Hide Studio"
+                title="Hide Studio"
+              >
+                X
+              </button>
+            </div>
+
+            <div className="mt-2 flex items-center gap-2 overflow-x-auto px-1 pb-0.5 no-scrollbar">
+              <div className="flex shrink-0 items-center gap-1 rounded-full border border-white/10 bg-black/35 p-1">
+                {genTypes.map((type) => (
+                  <button
+                    key={type}
+                    type="button"
+                    onClick={() => setGenerationType(type)}
+                    className={`rounded-full px-4 py-2 font-mono text-[9px] uppercase tracking-widest transition-all ${
+                      generationType === type
+                        ? 'bg-acid text-black'
+                        : 'text-white/55 hover:bg-white/10 hover:text-white'
+                    }`}
+                  >
+                    {type}
+                  </button>
+                ))}
+              </div>
+
+              <div className="relative shrink-0">
+                <select
+                  aria-label="Generation model"
+                  value={selectedModel}
+                  onChange={(event) => setSelectedModel(event.target.value)}
+                  className="h-10 min-w-44 cursor-pointer appearance-none rounded-full border border-white/10 bg-black/35 pl-4 pr-8 font-mono text-[9px] uppercase tracking-widest text-white/75 outline-none transition-colors hover:border-white/25 focus:border-acid"
+                >
+                  {models.map((model) => (
+                    <option key={model.id} value={model.id}>{model.label}</option>
+                  ))}
+                </select>
+                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-acid/60">v</span>
+              </div>
+
+              {optionControls.map((control) => (
+                <div key={control.key} className="relative shrink-0">
+                  <select
+                    aria-label={control.label}
+                    value={modelOptions[control.key] ?? control.default}
+                    onChange={(event) => setModelOptions((prev) => ({ ...prev, [control.key]: event.target.value }))}
+                    className="h-10 min-w-28 cursor-pointer appearance-none rounded-full border border-white/10 bg-black/35 pl-4 pr-8 font-mono text-[9px] uppercase tracking-widest text-white/65 outline-none transition-colors hover:border-white/25 focus:border-acid"
+                  >
+                    {control.options.map((option) => (
+                      <option key={option.value} value={option.value}>{control.label}: {option.label}</option>
+                    ))}
+                  </select>
+                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-acid/60">v</span>
+                </div>
+              ))}
+
+              <div className="ml-auto shrink-0 px-2 font-mono text-[8px] uppercase tracking-widest text-white/35">
+                {referenceImageUrls.length}/{MAX_REFERENCE_IMAGES} refs · {typeof balance === 'number' ? `${balance.toLocaleString()} credits` : planName}
+              </div>
+            </div>
+
+            {error && (
+              <div className="mt-2 font-mono text-[8px] uppercase tracking-widest text-danger">{error}</div>
+            )}
+          </div>
+        </aside>
+        <CreditsTopUpModal open={showTopUpModal} onClose={() => setShowTopUpModal(false)} />
+      </>
+    );
+  }
+
+  const isFloating = panelLayout === 'floating';
+
   return (
     <>
-      {isOpen && <div className="fixed inset-0 z-[45] bg-black/40 backdrop-blur-[1px] md:hidden" onClick={closePanel} />}
+      {isOpen && !isFloating && <div className="fixed inset-0 z-[45] bg-black/40 backdrop-blur-[1px] md:hidden" onClick={closePanel} />}
       <aside
-        className={`fixed right-0 top-0 z-50 h-dvh w-full max-w-full md:w-[480px] bg-black/[0.18] backdrop-blur-2xl border-l border-white/10 shadow-[0_18px_70px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.10)] transform transition-transform duration-300 ease-out ${
-          isOpen ? 'translate-x-0' : 'translate-x-full'
+        className={`fixed w-full max-w-full bg-black/[0.72] backdrop-blur-2xl border border-white/10 shadow-[0_18px_70px_rgba(0,0,0,0.65),inset_0_1px_0_rgba(255,255,255,0.10)] transform transition-transform duration-300 ease-out ${
+          isFloating
+            ? `bottom-3 right-3 top-3 z-[240] w-[calc(100%-1.5rem)] rounded-[26px] md:w-[420px] ${isOpen ? 'translate-x-0' : 'translate-x-[calc(100%+2rem)]'}`
+            : `right-0 top-0 z-50 h-dvh border-y-0 border-r-0 md:w-[480px] ${isOpen ? 'translate-x-0' : 'translate-x-full'}`
         }`}
         aria-hidden={!isOpen}
       >

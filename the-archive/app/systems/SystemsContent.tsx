@@ -98,11 +98,6 @@ export default function SystemsContent({ initialItems, hasMore: initialHasMore }
     }
   }, [allItems.length, fetchItems, hasMore, showToast, sortMode]);
 
-  useEffect(() => {
-    if (viewMode !== 'infinite' || !hasMore || isLoadingRef.current) return;
-    loadMore();
-  }, [hasMore, loadMore, viewMode]);
-
   return (
     <div id="view-content">
       <header className="pt-8 md:pt-12 pb-6 px-4 md:px-6 bg-panel/30 text-center">
@@ -142,6 +137,10 @@ export default function SystemsContent({ initialItems, hasMore: initialHasMore }
           filter={currentFilter}
           searchQuery={searchQuery}
           sortMode={sortMode}
+          onExit={() => setViewMode('catalog')}
+          hasMore={hasMore}
+          isLoadingMore={isLoadingMore}
+          onLoadMore={loadMore}
         />
       )}
 

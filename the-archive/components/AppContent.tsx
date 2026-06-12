@@ -6,14 +6,14 @@ import Navigation from "@/components/Navigation";
 import { useGenerate } from "@/components/GenerateContext";
 
 export default function AppContent({ children }: { children: React.ReactNode }) {
-  const { isOpen } = useGenerate();
+  const { isOpen, panelLayout } = useGenerate();
 
   return (
     <>
       <Loader />
       <div
         className={`transition-[padding] duration-300 ease-out ${
-          isOpen ? 'md:pr-[480px]' : 'md:pr-0'
+          isOpen && panelLayout === 'side' ? 'md:pr-[480px]' : 'md:pr-0'
         }`}
       >
         <Navigation />

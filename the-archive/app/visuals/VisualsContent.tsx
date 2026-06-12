@@ -125,11 +125,6 @@ export default function VisualsContent({ initialItems, hasMore: initialHasMore }
     }
   }, [setStatus, searchParams]);
 
-  useEffect(() => {
-    if (viewMode !== 'infinite' || !hasMore || isLoadingRef.current) return;
-    loadMore();
-  }, [hasMore, loadMore, viewMode]);
-
   function handleSelectItem(id: string, imageUrl: string | null) {
     setSelectedItems(prev => {
       const next = new Map(prev);
@@ -224,6 +219,10 @@ export default function VisualsContent({ initialItems, hasMore: initialHasMore }
           selectionMode={isSelectionMode}
           selectedIds={new Set(selectedItems.keys())}
           onSelectItem={handleSelectItem}
+          onExit={() => setViewMode('catalog')}
+          hasMore={hasMore}
+          isLoadingMore={isLoadingMore}
+          onLoadMore={loadMore}
         />
       )}
 
@@ -245,7 +244,7 @@ export default function VisualsContent({ initialItems, hasMore: initialHasMore }
 
       {/* Floating confirm bar */}
       {isSelectionMode && (
-        <div className={`fixed bottom-0 left-0 right-0 z-[55] bg-black/98 backdrop-blur-xl border-t transition-all duration-300 px-6 py-4 flex items-center gap-4 ${
+        <div className={`fixed bottom-0 left-0 right-0 z-[190] bg-black/98 backdrop-blur-xl border-t transition-all duration-300 px-6 py-4 flex items-center gap-4 ${
           selectedItems.size > 0 ? 'border-[#c8ff00]/40 translate-y-0' : 'border-white/10 translate-y-0'
         }`}>
           <span className="font-mono text-xs uppercase tracking-widest text-white/50">
