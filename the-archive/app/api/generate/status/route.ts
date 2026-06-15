@@ -2,7 +2,11 @@ import { fal } from '@fal-ai/client';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabaseServer';
 import { createAdminClient } from '@/lib/supabaseAdmin';
-import { completeCreditOperation, refundCreditOperation } from '@/lib/generationSecurity';
+import {
+  completeCreditOperation,
+  incrementGenerationUsage,
+  refundCreditOperation,
+} from '@/lib/generationSecurity';
 import {
   extractResultUrl,
   getApiKey,
@@ -174,13 +178,9 @@ export async function GET(req: NextRequest) {
       }
     }
     // One generation = 1 toward the monthly counter (written server-side).
-    const { error: usageRpcError } = await supabase.rpc('increment_generation_usage', {
-      p_generation_type: type,
-      p_amount: 1,
+    await incrementGenerationUsage(user.id, type, 1).catch((error) => {
+      console.error('Usage increment failed (non-fatal):', error);
     });
-    if (usageRpcError) {
-      console.error('Usage increment failed (non-fatal):', usageRpcError);
-    }
   }
 
   return NextResponse.json({ status: 'completed', url: resultUrl });

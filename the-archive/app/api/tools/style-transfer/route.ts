@@ -6,6 +6,7 @@ import { canAccessFeature, creditCostForModel, type BusinessProfile } from '@/li
 import {
   completeCreditOperation,
   enforceRateLimit,
+  incrementGenerationUsage,
   refundCreditOperation,
   reserveCredits,
 } from '@/lib/generationSecurity';
@@ -28,7 +29,7 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const rateLimitResponse = await enforceRateLimit(supabase, 'tool:style-transfer', 5, 600);
+  const rateLimitResponse = await enforceRateLimit(user.id, 'tool:style-transfer', 5, 600);
   if (rateLimitResponse) return rateLimitResponse;
 
   const tool = getTool('style-transfer');
@@ -67,7 +68,7 @@ export async function POST(req: NextRequest) {
   let reservation;
   try {
     reservation = await reserveCredits({
-      supabase,
+      userId: user.id,
       generationType: 'image',
       amount: PER_IMAGE_COST,
       model: 'style-transfer',
@@ -133,11 +134,9 @@ export async function POST(req: NextRequest) {
     console.error('Credit completion failed:', error);
     return NextResponse.json({ error: 'Credit completion failed' }, { status: 500 });
   }
-  const { error: usageError } = await supabase.rpc('increment_generation_usage', {
-    p_generation_type: 'image',
-    p_amount: 1,
+  await incrementGenerationUsage(user.id, 'image', 1).catch((error) => {
+    console.error('Usage increment failed (non-fatal):', error);
   });
-  if (usageError) console.error('Usage increment failed (non-fatal):', usageError);
 
   return NextResponse.json({
     results: [{ url: resultUrl, angle: hasContentImage ? 'Restyled' : 'Style transfer' }],

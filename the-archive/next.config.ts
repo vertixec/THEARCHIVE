@@ -1,5 +1,18 @@
 import type { NextConfig } from "next";
 
+const contentSecurityPolicyReportOnly = [
+  "default-src 'self'",
+  "base-uri 'self'",
+  "frame-ancestors 'none'",
+  "form-action 'self' https://www.paypal.com https://www.sandbox.paypal.com",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob: https:",
+  "font-src 'self' data:",
+  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.fal.ai https://fal.ai https://*.fal.ai https://*.fal.run https://*.fal.media https://api-m.paypal.com https://api-m.sandbox.paypal.com",
+  "frame-src https://www.paypal.com https://www.sandbox.paypal.com",
+].join("; ");
+
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   images: {
@@ -17,6 +30,8 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: 'pbs.twimg.com' },
       { protocol: 'https', hostname: 'media.newyorker.com' },
       { protocol: 'https', hostname: 'images.unsplash.com' },
+      { protocol: 'https', hostname: 'fal.media' },
+      { protocol: 'https', hostname: '**.fal.media' },
     ],
   },
   async headers() {
@@ -29,6 +44,7 @@ const nextConfig: NextConfig = {
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
           { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains' },
+          { key: 'Content-Security-Policy-Report-Only', value: contentSecurityPolicyReportOnly },
         ],
       },
     ];

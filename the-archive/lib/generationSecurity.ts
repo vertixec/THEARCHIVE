@@ -1,4 +1,3 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { createAdminClient } from './supabaseAdmin';
 
@@ -14,12 +13,14 @@ type RateLimitResult = {
 };
 
 export async function enforceRateLimit(
-  supabase: SupabaseClient,
+  userId: string,
   bucket: string,
   limit: number,
   windowSeconds: number,
 ) {
-  const { data, error } = await supabase.rpc('consume_api_rate_limit', {
+  const admin = createAdminClient();
+  const { data, error } = await admin.rpc('server_consume_api_rate_limit', {
+    p_user_id: userId,
     p_bucket: bucket,
     p_limit: limit,
     p_window_seconds: windowSeconds,
@@ -39,7 +40,7 @@ export async function enforceRateLimit(
 }
 
 export async function reserveCredits(params: {
-  supabase: SupabaseClient;
+  userId: string;
   generationType: 'image' | 'video';
   amount: number;
   model: string;
@@ -47,7 +48,9 @@ export async function reserveCredits(params: {
   prompt: string;
 }) {
   const operationId = crypto.randomUUID();
-  const { data, error } = await params.supabase.rpc('reserve_generation_credits', {
+  const admin = createAdminClient();
+  const { data, error } = await admin.rpc('server_reserve_generation_credits', {
+    p_user_id: params.userId,
     p_operation_id: operationId,
     p_generation_type: params.generationType,
     p_amount: params.amount,
@@ -58,6 +61,34 @@ export async function reserveCredits(params: {
   const result = Array.isArray(data) ? (data[0] as ReserveResult | undefined) : undefined;
   if (error || !result) throw new Error(error?.message || 'Credit reservation failed');
   return result;
+}
+
+export async function incrementGenerationUsage(
+  userId: string,
+  generationType: 'image' | 'video',
+  amount = 1,
+) {
+  const admin = createAdminClient();
+  const { error } = await admin.rpc('server_increment_generation_usage', {
+    p_user_id: userId,
+    p_generation_type: generationType,
+    p_amount: amount,
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function setGenerationSaved(
+  userId: string,
+  generationId: string,
+  isSaved: boolean,
+) {
+  const admin = createAdminClient();
+  const { data, error } = await admin.rpc('server_set_generation_saved', {
+    p_user_id: userId,
+    p_generation_id: generationId,
+    p_is_saved: isSaved,
+  });
+  if (error || data !== true) throw new Error(error?.message || 'Generation save failed');
 }
 
 export async function completeCreditOperation(

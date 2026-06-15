@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabaseServer';
+import { createAdminClient } from '@/lib/supabaseAdmin';
 import { createOrder } from '@/lib/paypal';
 import { isBillingEnabled } from '@/lib/billing';
 
@@ -48,7 +49,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'pack_id is required' }, { status: 400 });
   }
 
-  const { data: pack, error: packError } = await supabase
+  const admin = createAdminClient();
+  const { data: pack, error: packError } = await admin
     .from('credit_packs')
     .select('id, name, is_active')
     .eq('id', packId)
@@ -61,12 +63,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Pack not found or inactive' }, { status: 404 });
   }
 
-  const { data: intentData, error: intentError } = await supabase.rpc('create_payment_intent', {
+  const { data: intentData, error: intentError } = await admin.rpc('server_create_payment_intent', {
+    p_user_id: user.id,
     p_pack_id: packId,
   });
 
   if (intentError || !Array.isArray(intentData) || !intentData[0]) {
-    console.error('create_payment_intent failed', intentError);
+    console.error('server_create_payment_intent failed', intentError);
     return NextResponse.json({ error: 'Could not create payment intent' }, { status: 500 });
   }
 
@@ -89,10 +92,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Checkout creation failed' }, { status: 502 });
   }
 
-  await supabase.rpc('update_payment_intent_url', {
+  const { data: urlSaved, error: urlError } = await admin.rpc('server_update_payment_intent_url', {
+    p_user_id: user.id,
     p_intent_id: intent.intent_id,
     p_checkout_url: checkoutUrl,
   });
+  if (urlError || urlSaved !== true) {
+    console.error('server_update_payment_intent_url failed', urlError);
+    return NextResponse.json({ error: 'Checkout persistence failed' }, { status: 500 });
+  }
 
   return NextResponse.json({
     intent_id: intent.intent_id,

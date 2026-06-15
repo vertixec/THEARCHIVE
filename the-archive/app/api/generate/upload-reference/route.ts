@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
-  const rateLimitResponse = await enforceRateLimit(supabase, 'upload-reference', 20, 600);
+  const rateLimitResponse = await enforceRateLimit(user.id, 'upload-reference', 20, 600);
   if (rateLimitResponse) return rateLimitResponse;
 
   fal.config({ credentials: apiKey });

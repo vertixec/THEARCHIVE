@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { createClient } from '@/lib/supabaseServer';
+import { createAdminClient } from '@/lib/supabaseAdmin';
 import type { CreditPack } from '@/lib/types';
 import CreditsPurchaseGrid from '@/components/CreditsPurchaseGrid';
 import { isBillingEnabled } from '@/lib/billing';
@@ -18,7 +19,8 @@ export default async function PricingPage({
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { data: packs } = await supabase
+  const admin = createAdminClient();
+  const { data: packs } = await admin
     .from('credit_packs')
     .select('id, name, description, price_usd, image_credits, video_credits, lemonsqueezy_variant_id, is_active, sort_order')
     .eq('is_active', true)

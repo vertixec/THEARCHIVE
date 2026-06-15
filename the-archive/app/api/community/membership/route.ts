@@ -21,18 +21,18 @@ export const runtime = 'nodejs';
 // revoke -> access_tier='free', monthly_credits zeroed (allowance removed)
 // ============================================================
 
-async function isAdminSession(): Promise<boolean> {
+async function getAdminSessionUserId(): Promise<string | null> {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return false;
+  if (!user) return null;
   const { data } = await supabase
     .from('profiles')
     .select('role')
     .eq('id', user.id)
     .maybeSingle<{ role: string | null }>();
-  return data?.role === 'admin';
+  return data?.role === 'admin' ? user.id : null;
 }
 
 function hasWebhookSecret(req: NextRequest): boolean {
@@ -43,7 +43,9 @@ function hasWebhookSecret(req: NextRequest): boolean {
 
 export async function POST(req: NextRequest) {
   // Authorize: either an admin user session, or the shared webhook secret.
-  const authorized = hasWebhookSecret(req) || (await isAdminSession());
+  const webhookAuthorized = hasWebhookSecret(req);
+  const adminUserId = webhookAuthorized ? null : await getAdminSessionUserId();
+  const authorized = webhookAuthorized || Boolean(adminUserId);
   if (!authorized) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
@@ -95,6 +97,8 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === 'grant') {
+    const previousTier = profile.access_tier;
+    const previousStatus = profile.status;
     const { error: updateError } = await admin
       .from('profiles')
       .update({ access_tier: 'community', status: 'active', role: 'member' })
@@ -108,16 +112,43 @@ export async function POST(req: NextRequest) {
       p_user_id: profile.id,
     });
     if (grantError) {
+      await admin.from('community_membership_audit').insert({
+        actor_user_id: adminUserId,
+        source: webhookAuthorized ? 'webhook' : 'manual',
+        action,
+        target_user_id: profile.id,
+        target_email: profile.email,
+        previous_access_tier: previousTier,
+        next_access_tier: 'community',
+        previous_status: previousStatus,
+        next_status: 'active',
+        metadata: { warning: 'credit_grant_failed' },
+      });
       return NextResponse.json(
         { ok: true, user_id: profile.id, tier: 'community', credits_granted: 0, warning: 'tier set but credit grant failed' },
         { status: 200 },
       );
     }
 
+    await admin.from('community_membership_audit').insert({
+      actor_user_id: adminUserId,
+      source: webhookAuthorized ? 'webhook' : 'manual',
+      action,
+      target_user_id: profile.id,
+      target_email: profile.email,
+      previous_access_tier: previousTier,
+      next_access_tier: 'community',
+      previous_status: previousStatus,
+      next_status: 'active',
+      metadata: { credits_granted: granted ?? 0 },
+    });
+
     return NextResponse.json({ ok: true, user_id: profile.id, tier: 'community', credits_granted: granted ?? 0 });
   }
 
   // action === 'revoke': demote to free and remove the monthly allowance.
+  const previousTier = profile.access_tier;
+  const previousStatus = profile.status;
   const { error: demoteError } = await admin
     .from('profiles')
     .update({ access_tier: 'free', role: 'user' })
@@ -131,6 +162,18 @@ export async function POST(req: NextRequest) {
     .from('user_credit_balances')
     .update({ monthly_credits: 0, updated_at: new Date().toISOString() })
     .eq('user_id', profile.id);
+
+  await admin.from('community_membership_audit').insert({
+    actor_user_id: adminUserId,
+    source: webhookAuthorized ? 'webhook' : 'manual',
+    action,
+    target_user_id: profile.id,
+    target_email: profile.email,
+    previous_access_tier: previousTier,
+    next_access_tier: 'free',
+    previous_status: previousStatus,
+    next_status: previousStatus,
+  });
 
   return NextResponse.json({ ok: true, user_id: profile.id, tier: 'free' });
 }

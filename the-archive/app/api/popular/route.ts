@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import { createClient } from '@/lib/supabaseServer';
+import { createAdminClient } from '@/lib/supabaseAdmin';
+import { canAccessFeature, type BusinessProfile, type Feature } from '@/lib/business';
 
 const PAGE_SIZE = 60;
 
@@ -9,6 +11,11 @@ const TABLE_BY_TYPE = {
 } as const;
 
 type PopularType = keyof typeof TABLE_BY_TYPE;
+
+const FEATURE_BY_TYPE: Record<PopularType, Feature> = {
+  visual: 'view_visuals',
+  system: 'view_systems',
+};
 
 function isPopularType(value: string | null): value is PopularType {
   return value === 'visual' || value === 'system';
@@ -23,29 +30,37 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'INVALID_TYPE' }, { status: 400 });
   }
 
-  const serviceRoleKey =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.SUPABASE_SERVICE_KEY;
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  if (!serviceRoleKey) {
-    return NextResponse.json(
-      { error: 'MISSING_SUPABASE_SERVICE_ROLE_KEY' },
-      { status: 500 }
-    );
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const supabase = createSupabaseClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    serviceRoleKey,
-    {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-      },
-    }
-  );
+  const expandedProfile = await supabase
+    .from('profiles')
+    .select('id, status, role, access_tier, plan_id')
+    .eq('id', user.id)
+    .maybeSingle<BusinessProfile>();
+  const profile = expandedProfile.error
+    ? (
+        await supabase
+          .from('profiles')
+          .select('id, status, role')
+          .eq('id', user.id)
+          .maybeSingle<BusinessProfile>()
+      ).data ?? null
+    : expandedProfile.data;
 
-  const { data: likes, error: likesError } = await supabase
+  if (!canAccessFeature(profile, FEATURE_BY_TYPE[type])) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  const admin = createAdminClient();
+
+  const { data: likes, error: likesError } = await admin
     .from('user_likes')
     .select('item_id')
     .eq('item_type', type);

@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import { supabase } from "@/lib/supabaseClient";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSync } from "@/components/SyncContext";
 import Link from "next/link";
@@ -17,10 +16,6 @@ interface Asset {
   volume?: string;
 }
 
-type PromptAssetRow = Asset & {
-  prompt_text?: string | null;
-};
-
 export default function HomepageShowcase() {
   const { setStatus } = useSync();
   const [assets, setAssets] = useState<Asset[]>([]);
@@ -35,26 +30,22 @@ export default function HomepageShowcase() {
   useEffect(() => {
     async function fetchAssets() {
       setStatus("SYNCING");
-      const { data, error } = await supabase
-        .from("prompts")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(7);
-
-      if (error) {
+      try {
+        const response = await fetch("/api/showcase", { cache: "no-store" });
+        if (!response.ok) {
+          console.error("Error fetching assets:", response.status);
+          setStatus("ERROR");
+          return;
+        }
+        const payload = await response.json() as { assets?: Asset[] };
+        setAssets(payload.assets ?? []);
+        setStatus("ONLINE");
+      } catch (error) {
         console.error("Error fetching assets:", error);
         setStatus("ERROR");
-      } else {
-        const mappedAssets = ((data || []) as PromptAssetRow[]).map((item) => ({
-          ...item,
-          title: item.category || "UNNAMED ASSET",
-          category: item.volume || "VISUAL",
-          model: item.model || "SDXL TURBO"
-        }));
-        setAssets(mappedAssets);
-        setStatus("ONLINE");
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     }
     fetchAssets();
   }, [setStatus]);

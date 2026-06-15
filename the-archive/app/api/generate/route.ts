@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const rateLimitResponse = await enforceRateLimit(supabase, 'generate', 10, 60);
+  const rateLimitResponse = await enforceRateLimit(user.id, 'generate', 10, 60);
   if (rateLimitResponse) return rateLimitResponse;
 
   const body = await req.json().catch(() => null);
@@ -161,7 +161,7 @@ export async function POST(req: NextRequest) {
   let reservation;
   try {
     reservation = await reserveCredits({
-      supabase,
+      userId: user.id,
       generationType: type,
       amount: generationCost,
       model: resolvedModel,

@@ -152,9 +152,13 @@ export default function CreationsContent() {
     const nextSaved = !item.is_saved;
     setItems((current) => current.map((entry) => (entry.id === item.id ? { ...entry, is_saved: nextSaved } : entry)));
 
-    const { error: generationError } = await supabase.rpc('set_generation_saved', {
-      p_generation_id: item.id,
-      p_is_saved: nextSaved,
+    const saveResponse = await fetch('/api/generate/saved', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        generation_id: item.id,
+        is_saved: nextSaved,
+      }),
     });
     const { error: deleteLikeError } = await supabase
       .from('user_likes')
@@ -171,7 +175,7 @@ export default function CreationsContent() {
       })
       : { error: null };
 
-    if (generationError || deleteLikeError || insertLikeError) {
+    if (!saveResponse.ok || deleteLikeError || insertLikeError) {
       setItems((current) => current.map((entry) => (entry.id === item.id ? { ...entry, is_saved: !nextSaved } : entry)));
       showToast(insertLikeError ? 'FAVORITES SYNC FAILED' : 'SAVE FAILED');
       return;

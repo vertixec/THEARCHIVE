@@ -2,6 +2,9 @@
   "name": "the-archive",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": "24.x"
+  },
   "scripts": {
     "dev": "next dev --webpack",
     "build": "next build",
@@ -9,23 +12,26 @@
     "lint": "eslint",
     "test": "vitest run"
   },
+  "overrides": {
+    "postcss": "^8.5.15"
+  },
   "dependencies": {
     "@fal-ai/client": "^1.10.1",
-    "@supabase/ssr": "^0.8.0",
-    "@supabase/supabase-js": "^2.95.1",
+    "@supabase/ssr": "^0.12.0",
+    "@supabase/supabase-js": "^2.108.2",
     "colorthief": "^3.3.1",
     "framer-motion": "^12.35.0",
-    "next": "^16.2.7",
+    "next": "^16.2.9",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
+    "@types/node": "^24",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "^16.2.7",
+    "eslint-config-next": "^16.2.9",
     "sharp": "^0.35.1",
     "tailwindcss": "^4",
     "typescript": "^5",
