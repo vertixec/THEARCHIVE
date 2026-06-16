@@ -48,14 +48,14 @@ export default function RootLayout({
         <ErrorBoundary>
           <SyncProvider>
             <AuthProvider>
-              <ToastProvider>
-                <GenerateProvider>
+              <GenerateProvider>
+                <ToastProvider>
                   <div className="relative flex min-h-screen flex-col">
                     <AppContent>{children}</AppContent>
                     <GeneratePanel />
                   </div>
-                </GenerateProvider>
-              </ToastProvider>
+                </ToastProvider>
+              </GenerateProvider>
             </AuthProvider>
           </SyncProvider>
         </ErrorBoundary>

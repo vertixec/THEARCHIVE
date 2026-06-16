@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, createContext, useContext, ReactNode } from 'react';
+import { useGenerate } from '@/components/GenerateContext';
 
 type ToastContextType = {
   showToast: (msg: string) => void;
@@ -41,6 +42,7 @@ function ToastItem({ msg, onRemove }: { msg: string; onRemove: () => void }) {
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<{ id: number; msg: string }[]>([]);
+  const { isOpen, panelLayout } = useGenerate();
 
   const showToast = (msg: string) => {
     const id = Date.now();
@@ -54,7 +56,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={{ showToast }}>
       {children}
-      <div className="fixed bottom-10 left-0 right-0 z-[60] flex flex-col items-center gap-2 pointer-events-none">
+      <div
+        className={`fixed inset-0 z-[60] flex flex-col items-center justify-center gap-2 pointer-events-none transition-[padding] duration-300 ease-out ${
+          isOpen && panelLayout === 'side' ? 'md:pr-[480px]' : ''
+        }`}
+      >
         {toasts.map((toast) => (
           <ToastItem key={toast.id} msg={toast.msg} onRemove={() => removeToast(toast.id)} />
         ))}
