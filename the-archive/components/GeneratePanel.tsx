@@ -404,14 +404,20 @@ export default function GeneratePanel() {
     <>
       {isOpen && !isFloating && <div className="fixed inset-0 z-[45] bg-black/40 backdrop-blur-[1px] md:hidden" onClick={closePanel} />}
       <aside
-        className={`fixed w-full max-w-full bg-black/[0.72] backdrop-blur-2xl border border-white/10 shadow-[0_18px_70px_rgba(0,0,0,0.65),inset_0_1px_0_rgba(255,255,255,0.10)] transform transition-transform duration-300 ease-out ${
+        className={`fixed w-full max-w-full overflow-hidden bg-black/[0.72] backdrop-blur-2xl border border-white/10 shadow-[0_18px_70px_rgba(0,0,0,0.65),inset_0_1px_0_rgba(255,255,255,0.10)] transform transition-transform duration-[450ms] ease-[cubic-bezier(0.16,1,0.3,1)] ${
           isFloating
             ? `bottom-3 right-3 top-3 z-[240] w-[calc(100%-1.5rem)] rounded-[26px] md:w-[420px] ${isOpen ? 'translate-x-0' : 'translate-x-[calc(100%+2rem)]'}`
-            : `right-0 top-0 z-50 h-dvh border-y-0 border-r-0 md:w-[480px] ${isOpen ? 'translate-x-0' : 'translate-x-full'}`
+            : `right-0 top-0 z-50 h-dvh border-y-0 border-r-0 rounded-l-[26px] md:w-[480px] ${isOpen ? 'translate-x-0' : 'translate-x-full'}`
         }`}
         aria-hidden={!isOpen}
       >
-        <div className="flex h-full flex-col">
+        {/* Glassy top sheen for depth */}
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-white/[0.05] to-transparent" />
+        {/* Acid seam on the docked edge to anchor the panel against the page */}
+        {!isFloating && (
+          <div className="pointer-events-none absolute inset-y-0 left-0 w-px bg-gradient-to-b from-transparent via-acid/30 to-transparent" />
+        )}
+        <div className="relative flex h-full flex-col">
           <header className="shrink-0 border-b border-white/10 px-5 pt-8 pb-3 grid grid-cols-[2.25rem_1fr_2.25rem] items-end gap-3">
             <button
               type="button"
@@ -426,7 +432,7 @@ export default function GeneratePanel() {
               </svg>
             </button>
             <div className="text-center">
-              <h2 className="font-anton text-4xl md:text-5xl uppercase tracking-tight text-white leading-none">STUDIO</h2>
+              <h2 className="font-anton text-3xl md:text-4xl uppercase tracking-tight text-white leading-none">STUDIO</h2>
               <p className="font-mono text-[9px] uppercase tracking-widest text-acid/70 mt-1">{planName} ENGINE</p>
             </div>
             <div aria-hidden="true" />
@@ -456,7 +462,7 @@ export default function GeneratePanel() {
           </div>
 
           {isTools ? (
-            <div className="flex-1 min-h-0 flex flex-col px-4 py-3">
+            <div className={`flex-1 min-h-0 flex flex-col px-4 py-3 ${isOpen ? 'panel-stagger' : ''}`}>
               {activeToolId === 'style-transfer' ? (
                 <StyleTransferRunner onSpend={applyToolSpend} />
               ) : activeToolId ? (
@@ -466,7 +472,7 @@ export default function GeneratePanel() {
               )}
             </div>
           ) : (
-            <div className="flex-1 min-h-0 flex flex-col px-4 py-3 gap-3">
+            <div className={`flex-1 min-h-0 flex flex-col px-4 py-3 gap-3 ${isOpen ? 'panel-stagger' : ''}`}>
               <ReferenceImages label="Reference images" />
 
                 <section className="flex-1 min-h-0 flex flex-col">
@@ -607,7 +613,7 @@ export default function GeneratePanel() {
                     type="button"
                     onClick={handleGenerate}
                     disabled={!canGenerate}
-                    className={`generate-shine relative mx-auto w-2/3 overflow-hidden rounded-full bg-acid text-black font-oswald text-sm uppercase tracking-[0.25em] py-3.5 hover:bg-white transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed ${
+                    className={`generate-shine relative mx-auto w-2/3 overflow-hidden rounded-full bg-acid text-black font-oswald text-sm uppercase tracking-[0.25em] py-3.5 hover:bg-white hover:scale-[1.02] active:scale-[0.99] transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100 ${
                       canGenerate ? 'shadow-[0_0_30px_rgba(200,255,0,0.45)]' : 'shadow-none'
                     }`}
                   >

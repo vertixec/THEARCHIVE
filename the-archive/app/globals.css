@@ -278,6 +278,26 @@
   animation: panel-fade-in-up 0.35s cubic-bezier(0.23, 1, 0.32, 1) both;
 }
 
+/* Generate panel — page "make room" push, synced to the panel slide so the
+   two motions read as one. Expo-out settle instead of plain ease-out. */
+.panel-push {
+  transition: padding 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: padding;
+}
+
+/* Generate panel — staggered content entrance. Applied when the panel opens
+   so each section rises in sequence rather than the whole body appearing at
+   once. Reuses panel-fade-in-up. */
+.panel-stagger > * {
+  animation: panel-fade-in-up 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.panel-stagger > *:nth-child(1) { animation-delay: 0.05s; }
+.panel-stagger > *:nth-child(2) { animation-delay: 0.10s; }
+.panel-stagger > *:nth-child(3) { animation-delay: 0.16s; }
+.panel-stagger > *:nth-child(4) { animation-delay: 0.22s; }
+.panel-stagger > *:nth-child(5) { animation-delay: 0.28s; }
+.panel-stagger > *:nth-child(6) { animation-delay: 0.34s; }
+
 /* Bottom Dock icon hover shine */
 @keyframes dock-shine-sweep {
   0% { transform: translateX(-180%) skewX(-22deg); }
@@ -349,8 +369,12 @@
   .generate-shine::before,
   .glitch-anim::before,
   .glitch-anim::after,
-  .dock-icon:hover::after {
+  .dock-icon:hover::after,
+  .panel-stagger > * {
     animation: none;
+  }
+  .panel-push {
+    transition: none;
   }
 }
 

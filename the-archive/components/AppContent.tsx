@@ -12,7 +12,7 @@ export default function AppContent({ children }: { children: React.ReactNode }) 
     <>
       <Loader />
       <div
-        className={`transition-[padding] duration-300 ease-out ${
+        className={`panel-push ${
           isOpen && panelLayout === 'side' ? 'md:pr-[480px]' : 'md:pr-0'
         }`}
       >
