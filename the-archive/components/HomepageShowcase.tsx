@@ -155,7 +155,8 @@ export default function HomepageShowcase() {
               src={currentAsset.image_url}
               alt={currentAsset.title || currentAsset.category || "The Archive visual"}
               fill
-              priority
+              loading="eager"
+              fetchPriority="high"
               sizes="100vw"
               quality={90}
               unoptimized={currentAsset.image_url.startsWith("https://cdn.midjourney.com/")}

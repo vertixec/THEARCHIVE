@@ -37,7 +37,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="scroll-smooth">
+    <html lang="en" className="scroll-smooth" data-scroll-behavior="smooth">
       <head>
         <link rel="preconnect" href="https://cdn.midjourney.com" crossOrigin="anonymous" />
         <link rel="preconnect" href="https://images.higgs.ai" crossOrigin="anonymous" />
