@@ -216,8 +216,8 @@
 }
 
 @keyframes generate-shine-glow {
-  0%, 100% { box-shadow: 0 0 12px rgba(200, 255, 0, 0.35); }
-  50% { box-shadow: 0 0 26px rgba(200, 255, 0, 0.65); }
+  0%, 100% { box-shadow: 0 0 9px rgba(200, 255, 0, 0.22); }
+  50% { box-shadow: 0 0 18px rgba(200, 255, 0, 0.42); }
 }
 
 .generate-shine {
@@ -276,6 +276,20 @@
 
 .panel-fade-in {
   animation: panel-fade-in-up 0.35s cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+/* Generate panel — native <select> dropdown list styling. The OS popup
+   defaults to a gray background with white text; force the brand dark/acid
+   look where the browser honors option styling (Chromium/Firefox on Win). */
+.pill-select option {
+  background-color: #0a0b0c;
+  color: rgba(255, 255, 255, 0.85);
+  font-weight: 500;
+}
+.pill-select option:checked,
+.pill-select option:hover {
+  background-color: #c8ff00;
+  color: #000;
 }
 
 /* Generate panel — page "make room" push, synced to the panel slide so the

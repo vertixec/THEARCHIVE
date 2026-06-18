@@ -55,6 +55,8 @@ export default function GeneratePanel() {
     defaultSelection(IMAGE_MODELS[0].id),
   );
   const [error, setError] = useState<string | null>(null);
+  // How many images to generate in one go (1–4). Each is an independent job.
+  const [count, setCount] = useState(1);
   const [showTopUpModal, setShowTopUpModal] = useState(false);
   const { isDragOver, setIsDragOver, isUploadingRef, isAtReferenceLimit, handleReferenceDrop } = useReferenceUpload();
 
@@ -69,9 +71,19 @@ export default function GeneratePanel() {
     ? usage?.image_cost ?? 12
     : creditCostFor(selectedModel, modelOptions, generationType);
   const planName = usage?.plan_name ?? 'Community';
+  // Multi-image count only applies to freeform image generation (videos and
+  // Tools always run a single job).
+  const effectiveCount = !isTools && generationType === 'image' ? count : 1;
+  const totalCost = cost * effectiveCount;
   // Single unified credit pool — the only spend gate now.
   const balance = usage?.credit_balance ?? null;
-  const hasCredits = balance == null || balance >= cost;
+  const hasCredits = balance == null || balance >= totalCost;
+  // Wallet breakdown for the footer meter (community bucket vs purchased).
+  const communityCredits = typeof usage?.monthly_credits === 'number' ? usage.monthly_credits : 0;
+  const purchasedCredits = typeof usage?.purchased_credits === 'number' ? usage.purchased_credits : 0;
+  const creditTotal = communityCredits + purchasedCredits;
+  const communityPct = creditTotal > 0 ? Math.round((communityCredits / creditTotal) * 100) : 0;
+  const lowBalance = typeof balance === 'number' && balance < totalCost;
   const canGenerate = prompt.trim().length > 0 && hasCredits && !isGenerating;
   // Only paid tiers can generate video (free/visitor are image-only). The
   // server enforces this too; here we just hide the unusable toggle.
@@ -122,97 +134,83 @@ export default function GeneratePanel() {
     if (!canVideo && generationType === 'video') setGenerationType('image');
   }, [canVideo, generationType, setGenerationType]);
 
+  // Submit + poll a single generation job. Resolves true on completion,
+  // throws on failure/timeout. Each call charges its own credits server-side.
+  const runOneJob = async (): Promise<boolean> => {
+    const response = await fetch('/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        prompt,
+        model: selectedModel,
+        generationType,
+        referenceImageUrls,
+        options: modelOptions,
+      }),
+    });
+
+    const payload = await response.json().catch(() => ({}));
+
+    if (response.status === 429) throw new Error(payload.error || 'Not enough credits');
+    if (response.status === 401) throw new Error('Login required');
+    if (response.status === 403) throw new Error(payload.error || 'Upgrade required');
+    if (!response.ok || !payload.jobId) throw new Error(payload.error || 'Generation failed');
+
+    // Poll the job status until it completes or fails.
+    const POLL_INTERVAL = 3000;
+    const MAX_ATTEMPTS = 120; // ~6 minutes
+    for (let attempts = 0; attempts < MAX_ATTEMPTS; attempts += 1) {
+      await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL));
+
+      const statusRes = await fetch(`/api/generate/status?jobId=${encodeURIComponent(payload.jobId)}`);
+      if (!statusRes.ok) continue; // transient; keep polling
+      const statusPayload = await statusRes.json();
+
+      if (statusPayload.status === 'completed') return true;
+      if (statusPayload.status === 'failed') throw new Error(statusPayload.error || 'Generation failed');
+      // status === 'queued' -> keep polling
+    }
+
+    throw new Error('Generation timed out. Check your Creations shortly.');
+  };
+
   const handleGenerate = async () => {
     if (!canGenerate) return;
 
+    const jobs = effectiveCount;
     setIsGenerating(true);
     setError(null);
 
+    // Credits are charged at submit — reflect the spend optimistically; the
+    // authoritative balance is reloaded once everything settles.
+    setUsage((current) =>
+      current && typeof current.credit_balance === 'number'
+        ? { ...current, credit_balance: current.credit_balance - totalCost }
+        : current,
+    );
+
     try {
-      // 1) Submit: charges credits and enqueues the job on the FAL queue.
-      const response = await fetch('/api/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt,
-          model: selectedModel,
-          generationType,
-          referenceImageUrls,
-          options: modelOptions,
-        }),
-      });
+      const results = await Promise.allSettled(
+        Array.from({ length: jobs }, () => runOneJob()),
+      );
+      const succeeded = results.filter((r) => r.status === 'fulfilled' && r.value).length;
+      const failed = jobs - succeeded;
 
-      const payload = await response.json();
-
-      if (response.status === 429) {
-        showToast(generationType === 'image' ? 'IMAGE LIMIT REACHED' : 'VIDEO LIMIT REACHED');
-        setError(payload.error || 'Monthly limit reached');
-        return;
+      if (succeeded > 0) {
+        markNewCreation();
+        showToast(jobs === 1 ? 'GENERATION READY' : `${succeeded}/${jobs} READY`);
+        if (failed > 0) setError(`${failed} of ${jobs} generations failed`);
+      } else {
+        const firstError = results.find((r) => r.status === 'rejected') as PromiseRejectedResult | undefined;
+        throw new Error(firstError?.reason?.message || 'Generation failed');
       }
-      if (response.status === 401) {
-        showToast('LOGIN REQUIRED');
-        setError('Login required');
-        return;
-      }
-      if (response.status === 403) {
-        showToast('UPGRADE REQUIRED');
-        setError(payload.error || 'Upgrade required');
-        return;
-      }
-      if (!response.ok || !payload.jobId) {
-        throw new Error(payload.error || 'Generation failed');
-      }
-
-      // Credits are deducted at submit — reflect the new balance immediately.
-      if (payload.credits && typeof payload.credits === 'object') {
-        setUsage((current) =>
-          current
-            ? {
-                ...current,
-                credit_balance: payload.credits.credits ?? current.credit_balance,
-              }
-            : current
-        );
-      }
-
-      // 2) Poll the job status until it completes or fails.
-      const POLL_INTERVAL = 3000;
-      const MAX_ATTEMPTS = 120; // ~6 minutes
-      let attempts = 0;
-
-      while (attempts < MAX_ATTEMPTS) {
-        await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL));
-        attempts += 1;
-
-        const statusRes = await fetch(`/api/generate/status?jobId=${encodeURIComponent(payload.jobId)}`);
-        if (!statusRes.ok) continue; // transient; keep polling
-        const statusPayload = await statusRes.json();
-
-        if (statusPayload.status === 'completed') {
-          // Monthly counter advances on completion (server-side).
-          setUsage((current) => {
-            if (!current) return current;
-            return generationType === 'image'
-              ? { ...current, image_count: current.image_count + 1 }
-              : { ...current, video_count: current.video_count + 1 };
-          });
-          showToast('GENERATION READY');
-          markNewCreation();
-          return;
-        }
-
-        if (statusPayload.status === 'failed') {
-          throw new Error(statusPayload.error || 'Generation failed');
-        }
-        // status === 'queued' -> keep polling
-      }
-
-      throw new Error('Generation timed out. Check your Creations shortly.');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Generation failed';
       setError(message);
       showToast('GENERATION FAILED');
     } finally {
+      // Reconcile with the real balance (handles refunds on failed jobs).
+      loadUsage();
       setIsGenerating(false);
     }
   };
@@ -493,12 +491,13 @@ export default function GeneratePanel() {
                       }
                     }}
                     onDrop={handlePromptDrop}
-                    className="flex-1 min-h-[70px] max-h-[55%] w-full resize-none bg-black border border-white/10 focus:border-acid outline-none p-3 font-mono text-[10px] leading-relaxed uppercase text-white placeholder:text-white/20 scroll-custom"
+                    className="flex-1 min-h-[70px] w-full resize-none bg-black border border-white/10 focus:border-acid outline-none p-3 font-mono text-[10px] leading-relaxed uppercase text-white placeholder:text-white/20 scroll-custom"
                     placeholder="Describe the image or video..."
                   />
                 </section>
 
-                <section className="shrink-0 flex items-center gap-2">
+                <div className="shrink-0 flex flex-col gap-2.5 rounded-2xl border border-white/10 bg-white/[0.02] p-2.5">
+                <section className="flex items-center gap-2">
                   <div className="flex items-center gap-1.5 rounded-full border border-white/10 bg-black/[0.18] p-1 backdrop-blur-2xl shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] shrink-0">
                     {genTypes.map((type) => (
                       <button
@@ -531,27 +530,28 @@ export default function GeneratePanel() {
                     ))}
                   </div>
 
-                  <div className="relative flex-1 min-w-0">
+                  <div className="relative min-w-0 flex-1">
                     <select
                       id="generate-model"
                       aria-label="Model"
+                      title="Model"
                       value={selectedModel}
                       onChange={(event) => setSelectedModel(event.target.value)}
-                      className="w-full h-11 appearance-none [color-scheme:dark] bg-black border border-white/10 focus:border-acid hover:border-white/25 outline-none pl-3 pr-8 font-mono text-[10px] uppercase tracking-widest text-acid transition-colors cursor-pointer"
+                      className="pill-select h-9 w-full cursor-pointer appearance-none truncate [color-scheme:dark] rounded-full border border-white/10 bg-black/40 pl-3.5 pr-7 font-mono text-[10px] uppercase tracking-widest text-acid outline-none transition-colors hover:border-white/25 focus:border-acid"
                     >
                       {models.map((model) => {
                         const modelCost = usage?.model_costs?.[model.id];
                         return (
                           <option key={model.id} value={model.id}>
                             {model.label}
-                            {typeof modelCost === 'number' ? ` - ${modelCost} cr` : ''} - {model.description}
+                            {typeof modelCost === 'number' ? ` · ${modelCost}cr` : ''}
                           </option>
                         );
                       })}
                     </select>
                     <svg
                       viewBox="0 0 24 24"
-                      className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-acid/60"
+                      className="pointer-events-none absolute right-2.5 top-1/2 h-3 w-3 -translate-y-1/2 text-acid/60"
                       fill="none"
                       stroke="currentColor"
                       strokeWidth="2"
@@ -562,25 +562,57 @@ export default function GeneratePanel() {
                       <path d="m6 9 6 6 6-6" />
                     </svg>
                   </div>
+
+                  {/* Image count stepper (1–4). Each is an independent job. */}
+                  {generationType === 'image' && (
+                    <div className="flex h-9 shrink-0 items-center rounded-full border border-white/10 bg-black/40 px-1" title="Images to generate">
+                      <button
+                        type="button"
+                        onClick={() => setCount((c) => Math.max(1, c - 1))}
+                        disabled={count <= 1}
+                        className="flex h-6 w-6 items-center justify-center rounded-full text-white/70 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-25 disabled:hover:bg-transparent"
+                        aria-label="Fewer images"
+                      >
+                        <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true">
+                          <path d="M5 12h14" />
+                        </svg>
+                      </button>
+                      <span className="flex min-w-[2.25rem] items-center justify-center gap-1 font-mono text-[9px] uppercase tracking-widest tabular-nums text-white/80">
+                        <svg viewBox="0 0 24 24" className="h-3 w-3 text-acid/70" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <rect x="8" y="8" width="12" height="12" rx="2" />
+                          <path d="M4 16V6a2 2 0 0 1 2-2h10" />
+                        </svg>
+                        {count}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setCount((c) => Math.min(4, c + 1))}
+                        disabled={count >= 4}
+                        className="flex h-6 w-6 items-center justify-center rounded-full text-white/70 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-25 disabled:hover:bg-transparent"
+                        aria-label="More images"
+                      >
+                        <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true">
+                          <path d="M12 5v14" />
+                          <path d="M5 12h14" />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
                 </section>
 
                 {optionControls.length > 0 && (
-                  <section className="shrink-0 grid grid-cols-2 gap-2">
+                  <section className="flex items-stretch gap-1.5">
                     {optionControls.map((control) => (
-                      <div key={control.key} className="relative min-w-0">
-                        <label
-                          htmlFor={`opt-${control.key}`}
-                          className="mb-1 block font-mono text-[9px] uppercase tracking-widest text-white/40"
-                        >
-                          {control.label}
-                        </label>
+                      <div key={control.key} className="relative min-w-0 flex-1">
                         <select
                           id={`opt-${control.key}`}
+                          aria-label={control.label}
+                          title={control.label}
                           value={modelOptions[control.key] ?? control.default}
                           onChange={(event) =>
                             setModelOptions((prev) => ({ ...prev, [control.key]: event.target.value }))
                           }
-                          className="h-9 w-full cursor-pointer appearance-none [color-scheme:dark] border border-white/10 bg-black pl-2 pr-6 font-mono text-[9px] uppercase tracking-widest text-white/80 outline-none transition-colors hover:border-white/25 focus:border-acid"
+                          className="pill-select h-8 w-full cursor-pointer appearance-none truncate [color-scheme:dark] rounded-full border border-white/10 bg-black/40 pl-3 pr-7 font-mono text-[9px] uppercase tracking-widest text-white/80 outline-none transition-colors hover:border-white/25 focus:border-acid"
                         >
                           {control.options.map((opt) => (
                             <option key={opt.value} value={opt.value}>
@@ -590,7 +622,7 @@ export default function GeneratePanel() {
                         </select>
                         <svg
                           viewBox="0 0 24 24"
-                          className="pointer-events-none absolute bottom-2.5 right-2 h-3 w-3 text-acid/50"
+                          className="pointer-events-none absolute right-2.5 top-1/2 h-3 w-3 -translate-y-1/2 text-acid/50"
                           fill="none"
                           stroke="currentColor"
                           strokeWidth="2"
@@ -604,6 +636,7 @@ export default function GeneratePanel() {
                     ))}
                   </section>
                 )}
+                </div>
 
                 {error && (
                   <div className="shrink-0 rounded-2xl border border-danger/30 bg-danger/5 px-3 py-2 font-mono text-[9px] uppercase tracking-widest text-danger">
@@ -617,11 +650,11 @@ export default function GeneratePanel() {
                     onClick={handleGenerate}
                     disabled={!canGenerate}
                     className={`generate-shine relative mx-auto w-2/3 overflow-hidden rounded-full bg-acid text-black font-oswald text-sm uppercase tracking-[0.25em] py-3.5 hover:bg-white hover:scale-[1.02] active:scale-[0.99] transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100 ${
-                      canGenerate ? 'shadow-[0_0_30px_rgba(200,255,0,0.45)]' : 'shadow-none'
+                      canGenerate ? 'shadow-[0_0_18px_rgba(200,255,0,0.28)]' : 'shadow-none'
                     }`}
                   >
                     <span className="relative z-10 flex items-center justify-center gap-2">
-                      <span>{isGenerating ? 'Generating...' : 'Generate'}</span>
+                      <span>{isGenerating ? 'Generating...' : effectiveCount > 1 ? `Generate ${effectiveCount}` : 'Generate'}</span>
                       {isGenerating ? (
                         <svg viewBox="0 0 24 24" className="h-4 w-4 animate-spin" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
                           <path d="M21 12a9 9 0 1 1-6.219-8.56" />
@@ -637,50 +670,76 @@ export default function GeneratePanel() {
             </div>
           )}
 
-          <footer className="shrink-0 border-t border-white/10 px-5 py-4 text-center">
-            {typeof balance === 'number' && (
-              <div className="font-mono text-[9px] uppercase tracking-widest text-acid">
-                Balance: {balance.toLocaleString()} credits
+          <footer className="shrink-0 px-4 py-3">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-3.5 py-3">
+            {typeof balance === 'number' ? (
+              <>
+                {/* Balance + cost chip */}
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-baseline gap-1.5">
+                    <svg viewBox="0 0 24 24" className="h-3 w-3 translate-y-px text-acid/80" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <circle cx="8" cy="8" r="6" />
+                      <path d="M18.09 10.37A6 6 0 1 1 10.34 18" />
+                      <path d="M7 6h1v4" />
+                      <path d="m16.71 13.88.7.71-2.82 2.82" />
+                    </svg>
+                    <span className="font-oswald text-base tabular-nums leading-none text-white">{balance.toLocaleString()}</span>
+                    <span className="font-mono text-[8px] uppercase tracking-[0.2em] text-white/40">credits</span>
+                  </div>
+                  <span className="shrink-0 font-mono text-[8px] uppercase tracking-widest text-white/35">
+                    {effectiveCount > 1 ? `${effectiveCount} × ${cost} = ${totalCost}` : `${cost} / ${footerType}`}
+                  </span>
+                </div>
+
+                {/* Community vs purchased meter */}
+                {creditTotal > 0 && (
+                  <div className="mt-2">
+                    <div className="flex h-1 w-full overflow-hidden rounded-full bg-black/50">
+                      <div className="h-full bg-acid/70 transition-all duration-500" style={{ width: `${communityPct}%` }} />
+                      <div className="h-full bg-acid/25 transition-all duration-500" style={{ width: `${100 - communityPct}%` }} />
+                    </div>
+                    <div className="mt-1 flex items-center justify-between font-mono text-[8px] uppercase tracking-widest text-white/35">
+                      <span>{communityCredits.toLocaleString()} community</span>
+                      {purchasedCredits > 0 && <span>{purchasedCredits.toLocaleString()} purchased</span>}
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="text-center font-mono text-[9px] uppercase tracking-widest text-acid/70">
+                {planName} ENGINE
               </div>
             )}
-            {typeof usage?.monthly_credits === 'number' && usage.monthly_credits > 0 && (
-              <div className="mt-0.5 font-mono text-[9px] uppercase tracking-widest text-white/45">
-                {usage.monthly_credits.toLocaleString()} community
-                {typeof usage.purchased_credits === 'number' && usage.purchased_credits > 0
-                  ? ` + ${usage.purchased_credits.toLocaleString()} purchased`
-                  : ''}
-              </div>
-            )}
-            <div className="mt-1 font-mono text-[9px] uppercase tracking-widest text-white/35">
-              Cost: {cost} {cost === 1 ? 'credit' : 'credits'} per {footerType}
-            </div>
+
             {usage?.access_tier !== 'admin' && (
-              typeof balance === 'number' && balance < cost ? (
+              <div className="mt-2.5">
+                {lowBalance && (
+                  <div className="mb-1.5 text-center font-mono text-[8px] uppercase tracking-widest text-danger">
+                    Not enough credits for this {footerType}
+                  </div>
+                )}
                 <button
                   type="button"
                   onClick={() => setShowTopUpModal(true)}
-                  className="mt-3 flex w-full items-center justify-center gap-2 border border-acid bg-acid px-4 py-2.5 font-mono text-[10px] uppercase tracking-[0.25em] text-black transition-colors hover:bg-white"
+                  className={`relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-full px-4 py-2 font-mono text-[9px] uppercase tracking-[0.22em] transition-colors ${
+                    lowBalance
+                      ? 'generate-shine bg-acid text-black hover:bg-white'
+                      : 'border border-acid/30 bg-acid/[0.06] text-acid/90 hover:border-acid hover:bg-acid hover:text-black'
+                  }`}
                 >
-                  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <path d="M12 5v14" />
-                    <path d="M5 12h14" />
-                  </svg>
-                  <span>Buy Credits</span>
+                  <span className="relative z-10 flex items-center justify-center gap-2">
+                    <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <circle cx="8" cy="8" r="6" />
+                      <path d="M18.09 10.37A6 6 0 1 1 10.34 18" />
+                      <path d="M7 6h1v4" />
+                      <path d="m16.71 13.88.7.71-2.82 2.82" />
+                    </svg>
+                    <span>Buy Credits</span>
+                  </span>
                 </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setShowTopUpModal(true)}
-                  className="mt-3 flex w-full items-center justify-center gap-2 border border-acid/40 bg-acid/10 px-4 py-2.5 font-mono text-[10px] uppercase tracking-[0.25em] text-acid transition-colors hover:border-acid hover:bg-acid hover:text-black"
-                >
-                  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <path d="M12 5v14" />
-                    <path d="M5 12h14" />
-                  </svg>
-                  <span>Buy Credits</span>
-                </button>
-              )
+              </div>
             )}
+            </div>
           </footer>
         </div>
       </aside>
