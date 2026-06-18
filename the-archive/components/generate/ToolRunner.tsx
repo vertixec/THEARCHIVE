@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useGenerate } from '@/components/GenerateContext';
 import { useToast } from '@/components/Toast';
 import { getTool } from '@/lib/tools/registry';
@@ -10,9 +10,11 @@ import ReferenceImages from './ReferenceImages';
 export default function ToolRunner({
   toolId,
   onSpend,
+  onRunningChange,
 }: {
   toolId: string;
   onSpend?: (creditsLeft: number | null, count: number) => void;
+  onRunningChange?: (running: boolean) => void;
 }) {
   const tool = useMemo(() => getTool(toolId), [toolId]);
   const { referenceImageUrls, closeTool, markNewCreation } = useGenerate();
@@ -25,6 +27,12 @@ export default function ToolRunner({
   const [isRunning, setIsRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<ToolImageResult[] | null>(null);
+
+  // Surface the running state to the panel so it can show the progress bar.
+  useEffect(() => {
+    onRunningChange?.(isRunning);
+  }, [isRunning, onRunningChange]);
+  useEffect(() => () => onRunningChange?.(false), [onRunningChange]);
 
   if (!tool) {
     return (

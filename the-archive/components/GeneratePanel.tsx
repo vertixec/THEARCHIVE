@@ -45,6 +45,9 @@ export default function GeneratePanel() {
   const { user } = useAuth();
   const { showToast } = useToast();
   const [isGenerating, setIsGenerating] = useState(false);
+  // Mirrors the active tool's running state so the header progress bar shows
+  // during Tools runs too, not just freeform generation.
+  const [toolRunning, setToolRunning] = useState(false);
   const [usage, setUsage] = useState<GenerationUsage | null>(null);
   const [selectedModel, setSelectedModel] = useState(IMAGE_MODELS[0].id);
   // Per-model option selection (quality / format / resolution / duration).
@@ -438,9 +441,9 @@ export default function GeneratePanel() {
             <div aria-hidden="true" />
           </header>
 
-          {/* Indeterminate progress while a generation is in flight */}
+          {/* Indeterminate progress while a generation (freeform or tool) is in flight */}
           <div className="shrink-0 h-0.5 w-full bg-black/40 overflow-hidden">
-            {isGenerating && <div className="panel-progress-bar h-full w-full" />}
+            {(isGenerating || toolRunning) && <div className="panel-progress-bar h-full w-full" />}
           </div>
 
           {/* Mode toggle: freeform Generate vs Tools */}
@@ -464,9 +467,9 @@ export default function GeneratePanel() {
           {isTools ? (
             <div className={`flex-1 min-h-0 flex flex-col px-4 py-3 ${isOpen ? 'panel-stagger' : ''}`}>
               {activeToolId === 'style-transfer' ? (
-                <StyleTransferRunner onSpend={applyToolSpend} />
+                <StyleTransferRunner onSpend={applyToolSpend} onRunningChange={setToolRunning} />
               ) : activeToolId ? (
-                <ToolRunner toolId={activeToolId} onSpend={applyToolSpend} />
+                <ToolRunner toolId={activeToolId} onSpend={applyToolSpend} onRunningChange={setToolRunning} />
               ) : (
                 <ToolsGallery />
               )}

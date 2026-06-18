@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useGenerate } from '@/components/GenerateContext';
 import { useToast } from '@/components/Toast';
 import { getTool } from '@/lib/tools/registry';
@@ -81,8 +81,10 @@ function ImageSlot({
 
 export default function StyleTransferRunner({
   onSpend,
+  onRunningChange,
 }: {
   onSpend?: (creditsLeft: number | null, count: number) => void;
+  onRunningChange?: (running: boolean) => void;
 }) {
   const tool = getTool('style-transfer');
   const { closeTool, markNewCreation } = useGenerate();
@@ -94,6 +96,12 @@ export default function StyleTransferRunner({
   const [isRunning, setIsRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<ToolImageResult[] | null>(null);
+
+  // Surface the running state to the panel so it can show the progress bar.
+  useEffect(() => {
+    onRunningChange?.(isRunning);
+  }, [isRunning, onRunningChange]);
+  useEffect(() => () => onRunningChange?.(false), [onRunningChange]);
 
   if (!tool || !tool.endpoint) {
     return (
