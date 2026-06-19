@@ -33,7 +33,7 @@ export type ToolInput = ReferenceImagesInput | TextToolInput | SelectToolInput;
 
 export type ToolStatus = 'live' | 'soon';
 
-// 'image-batch' runs N image generations synchronously (Ads).
+// 'image-batch' enqueues N async image jobs (Ads), polled via /generate/status.
 // 'pipeline' is a multi-step async job (Reels) — handled later via tool_jobs.
 export type ToolKind = 'image-batch' | 'pipeline';
 
@@ -75,4 +75,12 @@ export interface ToolRunResponse {
   requested: number;
   succeeded: number;
   credits?: { ok: boolean; credits: number; video_credits: number } | null;
+}
+
+// Tools now run async: a POST enqueues the image jobs and returns their ids.
+// The client polls /api/generate/status for each one (see lib/tools/pollJobs).
+export interface ToolEnqueueResponse {
+  jobs: { jobId: string; angle: string }[];
+  requested: number;
+  queued: number;
 }

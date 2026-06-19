@@ -1,16 +1,10 @@
 import { fal } from '@fal-ai/client';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabaseServer';
-import { createAdminClient } from '@/lib/supabaseAdmin';
 import { canAccessFeature, creditCostForModel, type BusinessProfile } from '@/lib/business';
-import {
-  completeCreditOperation,
-  enforceRateLimit,
-  incrementGenerationUsage,
-  refundCreditOperation,
-  reserveCredits,
-} from '@/lib/generationSecurity';
+import { enforceRateLimit } from '@/lib/generationSecurity';
 import { ReferenceImageAccessError, prepareReferenceUrls } from '@/lib/falReference';
+import { enqueueToolJob, type ToolEnqueueResult } from '@/lib/tools/enqueue';
 import { buildAdPrompts } from '@/lib/tools/prompts/ads';
 import { getTool } from '@/lib/tools/registry';
 import { AD_ANGLE_OPTIONS } from '@/lib/tools/adsAngles';
@@ -18,14 +12,7 @@ import { AD_ANGLE_OPTIONS } from '@/lib/tools/adsAngles';
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
-const GPT_IMAGE_EDIT = 'openai/gpt-image-2/edit';
 const PER_IMAGE_COST = creditCostForModel('gpt-image-2', 'image');
-
-type FalResult = { data?: { images?: { url?: string }[] } };
-
-function getErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : 'Generation failed';
-}
 
 export async function POST(req: NextRequest) {
   const apiKey = process.env.FAL_API_KEY || process.env.FAL_KEY;
@@ -81,97 +68,52 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Your current plan cannot generate images' }, { status: 403 });
   }
 
-  const maxCost = PER_IMAGE_COST * outputs;
-  let reservation;
-  try {
-    reservation = await reserveCredits({
-      userId: user.id,
-      generationType: 'image',
-      amount: maxCost,
-      model: 'ads-studio',
-      tool: 'ads',
-      prompt: offer,
-    });
-  } catch (error) {
-    console.error('Credit reservation failed:', error);
-    return NextResponse.json({ error: 'Credit reservation failed' }, { status: 500 });
-  }
-  if (!reservation.ok) return NextResponse.json({ error: `You need ${maxCost} credits for this tool` }, { status: 429 });
-
-  const refund = async (reason: string) => {
-    try {
-      await refundCreditOperation(reservation.operation_id, reason);
-    } catch (error) {
-      console.error('Refund failed:', { reason, userId: user.id, error });
-    }
-  };
-
+  // Prepare references once (shared across every angle) before reserving any
+  // credits — if this fails there's nothing to refund yet.
   fal.config({ credentials: apiKey });
   let preparedReferences: string[];
   try {
     preparedReferences = await prepareReferenceUrls(referenceList);
   } catch (error) {
-    await refund('reference_failed');
     const message = error instanceof ReferenceImageAccessError ? error.message : 'Reference preparation failed';
-    return NextResponse.json({ error: message, refunded: true }, { status: 400 });
+    return NextResponse.json({ error: message }, { status: 400 });
   }
 
-  const settled = await Promise.allSettled(
-    adPrompts.map(async ({ prompt, angle }) => {
-      const result = (await fal.subscribe(GPT_IMAGE_EDIT, {
-        input: { prompt, image_urls: preparedReferences, quality: 'medium' },
-      })) as FalResult;
-      const url = result.data?.images?.[0]?.url;
-      if (!url) throw new Error('No result URL from FAL');
-      return { url, angle, prompt };
-    }),
-  );
-  const succeeded = settled
-    .filter((result): result is PromiseFulfilledResult<{ url: string; angle: string; prompt: string }> => result.status === 'fulfilled')
-    .map((result) => result.value);
-  settled
-    .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
-    .forEach((result) => console.error('Ads tool variant failed:', getErrorMessage(result.reason)));
-
-  if (succeeded.length === 0) {
-    await refund('all_variants_failed');
-    return NextResponse.json({ error: 'Could not generate any version. Try another reference or try again.', refunded: true }, { status: 502 });
-  }
-
-  const spendAmount = PER_IMAGE_COST * succeeded.length;
-  const admin = createAdminClient();
-  const { data: generations, error: insertError } = await admin.from('generations').insert(
-    succeeded.map((item) => ({
-      user_id: user.id,
-      prompt: item.prompt,
+  // Enqueue one async job per angle. Each reserves + charges its own credits and
+  // is finalized by /api/generate/status, so a slow run can't blow the function
+  // timeout. Stop early if the user runs out of credits mid-batch.
+  const jobs: { jobId: string; angle: string }[] = [];
+  let ranOutOfCredits = false;
+  for (const { prompt, angle } of adPrompts) {
+    const result: ToolEnqueueResult = await enqueueToolJob({
+      userId: user.id,
+      prompt,
+      angle,
       model: 'ads-studio',
-      generation_type: 'image' as const,
-      result_url: item.url,
-      reference_image_url: referenceList[0],
-      credit_cost: PER_IMAGE_COST,
-      credit_operation_id: reservation.operation_id,
-    })),
-  ).select('id');
-  if (insertError) {
-    await refund('generation_insert_failed');
-    return NextResponse.json({ error: 'Generation history save failed', refunded: true }, { status: 500 });
+      tool: 'ads',
+      perImageCost: PER_IMAGE_COST,
+      preparedImages: preparedReferences,
+      referenceImageUrl: referenceList[0],
+    });
+    if (result.ok) {
+      jobs.push({ jobId: result.jobId, angle: result.angle });
+    } else if (result.reason === 'insufficient_credits') {
+      ranOutOfCredits = true;
+      break;
+    }
+    // submit/insert failures: their reservation was already refunded; skip this
+    // angle and try the rest.
   }
 
-  try {
-    await completeCreditOperation(reservation.operation_id, generations?.[0]?.id ?? null, spendAmount);
-  } catch (error) {
-    console.error('Credit completion failed:', error);
-    return NextResponse.json({ error: 'Credit completion failed' }, { status: 500 });
+  if (jobs.length === 0) {
+    if (ranOutOfCredits) {
+      return NextResponse.json({ error: `You need ${PER_IMAGE_COST} credits for this tool` }, { status: 429 });
+    }
+    return NextResponse.json(
+      { error: 'Could not start the generation. Try another reference or try again.' },
+      { status: 502 },
+    );
   }
 
-  await incrementGenerationUsage(user.id, 'image', succeeded.length).catch((error) => {
-    console.error('Usage increment failed (non-fatal):', error);
-  });
-
-  return NextResponse.json({
-    results: succeeded.map((item) => ({ url: item.url, angle: item.angle })),
-    requested: outputs,
-    succeeded: succeeded.length,
-    credits: { credits: reservation.credits + (maxCost - spendAmount) },
-  });
+  return NextResponse.json({ jobs, requested: outputs, queued: jobs.length });
 }

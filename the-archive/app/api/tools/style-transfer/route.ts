@@ -1,25 +1,17 @@
 import { fal } from '@fal-ai/client';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabaseServer';
-import { createAdminClient } from '@/lib/supabaseAdmin';
 import { canAccessFeature, creditCostForModel, type BusinessProfile } from '@/lib/business';
-import {
-  completeCreditOperation,
-  enforceRateLimit,
-  incrementGenerationUsage,
-  refundCreditOperation,
-  reserveCredits,
-} from '@/lib/generationSecurity';
+import { enforceRateLimit } from '@/lib/generationSecurity';
 import { ReferenceImageAccessError, prepareReferenceUrls } from '@/lib/falReference';
+import { enqueueToolJob } from '@/lib/tools/enqueue';
 import { buildStyleTransferPrompt } from '@/lib/tools/prompts/styleTransfer';
 import { getTool } from '@/lib/tools/registry';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
-const GPT_IMAGE_EDIT = 'openai/gpt-image-2/edit';
 const PER_IMAGE_COST = creditCostForModel('gpt-image-2', 'image');
-type FalResult = { data?: { images?: { url?: string }[] } };
 
 export async function POST(req: NextRequest) {
   const apiKey = process.env.FAL_API_KEY || process.env.FAL_KEY;
@@ -65,83 +57,44 @@ export async function POST(req: NextRequest) {
 
   const finalPrompt = buildStyleTransferPrompt({ prompt, hasContentImage });
   const inputImages = hasContentImage ? [styleUrl, contentUrl] : [styleUrl];
-  let reservation;
-  try {
-    reservation = await reserveCredits({
-      userId: user.id,
-      generationType: 'image',
-      amount: PER_IMAGE_COST,
-      model: 'style-transfer',
-      tool: 'style-transfer',
-      prompt: prompt || 'Style transfer',
-    });
-  } catch (error) {
-    console.error('Credit reservation failed:', error);
-    return NextResponse.json({ error: 'Credit reservation failed' }, { status: 500 });
-  }
-  if (!reservation.ok) return NextResponse.json({ error: `You need ${PER_IMAGE_COST} credits for this tool` }, { status: 429 });
-
-  const refund = async (reason: string) => {
-    try {
-      await refundCreditOperation(reservation.operation_id, reason);
-    } catch (error) {
-      console.error('Refund failed:', { reason, userId: user.id, error });
-    }
-  };
+  const angle = hasContentImage ? 'Restyled' : 'Style transfer';
 
   fal.config({ credentials: apiKey });
   let preparedImages: string[];
   try {
     preparedImages = await prepareReferenceUrls(inputImages);
   } catch (error) {
-    await refund('reference_failed');
     const message = error instanceof ReferenceImageAccessError ? error.message : 'Reference preparation failed';
-    return NextResponse.json({ error: message, refunded: true }, { status: 400 });
+    return NextResponse.json({ error: message }, { status: 400 });
   }
 
-  let resultUrl: string;
-  try {
-    const result = (await fal.subscribe(GPT_IMAGE_EDIT, {
-      input: { prompt: finalPrompt, image_urls: preparedImages, quality: 'medium' },
-    })) as FalResult;
-    resultUrl = result.data?.images?.[0]?.url ?? '';
-    if (!resultUrl) throw new Error('No result URL from FAL');
-  } catch (error) {
-    await refund('generation_failed');
-    console.error('Style Transfer failed:', error);
-    return NextResponse.json({ error: 'Could not generate. Try another reference or try again.', refunded: true }, { status: 502 });
-  }
-
-  const admin = createAdminClient();
-  const { data: generation, error: insertError } = await admin.from('generations').insert({
-    user_id: user.id,
+  // Enqueue the async job; /api/generate/status finalizes it (fetch result,
+  // save result_url, complete credits, count usage). Keeps us under the
+  // serverless timeout instead of waiting on FAL inline.
+  const result = await enqueueToolJob({
+    userId: user.id,
     prompt: finalPrompt,
+    angle,
     model: 'style-transfer',
-    generation_type: 'image' as const,
-    result_url: resultUrl,
-    reference_image_url: styleUrl,
-    credit_cost: PER_IMAGE_COST,
-    credit_operation_id: reservation.operation_id,
-  }).select('id').single();
-  if (insertError) {
-    await refund('generation_insert_failed');
-    return NextResponse.json({ error: 'Generation history save failed', refunded: true }, { status: 500 });
-  }
-
-  try {
-    await completeCreditOperation(reservation.operation_id, generation.id, PER_IMAGE_COST);
-  } catch (error) {
-    console.error('Credit completion failed:', error);
-    return NextResponse.json({ error: 'Credit completion failed' }, { status: 500 });
-  }
-  await incrementGenerationUsage(user.id, 'image', 1).catch((error) => {
-    console.error('Usage increment failed (non-fatal):', error);
+    tool: 'style-transfer',
+    perImageCost: PER_IMAGE_COST,
+    preparedImages,
+    referenceImageUrl: styleUrl,
   });
 
+  if (!result.ok) {
+    if (result.reason === 'insufficient_credits') {
+      return NextResponse.json({ error: `You need ${PER_IMAGE_COST} credits for this tool` }, { status: 429 });
+    }
+    return NextResponse.json(
+      { error: 'Could not start the generation. Try another reference or try again.' },
+      { status: 502 },
+    );
+  }
+
   return NextResponse.json({
-    results: [{ url: resultUrl, angle: hasContentImage ? 'Restyled' : 'Style transfer' }],
+    jobs: [{ jobId: result.jobId, angle: result.angle }],
     requested: 1,
-    succeeded: 1,
-    credits: { credits: reservation.credits },
+    queued: 1,
   });
 }

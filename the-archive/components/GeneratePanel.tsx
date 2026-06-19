@@ -216,6 +216,8 @@ export default function GeneratePanel() {
   };
 
   // Keep the credit footer in sync after a Tools run spends image credits.
+  // Tools charge asynchronously (credits settle when each job finalizes), so we
+  // bump the visible count immediately, then reload the authoritative balance.
   const applyToolSpend = useCallback((creditsLeft: number | null, spentCount: number) => {
     setUsage((current) => {
       if (!current) return current;
@@ -225,7 +227,8 @@ export default function GeneratePanel() {
         credit_balance: creditsLeft ?? current.credit_balance,
       };
     });
-  }, []);
+    loadUsage();
+  }, [loadUsage]);
 
   const handlePromptDrop = useCallback((event: React.DragEvent<HTMLTextAreaElement>) => {
     const draggedPrompt = event.dataTransfer.getData('application/x-vertix-prompt');

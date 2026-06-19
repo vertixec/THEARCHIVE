@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useGenerate } from '@/components/GenerateContext';
 import { useToast } from '@/components/Toast';
 import { getTool } from '@/lib/tools/registry';
-import type { ToolImageResult, ToolRunResponse } from '@/lib/tools/types';
+import type { ToolEnqueueResponse, ToolImageResult } from '@/lib/tools/types';
+import { pollToolJobs } from '@/lib/tools/pollJobs';
 import ReferenceImages from './ReferenceImages';
 
 export default function ToolRunner({
@@ -83,12 +84,19 @@ export default function ToolRunner({
       if (response.status === 429) { showToast('LIMIT REACHED'); setError(payload.error || 'Limit reached'); return; }
       if (!response.ok) throw new Error(payload.error || 'The tool failed');
 
-      const data = payload as ToolRunResponse;
-      setResults(data.results ?? []);
+      // The run is enqueued; poll each job until the images are ready.
+      const enqueued = payload as ToolEnqueueResponse;
+      if (!enqueued.jobs?.length) throw new Error('The tool failed');
+
+      const { results: ready, succeeded, requested, firstError } = await pollToolJobs(enqueued.jobs);
+      if (succeeded === 0) throw new Error(firstError || 'The tool failed');
+
+      setResults(ready);
       markNewCreation();
-      onSpend?.(data.credits?.credits ?? null, data.succeeded);
-      const partial = data.succeeded < data.requested ? ` (${data.succeeded}/${data.requested})` : '';
-      showToast(`${data.succeeded} RESULTS READY${partial}`);
+      onSpend?.(null, succeeded);
+      const partial = succeeded < requested ? ` (${succeeded}/${requested})` : '';
+      showToast(`${succeeded} RESULTS READY${partial}`);
+      if (firstError && succeeded < requested) setError(`${requested - succeeded} of ${requested} failed`);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'The tool failed';
       setError(message);
