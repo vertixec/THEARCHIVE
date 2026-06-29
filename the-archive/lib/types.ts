@@ -76,10 +76,12 @@ export interface GenerationUsage {
   credit_balance?: number | null;
   /** Purchased credits (never expire). */
   purchased_credits?: number | null;
-  /** This cycle's community allowance remaining (resets monthly). */
+  /** Community allowance remaining (rolls over monthly up to the cap). */
   monthly_credits?: number;
-  /** Full monthly allowance for this tier (0 if none). */
+  /** Monthly allowance added to this tier each cycle (0 if none). */
   monthly_credit_grant?: number;
+  /** Ceiling the rolled-over monthly allowance accumulates to (0 if none). */
+  monthly_credit_cap?: number;
   /** When the current monthly allowance was last granted. */
   monthly_credits_reset_at?: string | null;
   /** Per-model credit cost map, keyed by model id. */

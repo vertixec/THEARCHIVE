@@ -11,6 +11,7 @@ type PlansRow = {
   monthly_video_limit: number | null;
   signup_credits: number | null;
   monthly_credit_grant: number | null;
+  monthly_credit_cap: number | null;
 };
 
 export async function getPlanForProfileFromDB(
@@ -26,7 +27,7 @@ export async function getPlanForProfileFromDB(
 
   const { data, error } = await supabase
     .from('plans')
-    .select('monthly_image_limit, monthly_video_limit, signup_credits, monthly_credit_grant')
+    .select('monthly_image_limit, monthly_video_limit, signup_credits, monthly_credit_grant, monthly_credit_cap')
     .eq('access_tier', tier)
     .maybeSingle<PlansRow>();
 
@@ -40,5 +41,6 @@ export async function getPlanForProfileFromDB(
     monthlyVideoLimit: data.monthly_video_limit ?? base.monthlyVideoLimit,
     signupCredits: data.signup_credits ?? base.signupCredits,
     monthlyCreditGrant: data.monthly_credit_grant ?? base.monthlyCreditGrant,
+    monthlyCreditCap: data.monthly_credit_cap ?? base.monthlyCreditCap,
   };
 }

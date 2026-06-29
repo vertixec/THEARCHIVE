@@ -29,11 +29,16 @@ export type PlanConfig = {
   monthlyVideoLimit: number;
   signupCredits: number;
   // Credits granted to this tier at the start of every monthly cycle. These
-  // live in a SEPARATE bucket (user_credit_balances.monthly_credits) that is
-  // reset each month (use-it-or-lose-it) and spent BEFORE purchased credits.
-  // Only the community tier gets an allowance today. See
-  // supabase/community_monthly_credits.sql for the matching DB logic.
+  // live in a SEPARATE bucket (user_credit_balances.monthly_credits) that
+  // ROLLS OVER each month up to monthlyCreditCap, and is spent BEFORE purchased
+  // credits. Only the community tier gets an allowance today. See
+  // supabase/community_credits_rollover.sql for the matching DB logic.
   monthlyCreditGrant: number;
+  // Ceiling for the rolled-over monthly allowance. Unused monthly credits
+  // accumulate up to this cap (config-driven in DB: plans.monthly_credit_cap).
+  // Keep cap * ~$0.0045 (FAL cost/credit) below the membership price to stay
+  // cash-positive. 0 = no rollover (falls back to the grant).
+  monthlyCreditCap: number;
   features: Feature[];
 };
 
@@ -47,6 +52,7 @@ export const PLAN_CONFIG: Record<AccessTier, PlanConfig> = {
     monthlyVideoLimit: 0,
     signupCredits: 0,
     monthlyCreditGrant: 0,
+    monthlyCreditCap: 0,
     features: [],
   },
   free: {
@@ -60,6 +66,7 @@ export const PLAN_CONFIG: Record<AccessTier, PlanConfig> = {
     // count (5) is the hard guardrail that caps free-tier FAL spend.
     signupCredits: 60,
     monthlyCreditGrant: 0,
+    monthlyCreditCap: 0,
     features: ['view_visuals', 'view_systems', 'generate_image', 'create_moodboard', 'save_favorite'],
   },
   community: {
@@ -70,8 +77,10 @@ export const PLAN_CONFIG: Record<AccessTier, PlanConfig> = {
     monthlyImageLimit: 50,
     monthlyVideoLimit: 5,
     signupCredits: 0,
-    // Skool community perk: 800 credits refreshed every month.
+    // Skool community perk: 800 credits added every month, rolling over up to
+    // monthlyCreditCap (1600). Keep cap below membership price / FAL cost.
     monthlyCreditGrant: 800,
+    monthlyCreditCap: 1600,
     features: [
       'view_visuals',
       'view_systems',
@@ -92,6 +101,7 @@ export const PLAN_CONFIG: Record<AccessTier, PlanConfig> = {
     monthlyVideoLimit: 10,
     signupCredits: 0,
     monthlyCreditGrant: 0,
+    monthlyCreditCap: 0,
     features: [
       'view_visuals',
       'view_systems',
@@ -111,6 +121,7 @@ export const PLAN_CONFIG: Record<AccessTier, PlanConfig> = {
     monthlyVideoLimit: 9999,
     signupCredits: 0,
     monthlyCreditGrant: 0,
+    monthlyCreditCap: 0,
     features: [
       'view_visuals',
       'view_systems',
