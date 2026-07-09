@@ -199,6 +199,21 @@ export default function CreationsContent() {
     showToast('PROMPT COPIED');
   }, [showToast]);
 
+  // Carry the prompt (and the asset URL as a reference) when dragging a creation
+  // onto the Generate panel. Without the x-vertix-prompt payload the panel falls
+  // back to the browser default and drops the raw link into the prompt textarea.
+  const handleAssetDragStart = useCallback(
+    (item: Generation) => (event: React.DragEvent<HTMLElement>) => {
+      if (item.prompt) event.dataTransfer.setData('application/x-vertix-prompt', item.prompt);
+      if (item.result_url) {
+        event.dataTransfer.setData('text/uri-list', item.result_url);
+        event.dataTransfer.setData('text/plain', item.result_url);
+      }
+      event.dataTransfer.effectAllowed = 'copy';
+    },
+    [],
+  );
+
   useEffect(() => {
     if (authLoading || !user) return;
 
@@ -321,9 +336,9 @@ export default function CreationsContent() {
               >
                 <div className="relative aspect-square overflow-hidden bg-black">
                   {item.generation_type === 'video' ? (
-                    <video src={item.result_url || ''} className="h-full w-full object-cover" muted playsInline />
+                    <video src={item.result_url || ''} draggable onDragStart={handleAssetDragStart(item)} className="h-full w-full object-cover" muted playsInline />
                   ) : (
-                    <img src={item.result_url || ''} alt={item.prompt} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                    <img src={item.result_url || ''} alt={item.prompt} draggable onDragStart={handleAssetDragStart(item)} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
                   )}
 
                   <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100" />
@@ -419,11 +434,13 @@ export default function CreationsContent() {
             <section className="relative flex min-h-0 items-center justify-center overflow-hidden px-5 py-8 md:px-10 lg:px-14">
               <div className="group relative flex max-h-full max-w-full items-center justify-center" onClick={(event) => event.stopPropagation()}>
                 {selectedItem.generation_type === 'video' ? (
-                  <video src={selectedItem.result_url || ''} className="max-h-[calc(100dvh-104px)] max-w-full rounded-lg border border-white/10 object-contain shadow-[0_24px_90px_rgba(0,0,0,0.62)]" controls autoPlay loop playsInline />
+                  <video src={selectedItem.result_url || ''} draggable onDragStart={handleAssetDragStart(selectedItem)} className="max-h-[calc(100dvh-104px)] max-w-full rounded-lg border border-white/10 object-contain shadow-[0_24px_90px_rgba(0,0,0,0.62)]" controls autoPlay loop playsInline />
                 ) : (
                   <img
                     src={selectedItem.result_url || ''}
                     alt={selectedItem.prompt}
+                    draggable
+                    onDragStart={handleAssetDragStart(selectedItem)}
                     className="max-h-[calc(100dvh-104px)] max-w-full rounded-lg border border-white/10 object-contain shadow-[0_24px_90px_rgba(0,0,0,0.62)]"
                   />
                 )}
