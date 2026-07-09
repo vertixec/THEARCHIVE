@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { useSync } from '@/components/SyncContext';
 import { useToast } from '@/components/Toast';
+import { useGenerate } from '@/components/GenerateContext';
 
 // ── Export helpers ──────────────────────────────────────────────────────────
 
@@ -75,6 +76,7 @@ function getItemSpan(index: number): 'tall' | 'normal' {
 export default function MoodboardDetailContent({ board, items: initialItems }: Props) {
   const { setStatus } = useSync();
   const { showToast } = useToast();
+  const { isOpen: isPanelOpen, panelLayout } = useGenerate();
   const router = useRouter();
   const [items, setItems] = useState<BoardItem[]>(initialItems);
   const [removingId, setRemovingId] = useState<string | null>(null);
@@ -721,12 +723,21 @@ export default function MoodboardDetailContent({ board, items: initialItems }: P
           day: '2-digit', month: '2-digit', year: '2-digit',
         });
         const isSystem = li.item_type === 'system';
+        // If the Generate panel is open, carve its footprint out of the lightbox so
+        // it stays visible (the side panel sits at z-50, below this overlay).
+        const sideInset = isPanelOpen && panelLayout === 'side'
+          ? 'right-0 md:right-[480px]'
+          : isPanelOpen && panelLayout === 'floating'
+            ? 'right-0 md:right-[440px]'
+            : 'right-0';
+        const bottomInset = isPanelOpen && panelLayout === 'bottom'
+          ? 'pb-[210px] md:pb-[230px]'
+          : '';
         return (
           <div
-            className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 md:p-8"
+            className={`fixed top-0 bottom-0 left-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 md:p-8 transition-all duration-300 ${sideInset} ${bottomInset}`}
             onClick={() => setLightboxItem(null)}
           >
-            {/* Close */}
             <button
               className="absolute top-4 right-4 z-10 w-10 h-10 flex items-center justify-center text-white/50 hover:text-white border border-white/20 hover:border-white/40 transition-all font-mono text-lg"
               onClick={() => setLightboxItem(null)}
@@ -744,11 +755,21 @@ export default function MoodboardDetailContent({ board, items: initialItems }: P
             >
               <div className="card-flip-inner preserve-3d relative w-full h-full">
 
-                {/* Front — full image */}
+                {/* Front — full image (draggable into the Generate panel) */}
                 <div className="absolute inset-0 backface-hidden flex items-center justify-center">
                   <img
                     src={li.image_url!}
                     alt=""
+                    draggable
+                    onDragStart={(e) => {
+                      if (li.image_url) {
+                        e.dataTransfer.setData('text/uri-list', li.image_url);
+                        e.dataTransfer.setData('text/plain', li.image_url);
+                      }
+                      if (li.prompt_text) {
+                        e.dataTransfer.setData('application/x-vertix-prompt', li.prompt_text);
+                      }
+                    }}
                     className="max-w-full max-h-full object-contain"
                   />
                 </div>
