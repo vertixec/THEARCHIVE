@@ -54,6 +54,12 @@ interface BoardItem {
   image_url: string | null;
   created_at: string;
   prompt_text?: string | null;
+  model?: string | null;
+  title?: string | null;
+  category?: string | null;
+  volume?: string | null;
+  prompt_type?: string | null;
+  instructions?: string | null;
 }
 
 interface Props {
@@ -74,7 +80,8 @@ export default function MoodboardDetailContent({ board, items: initialItems }: P
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
-  const [lightboxImg, setLightboxImg] = useState<string | null>(null);
+  const [lightboxItem, setLightboxItem] = useState<BoardItem | null>(null);
+  const [lightboxFlipped, setLightboxFlipped] = useState(false);
   // Upload state
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState('');
@@ -90,11 +97,11 @@ export default function MoodboardDetailContent({ board, items: initialItems }: P
 
   // Close lightbox on Escape
   useEffect(() => {
-    if (!lightboxImg) return;
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') setLightboxImg(null); };
+    if (!lightboxItem) return;
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') setLightboxItem(null); };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [lightboxImg]);
+  }, [lightboxItem]);
 
   // Close link modal on Escape
   useEffect(() => {
@@ -615,7 +622,7 @@ export default function MoodboardDetailContent({ board, items: initialItems }: P
                     key={item.id}
                     className="relative group overflow-hidden bg-white/[0.02] cursor-pointer"
                     style={{ gridRow: span === 'tall' ? 'span 2' : 'span 1' }}
-                    onClick={() => setLightboxImg(item.image_url!)}
+                    onClick={() => { setLightboxItem(item); setLightboxFlipped(false); }}
                   >
                     <img
                       src={item.image_url!}
@@ -704,26 +711,132 @@ export default function MoodboardDetailContent({ board, items: initialItems }: P
         </>
       )}
 
-      {/* Lightbox */}
-      {lightboxImg && (
-        <div
-          className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 md:p-8"
-          onClick={() => setLightboxImg(null)}
-        >
-          <button
-            className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center text-white/50 hover:text-white border border-white/20 hover:border-white/40 transition-all font-mono text-lg"
-            onClick={() => setLightboxImg(null)}
+      {/* Lightbox (flippable for archive assets) */}
+      {lightboxItem && (() => {
+        const li = lightboxItem;
+        // Only assets pulled from the archive (visuals / systems) carry info to flip to.
+        const canFlip = (li.item_type === 'visual' || li.item_type === 'system')
+          && !!(li.prompt_text || li.instructions);
+        const liDate = new Date(li.created_at).toLocaleDateString('en-US', {
+          day: '2-digit', month: '2-digit', year: '2-digit',
+        });
+        const isSystem = li.item_type === 'system';
+        return (
+          <div
+            className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 md:p-8"
+            onClick={() => setLightboxItem(null)}
           >
-            ✕
-          </button>
-          <img
-            src={lightboxImg}
-            alt=""
-            className="max-w-full max-h-full object-contain"
-            onClick={(e) => e.stopPropagation()}
-          />
-        </div>
-      )}
+            {/* Close */}
+            <button
+              className="absolute top-4 right-4 z-10 w-10 h-10 flex items-center justify-center text-white/50 hover:text-white border border-white/20 hover:border-white/40 transition-all font-mono text-lg"
+              onClick={() => setLightboxItem(null)}
+            >
+              ✕
+            </button>
+
+            {/* Flip card — click the image itself to flip (like Visuals/Systems) */}
+            <div
+              className={`perspective-1000 w-full max-w-4xl h-[82vh] ${canFlip ? 'cursor-pointer' : ''} ${canFlip && lightboxFlipped ? 'flipped' : ''}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (canFlip) setLightboxFlipped(f => !f);
+              }}
+            >
+              <div className="card-flip-inner preserve-3d relative w-full h-full">
+
+                {/* Front — full image */}
+                <div className="absolute inset-0 backface-hidden flex items-center justify-center">
+                  <img
+                    src={li.image_url!}
+                    alt=""
+                    className="max-w-full max-h-full object-contain"
+                  />
+                </div>
+
+                {/* Back — asset info */}
+                {canFlip && (
+                  <div className="absolute inset-0 backface-hidden rotate-y-180 bg-panel border border-acid/30 p-6 md:p-8 flex flex-col overflow-hidden">
+                    {/* Header */}
+                    <div className="flex justify-between items-start font-mono text-[10px] text-gray-500 border-b border-white/10 pb-4 mb-4 uppercase tracking-tighter">
+                      <div className="flex flex-col gap-1 min-w-0">
+                        <span className="text-acid">
+                          {isSystem
+                            ? `TYPE: ${li.prompt_type || 'SYSTEM'}`
+                            : `MODEL: ${li.model || 'UNK'}`}
+                        </span>
+                        <span className="truncate">REF: {li.item_id}</span>
+                      </div>
+                      <span className="text-right shrink-0 ml-3">DATE: {liDate}</span>
+                    </div>
+
+                    {/* Title */}
+                    {li.title && (
+                      <div className="font-anton text-2xl md:text-4xl text-white uppercase tracking-tight leading-none mb-4">
+                        {li.title}
+                      </div>
+                    )}
+
+                    {/* Body — scrollable */}
+                    <div className="flex-grow overflow-y-auto pr-2 scroll-custom">
+                      {li.prompt_text && (
+                        <div className="mb-5">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="font-mono text-[10px] text-acid/80 uppercase tracking-widest border-l-2 border-acid pl-2">
+                              PROMPT
+                            </span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigator.clipboard.writeText(li.prompt_text!);
+                                showToast('PROMPT COPIED');
+                              }}
+                              className="text-acid/50 hover:text-acid transition-colors p-1"
+                              title="Copy prompt"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                              </svg>
+                            </button>
+                          </div>
+                          <p className="font-mono text-[11px] md:text-xs text-white/90 leading-relaxed uppercase">
+                            {li.prompt_text}
+                          </p>
+                        </div>
+                      )}
+
+                      {li.instructions && (
+                        <div>
+                          <span className="font-mono text-[10px] text-acid/80 uppercase tracking-widest border-l-2 border-acid pl-2 block mb-2">
+                            INSTRUCTIONS
+                          </span>
+                          <p className="font-mono text-[11px] md:text-xs text-white/80 leading-relaxed italic uppercase">
+                            {li.instructions}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Footer meta */}
+                    {(li.category || li.volume) && (
+                      <div className="mt-4 pt-4 border-t border-white/10 grid grid-cols-2 gap-3">
+                        <div className="bg-black/40 p-3 border border-white/5 min-w-0">
+                          <div className="font-mono text-[8px] text-gray-500 uppercase">Category</div>
+                          <div className="font-oswald text-xs text-white uppercase truncate">{li.category || '—'}</div>
+                        </div>
+                        <div className="bg-black/40 p-3 border border-white/5 min-w-0">
+                          <div className="font-mono text-[8px] text-gray-500 uppercase">Volume</div>
+                          <div className="font-oswald text-xs text-white uppercase truncate">{li.volume || '—'}</div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Add from Link modal */}
       {showLinkModal && (
