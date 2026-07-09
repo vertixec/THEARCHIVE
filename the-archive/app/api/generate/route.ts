@@ -21,6 +21,7 @@ import {
   ReferenceImageAccessError,
   prepareReferenceUrls,
 } from '@/lib/falReference';
+import { buildFalWebhookUrl } from '@/lib/falWebhook';
 import {
   DEFAULT_MODEL,
   IMAGE_MODELS,
@@ -206,10 +207,16 @@ export async function POST(req: NextRequest) {
     Object.assign(input, modelParams);
   }
 
-  // 2) Enqueue the job on the FAL queue (returns immediately with a request id).
+  // 2) Enqueue the job on the FAL queue (returns immediately with a request
+  // id). The webhook URL lets FAL finalize the job server-side even if the
+  // user never polls again (closed tab); polling and the sweeper are the
+  // fallbacks.
   let requestId = '';
   try {
-    const queued = await fal.queue.submit(endpoint, { input });
+    const queued = await fal.queue.submit(endpoint, {
+      input,
+      webhookUrl: buildFalWebhookUrl(),
+    });
     requestId = queued.request_id;
     if (!requestId) throw new Error('No request_id from FAL');
   } catch (error) {

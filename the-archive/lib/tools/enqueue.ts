@@ -17,6 +17,7 @@ import { fal } from '@fal-ai/client';
 import { createAdminClient } from '@/lib/supabaseAdmin';
 import { refundCreditOperation, reserveCredits } from '@/lib/generationSecurity';
 import { getErrorMessage, getFalErrorBody } from '@/lib/falGenerate';
+import { buildFalWebhookUrl } from '@/lib/falWebhook';
 
 // All current tools run gpt-image-2 edits.
 export const GPT_IMAGE_EDIT = 'openai/gpt-image-2/edit';
@@ -75,6 +76,7 @@ export async function enqueueToolJob(p: ToolEnqueueParams): Promise<ToolEnqueueR
   try {
     const queued = await fal.queue.submit(GPT_IMAGE_EDIT, {
       input: { prompt: p.prompt, image_urls: p.preparedImages, quality: 'medium' },
+      webhookUrl: buildFalWebhookUrl(),
     });
     requestId = queued.request_id;
     if (!requestId) throw new Error('No request_id from FAL');
