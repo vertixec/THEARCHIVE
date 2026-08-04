@@ -635,14 +635,22 @@ function PersonalTab({
               <h1 className="font-bebas text-4xl md:text-5xl text-white uppercase tracking-tight leading-none truncate">
                 {displayName}
               </h1>
-              {profile.is_public && profile.username && (
+              <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1">
+                {profile.is_public && profile.username && (
+                  <Link
+                    href={`/u/${profile.username}`}
+                    className="inline-block font-mono text-[10px] text-white/40 hover:text-acid uppercase tracking-widest transition-colors"
+                  >
+                    ↗ VIEW PUBLIC PROFILE
+                  </Link>
+                )}
                 <Link
-                  href={`/u/${profile.username}`}
-                  className="inline-block mt-3 font-mono text-[10px] text-white/40 hover:text-acid uppercase tracking-widest transition-colors"
+                  href="/mcp"
+                  className="inline-block font-mono text-[10px] text-white/40 hover:text-acid uppercase tracking-widest transition-colors"
                 >
-                  ↗ VIEW PUBLIC PROFILE
+                  ↗ CONNECT AN AGENT (MCP)
                 </Link>
-              )}
+              </div>
             </div>
           </div>
           <button

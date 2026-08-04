@@ -12,12 +12,20 @@ type RateLimitResult = {
   retry_after: number;
 };
 
-export async function enforceRateLimit(
+export type RateLimitOutcome =
+  | { status: 'allowed' }
+  | { status: 'limited'; retryAfter: number }
+  | { status: 'error' };
+
+// Transport-agnostic rate limit check. Used directly by the MCP server (which
+// answers in JSON-RPC, not HTTP status codes) and wrapped by enforceRateLimit
+// for the REST routes, so both share one counter per (user, bucket).
+export async function checkRateLimit(
   userId: string,
   bucket: string,
   limit: number,
   windowSeconds: number,
-) {
+): Promise<RateLimitOutcome> {
   const admin = createAdminClient();
   const { data, error } = await admin.rpc('server_consume_api_rate_limit', {
     p_user_id: userId,
@@ -28,12 +36,28 @@ export async function enforceRateLimit(
   const result = Array.isArray(data) ? (data[0] as RateLimitResult | undefined) : undefined;
   if (error || !result) {
     console.error('Rate limit check failed:', error);
-    return NextResponse.json({ error: 'Rate limit check failed' }, { status: 500 });
+    return { status: 'error' };
   }
   if (!result.allowed) {
+    return { status: 'limited', retryAfter: result.retry_after || 1 };
+  }
+  return { status: 'allowed' };
+}
+
+export async function enforceRateLimit(
+  userId: string,
+  bucket: string,
+  limit: number,
+  windowSeconds: number,
+) {
+  const outcome = await checkRateLimit(userId, bucket, limit, windowSeconds);
+  if (outcome.status === 'error') {
+    return NextResponse.json({ error: 'Rate limit check failed' }, { status: 500 });
+  }
+  if (outcome.status === 'limited') {
     return NextResponse.json(
       { error: 'Too many requests. Please try again shortly.' },
-      { status: 429, headers: { 'Retry-After': String(result.retry_after || 1) } },
+      { status: 429, headers: { 'Retry-After': String(outcome.retryAfter) } },
     );
   }
   return null;
