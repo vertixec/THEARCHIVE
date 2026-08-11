@@ -1,40 +1,42 @@
 // Shared generation enqueue. ONE implementation of "validate -> price ->
-// reserve credits -> submit to FAL -> record the job", used by every entry
-// point that can start a generation:
+// reserve credits -> submit to the provider -> record the job", used by every
+// entry point that can start a generation:
 //   * app/api/generate/route.ts  — the browser panel
 //   * lib/mcp/tools.ts           — the MCP server (agents)
 //
 // Keeping this in one place is what stops the MCP surface from drifting into a
 // cheaper or less-guarded path than the web app. Pricing, tier checks and the
 // atomic credit reservation are identical no matter who calls.
+//
+// The upstream vendor (FAL or KIE AI) is chosen by the model, via
+// lib/modelCatalog + lib/providers — nothing below is vendor-specific.
 
-import { fal } from '@fal-ai/client';
 import { createAdminClient } from './supabaseAdmin';
 import { refundCreditOperation, reserveCredits } from './generationSecurity';
 import { canAccessFeature, type BusinessProfile } from './business';
 import {
   creditCostFor,
   defaultSelection,
-  falParamsFor,
+  editUsesSourceDimensions,
+  modelParamsFor,
   normalizeSelection,
 } from './modelOptions';
-import { ReferenceImageAccessError, prepareReferenceUrls } from './falReference';
-import { buildFalWebhookUrl } from './falWebhook';
+import { ReferenceImageAccessError, prepareReferenceUrls } from './referenceImages';
+import { encodeJobEndpoint, providerFor, ProviderSubmitError } from './providers';
+import { providerForModel } from './modelCatalog';
 import {
   DEFAULT_MODEL,
   IMAGE_MODELS,
   VIDEO_MODELS,
-  buildFalInput,
-  getApiKey,
+  buildModelInput,
   getErrorMessage,
-  getFalErrorBody,
   resolveEndpoint,
   type GenerationType,
-} from './falGenerate';
+} from './generationModels';
 
 // Generous ceiling: only guards against abusive payloads, not real creative
-// prompts. Matches GPT Image 2's prompt limit; FAL enforces per-model limits
-// and we surface those errors.
+// prompts. Matches GPT Image 2's prompt limit; providers enforce per-model
+// limits and we surface those errors.
 export const MAX_PROMPT_LENGTH = 32000;
 export const MAX_REFERENCE_IMAGES = 3;
 
@@ -92,11 +94,6 @@ function fail(
 export async function enqueueGeneration(
   params: EnqueueGenerationParams,
 ): Promise<EnqueueGenerationResult> {
-  const apiKey = getApiKey();
-  if (!apiKey) {
-    return fail('not_configured', 'FAL API key is not configured', 500);
-  }
-
   const type = params.generationType;
 
   // ---- input validation -------------------------------------------------
@@ -142,16 +139,24 @@ export async function enqueueGeneration(
     );
   }
 
+  const resolvedModel = modelId || DEFAULT_MODEL[type];
+  const hasReference = referenceList.length > 0;
+  const provider = providerFor(resolvedModel);
+
+  // A model whose provider has no API key is unusable — bail before charging.
+  if (!provider.isConfigured()) {
+    return fail('not_configured', `${provider.label} API key is not configured`, 500);
+  }
+
   // ---- pricing -----------------------------------------------------------
   // Credits are the only spend gate. Cost depends on the chosen model AND the
   // selected options (quality / format / resolution / duration). The selection
   // is normalized server-side so a caller can't under-pay.
-  const resolvedModel = modelId || DEFAULT_MODEL[type];
-  const hasReference = referenceList.length > 0;
+  const editAtBase = type === 'image' && hasReference && editUsesSourceDimensions(resolvedModel);
 
   let selection = normalizeSelection(resolvedModel, params.options);
-  if (type === 'image' && hasReference) {
-    // Edit endpoints size the output from the source image, so format/
+  if (editAtBase) {
+    // These edit endpoints size the output from the source image, so format/
     // resolution don't apply — price at the model base, keeping only quality
     // (the one option that still affects an edit's cost, e.g. gpt-image-2).
     const base = defaultSelection(resolvedModel);
@@ -174,8 +179,7 @@ export async function enqueueGeneration(
     return fail('insufficient_credits', 'Not enough credits', 429);
   }
 
-  fal.config({ credentials: apiKey });
-  const endpoint = resolveEndpoint(type, modelId, hasReference);
+  const endpoint = resolveEndpoint(type, resolvedModel, hasReference);
 
   // ---- atomic credit reservation ----------------------------------------
   let reservation;
@@ -205,11 +209,14 @@ export async function enqueueGeneration(
   };
 
   // ---- reference images --------------------------------------------------
-  // prepareReferenceUrls re-hosts to FAL after SSRF checks (DNS resolution,
-  // private-range rejection, redirect cap, content-type + magic-byte checks).
+  // prepareReferenceUrls re-hosts to the provider after SSRF checks (DNS
+  // resolution, private-range rejection, redirect cap, content-type +
+  // magic-byte checks).
   let preparedReferenceList: string[] = [];
   try {
-    preparedReferenceList = hasReference ? await prepareReferenceUrls(referenceList) : [];
+    preparedReferenceList = hasReference
+      ? await prepareReferenceUrls(provider, referenceList)
+      : [];
   } catch (error) {
     await refund('reference_failed');
     const message =
@@ -219,42 +226,37 @@ export async function enqueueGeneration(
     return fail('reference_failed', message, 400, true);
   }
 
-  const input = buildFalInput(type, endpoint, cleanPrompt, preparedReferenceList);
+  const input = buildModelInput(type, resolvedModel, cleanPrompt, preparedReferenceList);
   // Merge the per-model option params (quality / image_size / aspect_ratio /
-  // resolution / duration). On image edits, drop dimension params (output dims
-  // follow the source) and keep only quality.
-  const modelParams = falParamsFor(resolvedModel, selection);
-  if (type === 'image' && hasReference) {
+  // resolution / duration / mode). When the edit endpoint derives its own
+  // dimensions, drop those params and keep only quality.
+  const modelParams = modelParamsFor(resolvedModel, selection);
+  if (editAtBase) {
     Object.assign(input, modelParams.quality != null ? { quality: modelParams.quality } : {});
   } else {
     Object.assign(input, modelParams);
   }
 
-  // ---- submit to the FAL queue -------------------------------------------
-  // Returns immediately with a request id. The webhook URL lets FAL finalize
-  // the job server-side even if nobody ever polls again; polling and the cron
-  // sweeper are the fallbacks.
+  // ---- submit to the provider queue --------------------------------------
+  // Returns immediately with a request id. The provider's webhook lets it
+  // finalize the job server-side even if nobody ever polls again; polling and
+  // the cron sweeper are the fallbacks.
   let requestId = '';
   try {
-    const queued = await fal.queue.submit(endpoint, {
-      input,
-      webhookUrl: buildFalWebhookUrl(),
-    });
-    requestId = queued.request_id;
-    if (!requestId) throw new Error('No request_id from FAL');
+    requestId = await provider.submit({ endpoint, input });
   } catch (error) {
     await refund('submit_failed');
-    console.error('FAL submit error:', {
+    console.error('Provider submit error:', {
+      provider: provider.id,
       endpoint,
       message: getErrorMessage(error),
-      body: getFalErrorBody(error),
+      body: error instanceof ProviderSubmitError ? error.body : null,
     });
-    return fail(
-      'submit_failed',
-      'Could not start the generation. Please try again.',
-      502,
-      true,
-    );
+    const userMessage =
+      error instanceof ProviderSubmitError && error.userMessage
+        ? error.userMessage
+        : 'Could not start the generation. Please try again.';
+    return fail('submit_failed', userMessage, 502, true);
   }
 
   // ---- record the queued job ---------------------------------------------
@@ -272,7 +274,8 @@ export async function enqueueGeneration(
       credit_cost: generationCost,
       credit_operation_id: reservation.operation_id,
       fal_request_id: requestId,
-      fal_endpoint: endpoint,
+      // Provider-tagged so finalization knows who to ask (see lib/providers).
+      fal_endpoint: encodeJobEndpoint(providerForModel(resolvedModel), endpoint),
     })
     .select('id')
     .single();

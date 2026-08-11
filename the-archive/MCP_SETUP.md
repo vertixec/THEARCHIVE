@@ -19,8 +19,10 @@ without leaving the tool they already work in.
      server-side allowlist inside `server_consume_api_rate_limit`. Without it every MCP tool call
      fails with `invalid_rate_limit_bucket`.
 2. **Env vars** — nothing new. It reuses `SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_SUPABASE_URL`,
-   `FAL_API_KEY` and `NEXT_PUBLIC_SITE_URL`. If `NEXT_PUBLIC_SITE_URL` is unset, `/mcp` falls back
-   to the request host for the copy-paste snippets.
+   at least one generation provider key (`FAL_API_KEY` and/or `KIE_API_KEY` — see `KIE_SETUP.md`)
+   and `NEXT_PUBLIC_SITE_URL`. If `NEXT_PUBLIC_SITE_URL` is unset, `/mcp` falls back
+   to the request host for the copy-paste snippets. The `generate_image` / `generate_video` tools
+   only advertise models whose provider actually has a key configured.
 3. **Deploy.** `npx vercel deploy --prod` (this project does not auto-deploy on push).
 
 ---

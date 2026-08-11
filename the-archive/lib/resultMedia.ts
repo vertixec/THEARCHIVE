@@ -7,7 +7,7 @@
 // (scripts/migrate-fal-results-to-storage.mjs) can re-copy stragglers later.
 
 import { createAdminClient } from './supabaseAdmin';
-import type { GenerationType } from './falGenerate';
+import type { GenerationType } from './modelCatalog';
 
 export const GENERATION_MEDIA_BUCKET = 'generations';
 

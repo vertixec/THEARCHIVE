@@ -1,3 +1,5 @@
+import type { ProviderId } from './modelCatalog';
+
 export type ItemType = 'visual' | 'system' | 'community' | 'workflow' | 'generation';
 
 export interface Visual {
@@ -89,6 +91,8 @@ export interface GenerationUsage {
   /** Default cost for an image / video when no specific model is selected. */
   image_cost?: number;
   video_cost?: number;
+  /** Which generation providers have an API key configured server-side. */
+  providers?: Record<ProviderId, boolean>;
 }
 
 export interface CreditPack {

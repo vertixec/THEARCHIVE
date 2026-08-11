@@ -6,6 +6,7 @@ import {
   type BusinessProfile,
 } from '@/lib/business';
 import { getPlanForProfileFromDB } from '@/lib/businessServer';
+import { configuredProviders } from '@/lib/providers';
 
 export async function GET() {
   const supabase = await createClient();
@@ -81,5 +82,8 @@ export async function GET() {
     model_costs: MODEL_CREDIT_COSTS,
     image_cost: DEFAULT_MODEL_COST.image,
     video_cost: DEFAULT_MODEL_COST.video,
+    // Which upstream providers hold an API key, so the panel only offers models
+    // that can actually run. Booleans only — no key material leaves the server.
+    providers: configuredProviders(),
   });
 }

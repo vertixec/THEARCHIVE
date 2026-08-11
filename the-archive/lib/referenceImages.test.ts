@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isSupportedRasterBytes } from './falReference';
+import { isSupportedRasterBytes } from './referenceImages';
 
 describe('reference signatures', () => {
   it('accepts supported raster signatures', () => {

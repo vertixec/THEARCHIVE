@@ -12,7 +12,9 @@ import {
   type Feature,
 } from '../business';
 import { MODEL_OPTIONS, creditCostFor, normalizeSelection } from '../modelOptions';
-import { IMAGE_MODELS, VIDEO_MODELS, DEFAULT_MODEL } from '../falGenerate';
+import { DEFAULT_MODEL } from '../generationModels';
+import { modelsOfType, type GenerationType } from '../modelCatalog';
+import { configuredProviders } from '../providers';
 import { enqueueGeneration, MAX_PROMPT_LENGTH, MAX_REFERENCE_IMAGES } from '../generateJob';
 import { checkRateLimit } from '../generationSecurity';
 import { finalizeGeneration, GENERATION_JOB_COLUMNS, type GenerationJob } from '../finalizeGeneration';
@@ -122,11 +124,25 @@ type ToolDef = {
   handler: (context: McpContext, args: Record<string, unknown>) => Promise<ToolResult>;
 };
 
+/**
+ * Models an agent may pick: everything of this type whose upstream provider has
+ * an API key configured. Evaluated when the module loads, which is also when
+ * the tool schemas below are built — so an unconfigured provider is never even
+ * advertised to the agent.
+ */
+function availableModelIds(type: GenerationType): string[] {
+  const configured = configuredProviders();
+  return modelsOfType(type)
+    .filter((model) => configured[model.provider])
+    .map((model) => model.id);
+}
+
 /** Human-readable credit table, injected into descriptions so the model can
  *  reason about cost BEFORE spending the user's credits. */
-function costSummary(type: 'image' | 'video'): string {
+function costSummary(type: GenerationType): string {
+  const available = new Set(availableModelIds(type));
   return Object.entries(MODEL_OPTIONS)
-    .filter(([, spec]) => spec.type === type)
+    .filter(([id, spec]) => spec.type === type && available.has(id))
     .map(([id, spec]) => {
       const costs = new Set<number>();
       const walk = (index: number, sel: Record<string, string>) => {
@@ -453,7 +469,9 @@ async function getAccount(context: McpContext): Promise<ToolResult> {
   const purchased = balance?.credits ?? 0;
   const monthly = balance?.monthly_credits ?? 0;
 
+  const availableModels = new Set([...availableModelIds('image'), ...availableModelIds('video')]);
   const modelLines = Object.entries(MODEL_CREDIT_COSTS)
+    .filter(([model]) => availableModels.has(model))
     .map(([model, cost]) => {
       const spec = MODEL_OPTIONS[model];
       return `- ${model} (${spec?.type ?? 'image'}): ${cost} credits at default options`;
@@ -703,9 +721,9 @@ async function runGeneration(
   if (!prompt) return errorResult('`prompt` is required.');
 
   const model = asString(args.model, 60) || DEFAULT_MODEL[type];
-  const catalogue = type === 'video' ? VIDEO_MODELS : IMAGE_MODELS;
-  if (!(model in catalogue)) {
-    return errorResult(`Unknown ${type} model "${model}". Available: ${Object.keys(catalogue).join(', ')}.`);
+  const catalogue = availableModelIds(type);
+  if (!catalogue.includes(model)) {
+    return errorResult(`Unknown ${type} model "${model}". Available: ${catalogue.join(', ')}.`);
   }
 
   const references = Array.isArray(args.reference_image_urls)
@@ -796,9 +814,10 @@ const GENERATION_OPTIONS_SCHEMA = {
       enum: ['square_hd', 'landscape_4_3', 'portrait_4_3', 'landscape_16_9', 'portrait_16_9'],
       description: 'gpt-image-2 / flux-pro format.',
     },
-    aspect_ratio: { type: 'string', description: 'nano-banana-pro (1:1, 16:9, 9:16, 4:3, 3:4) and video models (16:9, 9:16, 1:1).' },
-    resolution: { type: 'string', description: 'nano-banana-pro (1K, 2K, 4K) or seedance (480p, 720p).' },
+    aspect_ratio: { type: 'string', description: 'Image models on KIE plus nano-banana-pro (1:1, 16:9, 9:16, 4:3, 3:4, and 3:2 / 2:3 on KIE), and video models (16:9, 9:16, 1:1).' },
+    resolution: { type: 'string', description: 'nano-banana-pro and KIE image models (1K, 2K, 4K; flux-2-pro tops out at 2K) or seedance (480p, 720p).' },
     duration: { type: 'string', enum: ['5', '10'], description: 'Video length in seconds. 10s costs double.' },
+    mode: { type: 'string', enum: ['std', 'pro'], description: 'kie/kling-3 only: std = 720p, pro = 1080p and ~1.5x the credits.' },
   },
   additionalProperties: false,
 } as const;
@@ -955,7 +974,7 @@ export const TOOLS: ToolDef[] = [
       type: 'object',
       properties: {
         prompt: { type: 'string', description: `The image prompt (max ${MAX_PROMPT_LENGTH} chars).` },
-        model: { type: 'string', enum: Object.keys(IMAGE_MODELS), description: `Default ${DEFAULT_MODEL.image}.` },
+        model: { type: 'string', enum: availableModelIds('image'), description: `Default ${DEFAULT_MODEL.image}.` },
         options: GENERATION_OPTIONS_SCHEMA,
         reference_image_urls: {
           type: 'array',
@@ -983,7 +1002,7 @@ export const TOOLS: ToolDef[] = [
       type: 'object',
       properties: {
         prompt: { type: 'string', description: `The video prompt (max ${MAX_PROMPT_LENGTH} chars).` },
-        model: { type: 'string', enum: Object.keys(VIDEO_MODELS), description: `Default ${DEFAULT_MODEL.video}.` },
+        model: { type: 'string', enum: availableModelIds('video'), description: `Default ${DEFAULT_MODEL.video}.` },
         options: GENERATION_OPTIONS_SCHEMA,
       },
       required: ['prompt'],

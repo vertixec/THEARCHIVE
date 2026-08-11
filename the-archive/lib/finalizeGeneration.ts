@@ -1,31 +1,29 @@
 // Single source of truth for finalizing a queued generation. Three entry
 // points share it so a job finishes no matter which one fires first:
 //   * /api/generate/status          — browser polling (original path)
-//   * /api/fal/webhook              — FAL pokes us when the job completes,
-//                                     so closing the tab no longer strands it
+//   * /api/fal/webhook, /api/kie/webhook — the provider pokes us when the job
+//                                     completes, so closing the tab no longer
+//                                     strands it
 //   * /api/cron/finalize-generations — sweeper for anything both missed
 //
-// Finalizing means: check FAL, fetch the result, COPY IT TO OUR OWN STORAGE
-// (fal.media retention is not guaranteed), claim the row atomically, then
-// complete or refund the credit reservation. The atomic 'queued' -> terminal
-// claim makes concurrent finalizers safe: only the winner touches credits.
+// Finalizing means: check the provider, fetch the result, COPY IT TO OUR OWN
+// STORAGE (vendor CDN retention is not guaranteed — fal.media keeps files
+// indefinitely-ish, KIE deletes them after days), claim the row atomically,
+// then complete or refund the credit reservation. The atomic 'queued' ->
+// terminal claim makes concurrent finalizers safe: only the winner touches
+// credits.
+//
+// Which vendor a job belongs to is encoded in `fal_endpoint` — see
+// lib/providers/index.ts for the encoding.
 
-import { fal } from '@fal-ai/client';
 import { createAdminClient } from './supabaseAdmin';
 import {
   completeCreditOperation,
   incrementGenerationUsage,
   refundCreditOperation,
 } from './generationSecurity';
-import {
-  extractResultUrl,
-  getApiKey,
-  getErrorMessage,
-  getFalErrorBody,
-  getFalUserMessage,
-  type FalResult,
-  type GenerationType,
-} from './falGenerate';
+import { decodeJobEndpoint } from './providers';
+import type { GenerationType } from './modelCatalog';
 import { persistResultMedia } from './resultMedia';
 
 export type GenerationJob = {
@@ -49,13 +47,14 @@ export type FinalizeOutcome =
   | { status: 'completed'; url: string | null }
   | { status: 'failed'; error: string }
   // Internal problem (DB/credits) — retryable, callers map it to a 500 so
-  // the client keeps polling / FAL redelivers the webhook.
+  // the client keeps polling / the provider redelivers the webhook.
   | { status: 'error'; error: string };
 
 export type FinalizeOptions = {
-  // Sweeper only: if FAL still reports the job pending (or the lookup keeps
-  // failing) past this age, give up — mark failed and refund. User polls and
-  // webhooks never pass it, so a transient FAL hiccup can't kill a live job.
+  // Sweeper only: if the provider still reports the job pending (or the lookup
+  // keeps failing) past this age, give up — mark failed and refund. User polls
+  // and webhooks never pass it, so a transient vendor hiccup can't kill a live
+  // job.
   failStaleAfterMs?: number;
 };
 
@@ -82,12 +81,6 @@ export async function finalizeGeneration(
   if (job.status === 'failed') {
     return { status: 'failed', error: 'Generation failed' };
   }
-
-  const apiKey = getApiKey();
-  if (!apiKey) {
-    return { status: 'error', error: 'FAL API key is not configured' };
-  }
-  fal.config({ credentials: apiKey });
 
   const refund = async (reason: string) => {
     if (!job.credit_operation_id) return;
@@ -116,7 +109,7 @@ export async function finalizeGeneration(
     return { status: 'failed', error: userMessage };
   };
 
-  // A row with no FAL reference can never complete; the sweeper eventually
+  // A row with no provider reference can never complete; the sweeper eventually
   // refunds it. (Normally impossible — the insert always sets both fields.)
   if (!job.fal_request_id || !job.fal_endpoint) {
     if (isStale(job, options.failStaleAfterMs)) {
@@ -125,72 +118,44 @@ export async function finalizeGeneration(
     return { status: 'queued' };
   }
 
-  let statusValue: string;
-  try {
-    const queueStatus = await fal.queue.status(job.fal_endpoint, {
-      requestId: job.fal_request_id,
-    });
-    statusValue = queueStatus.status;
-  } catch (error) {
-    console.error('FAL status error:', {
-      endpoint: job.fal_endpoint,
-      message: getErrorMessage(error),
-    });
-    // Transient lookup error — keep polling. The sweeper's stale cutoff
-    // covers the case where FAL genuinely lost the request.
-    if (isStale(job, options.failStaleAfterMs)) {
-      return finalizeFailed('Generation timed out.', 'generation_stale');
-    }
-    return { status: 'queued' };
+  const { provider, endpoint } = decodeJobEndpoint(job.fal_endpoint);
+  if (!provider.isConfigured()) {
+    return { status: 'error', error: `${provider.label} API key is not configured` };
   }
 
-  if (statusValue !== 'COMPLETED') {
-    if (isStale(job, options.failStaleAfterMs)) {
-      return finalizeFailed('Generation timed out.', 'generation_stale');
-    }
-    return { status: 'queued' };
-  }
-
-  // Completed on FAL — fetch the result.
   const type = job.generation_type;
-  let falResultUrl = '';
-  try {
-    const result = (await fal.queue.result(job.fal_endpoint, {
-      requestId: job.fal_request_id,
-    })) as FalResult;
-    falResultUrl = extractResultUrl(result);
-  } catch (error) {
-    const userMessage =
-      getFalUserMessage(getFalErrorBody(error), type, false) ||
-      'Generation failed. Please try again or use a different model.';
-    console.error('FAL result error:', {
-      endpoint: job.fal_endpoint,
-      message: getErrorMessage(error),
-      body: getFalErrorBody(error),
-    });
-    return finalizeFailed(userMessage, 'generation_failed');
+  const poll = await provider.poll({ endpoint, requestId: job.fal_request_id, type });
+
+  if (poll.status === 'pending') {
+    if (isStale(job, options.failStaleAfterMs)) {
+      return finalizeFailed('Generation timed out.', 'generation_stale');
+    }
+    return { status: 'queued' };
   }
 
-  if (!falResultUrl) {
-    return finalizeFailed('Generation produced no output. Please try again.', 'generation_failed');
+  if (poll.status === 'failed') {
+    return finalizeFailed(poll.message, 'generation_failed');
   }
 
   // Copy the media into our own bucket BEFORE recording the row, so the
-  // stored result_url is durable. On copy failure we keep the FAL URL —
+  // stored result_url is durable. On copy failure we keep the vendor URL —
   // the user still gets their result and the backfill script can retry.
-  let resultUrl = falResultUrl;
+  let resultUrl = poll.url;
   let storagePath: string | null = null;
   const persisted = await persistResultMedia({
     userId: job.user_id,
     generationId: job.id,
-    sourceUrl: falResultUrl,
+    sourceUrl: poll.url,
     generationType: type,
   });
   if (persisted) {
     resultUrl = persisted.publicUrl;
     storagePath = persisted.storagePath;
   } else {
-    console.warn('Result media not persisted; keeping FAL URL', { generationId: job.id });
+    console.warn('Result media not persisted; keeping provider URL', {
+      generationId: job.id,
+      provider: provider.id,
+    });
   }
 
   // Claim completion atomically; only the winning finalizer records usage.

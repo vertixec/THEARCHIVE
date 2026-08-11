@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabaseServer';
 import { enforceRateLimit } from '@/lib/generationSecurity';
 import { type BusinessProfile } from '@/lib/business';
 import { enqueueGeneration } from '@/lib/generateJob';
-import { type GenerationType } from '@/lib/falGenerate';
+import { type GenerationType } from '@/lib/generationModels';
 
 // Submitting to the FAL queue is fast; this only needs a small budget.
 export const runtime = 'nodejs';

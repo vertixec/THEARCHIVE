@@ -1,21 +1,23 @@
-import { fal } from '@fal-ai/client';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabaseServer';
 import { canAccessFeature, creditCostForModel, type BusinessProfile } from '@/lib/business';
 import { enforceRateLimit } from '@/lib/generationSecurity';
-import { ReferenceImageAccessError, prepareReferenceUrls } from '@/lib/falReference';
-import { enqueueToolJob } from '@/lib/tools/enqueue';
+import { ReferenceImageAccessError, prepareReferenceUrls } from '@/lib/referenceImages';
+import { TOOL_IMAGE_MODEL } from '@/lib/modelCatalog';
+import { enqueueToolJob, toolImageProvider } from '@/lib/tools/enqueue';
 import { buildStyleTransferPrompt } from '@/lib/tools/prompts/styleTransfer';
 import { getTool } from '@/lib/tools/registry';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
-const PER_IMAGE_COST = creditCostForModel('gpt-image-2', 'image');
+const PER_IMAGE_COST = creditCostForModel(TOOL_IMAGE_MODEL, 'image');
 
 export async function POST(req: NextRequest) {
-  const apiKey = process.env.FAL_API_KEY || process.env.FAL_KEY;
-  if (!apiKey) return NextResponse.json({ error: 'FAL API key is not configured' }, { status: 500 });
+  const provider = toolImageProvider();
+  if (!provider.isConfigured()) {
+    return NextResponse.json({ error: `${provider.label} API key is not configured` }, { status: 500 });
+  }
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -59,10 +61,9 @@ export async function POST(req: NextRequest) {
   const inputImages = hasContentImage ? [styleUrl, contentUrl] : [styleUrl];
   const angle = hasContentImage ? 'Restyled' : 'Style transfer';
 
-  fal.config({ credentials: apiKey });
   let preparedImages: string[];
   try {
-    preparedImages = await prepareReferenceUrls(inputImages);
+    preparedImages = await prepareReferenceUrls(provider, inputImages);
   } catch (error) {
     const message = error instanceof ReferenceImageAccessError ? error.message : 'Reference preparation failed';
     return NextResponse.json({ error: message }, { status: 400 });

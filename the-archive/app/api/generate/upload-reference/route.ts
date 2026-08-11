@@ -1,12 +1,12 @@
-import { fal } from '@fal-ai/client';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabaseServer';
 import {
   ReferenceImageAccessError,
   isSupportedRasterBytes,
-  rehostBlobToFal,
-  rehostUrlToFal,
-} from '@/lib/falReference';
+  rehostBlob,
+  rehostUrl,
+} from '@/lib/referenceImages';
+import { stagingProvider } from '@/lib/providers';
 import { enforceRateLimit } from '@/lib/generationSecurity';
 
 export const runtime = 'nodejs';
@@ -14,10 +14,16 @@ export const maxDuration = 60;
 
 const MAX_FILE_BYTES = 15 * 1024 * 1024;
 
+// The panel uploads references BEFORE a model is chosen, so the file is parked
+// on whichever provider is configured (see stagingProvider). Generation later
+// re-hosts it onto the model's own provider if they differ.
 export async function POST(req: NextRequest) {
-  const apiKey = process.env.FAL_API_KEY || process.env.FAL_KEY;
-  if (!apiKey) {
-    return NextResponse.json({ error: 'FAL API key is not configured' }, { status: 500 });
+  const provider = stagingProvider();
+  if (!provider) {
+    return NextResponse.json(
+      { error: 'No generation provider is configured' },
+      { status: 500 },
+    );
   }
 
   const supabase = await createClient();
@@ -30,8 +36,6 @@ export async function POST(req: NextRequest) {
   }
   const rateLimitResponse = await enforceRateLimit(user.id, 'upload-reference', 20, 600);
   if (rateLimitResponse) return rateLimitResponse;
-
-  fal.config({ credentials: apiKey });
 
   const contentType = req.headers.get('content-type') || '';
 
@@ -56,7 +60,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'File is not a supported raster image' }, { status: 400 });
       }
       const blob = new Blob([bytes.buffer], { type: file.type });
-      const url = await rehostBlobToFal(blob);
+      const url = await rehostBlob(provider, blob, file.name);
       return NextResponse.json({ url });
     }
 
@@ -65,7 +69,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'A valid URL is required' }, { status: 400 });
     }
 
-    const hostedUrl = await rehostUrlToFal(url);
+    const hostedUrl = await rehostUrl(provider, url);
     return NextResponse.json({ url: hostedUrl });
   } catch (error) {
     if (error instanceof ReferenceImageAccessError) {

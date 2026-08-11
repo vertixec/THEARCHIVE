@@ -1,30 +1,38 @@
-// Server-only helper that enqueues a single Tools image job on the FAL queue
-// and records it as a 'queued' generation — the SAME async pattern the freeform
-// /api/generate route uses. The job is then finalized by /api/generate/status
-// (it fetches the result, stores result_url, completes credits and counts usage).
+// Server-only helper that enqueues a single Tools image job on the provider
+// queue and records it as a 'queued' generation — the SAME async pattern the
+// freeform /api/generate route uses. The job is then finalized by
+// /api/generate/status (it fetches the result, stores result_url, completes
+// credits and counts usage).
 //
 // Why: tools used to call fal.subscribe() and WAIT for the image inside the
 // request. On hosts with a 60s function timeout (Vercel) a multi-image run
-// (e.g. Ads = up to 5 gpt-image-2 edits) would time out — FAL still produced
-// the images, but the function died before saving them, so nothing showed up in
-// Creations and the client only saw a generic "The tool failed". Enqueuing
-// returns in well under the limit and polling does the slow part.
+// (e.g. Ads = up to 5 gpt-image-2 edits) would time out — the vendor still
+// produced the images, but the function died before saving them, so nothing
+// showed up in Creations and the client only saw a generic "The tool failed".
+// Enqueuing returns in well under the limit and polling does the slow part.
 //
-// NOTE: the caller MUST have configured the FAL client (fal.config({...}))
-// before calling this — fal is a global singleton.
+// Which model (and therefore which provider) Tools runs on is a single line in
+// lib/modelCatalog.ts: TOOL_IMAGE_MODEL.
 
-import { fal } from '@fal-ai/client';
 import { createAdminClient } from '@/lib/supabaseAdmin';
 import { refundCreditOperation, reserveCredits } from '@/lib/generationSecurity';
-import { getErrorMessage, getFalErrorBody } from '@/lib/falGenerate';
-import { buildFalWebhookUrl } from '@/lib/falWebhook';
+import { getErrorMessage, buildModelInput, resolveEndpoint } from '@/lib/generationModels';
+import {
+  defaultSelection,
+  editUsesSourceDimensions,
+  modelParamsFor,
+} from '@/lib/modelOptions';
+import { TOOL_IMAGE_MODEL, providerForModel } from '@/lib/modelCatalog';
+import { encodeJobEndpoint, providerFor, ProviderSubmitError } from '@/lib/providers';
 
-// All current tools run gpt-image-2 edits.
-export const GPT_IMAGE_EDIT = 'openai/gpt-image-2/edit';
+/** Provider that serves the Tools image model — used for reference uploads. */
+export function toolImageProvider() {
+  return providerFor(TOOL_IMAGE_MODEL);
+}
 
 export type ToolEnqueueParams = {
   userId: string;
-  /** Prompt sent to FAL and stored on the generation row. */
+  /** Prompt sent to the provider and stored on the generation row. */
   prompt: string;
   /** UI label for this result (e.g. an ad angle, or "Style transfer"). */
   angle: string;
@@ -34,7 +42,7 @@ export type ToolEnqueueParams = {
   tool: string;
   /** Credits to reserve/charge for this single image. */
   perImageCost: number;
-  /** Prepared (FAL-readable) reference image URLs. */
+  /** Prepared (provider-readable) reference image URLs. */
   preparedImages: string[];
   /** Original reference URL persisted for display in Creations. */
   referenceImageUrl: string | null;
@@ -71,20 +79,29 @@ export async function enqueueToolJob(p: ToolEnqueueParams): Promise<ToolEnqueueR
     }
   };
 
-  // 2) Enqueue on the FAL queue (returns immediately with a request id).
+  // 2) Enqueue on the provider queue (returns immediately with a request id).
+  const provider = toolImageProvider();
+  const endpoint = resolveEndpoint('image', TOOL_IMAGE_MODEL, true);
+  const input = buildModelInput('image', TOOL_IMAGE_MODEL, p.prompt, p.preparedImages);
+  const params = modelParamsFor(TOOL_IMAGE_MODEL, defaultSelection(TOOL_IMAGE_MODEL));
+  if (editUsesSourceDimensions(TOOL_IMAGE_MODEL)) {
+    // Output dimensions follow the source image; only quality still applies
+    // (gpt-image-2 defaults to HIGH upstream, so sending it is not optional).
+    Object.assign(input, params.quality != null ? { quality: params.quality } : {});
+  } else {
+    Object.assign(input, params);
+  }
+
   let requestId = '';
   try {
-    const queued = await fal.queue.submit(GPT_IMAGE_EDIT, {
-      input: { prompt: p.prompt, image_urls: p.preparedImages, quality: 'medium' },
-      webhookUrl: buildFalWebhookUrl(),
-    });
-    requestId = queued.request_id;
-    if (!requestId) throw new Error('No request_id from FAL');
+    requestId = await provider.submit({ endpoint, input });
   } catch (error) {
     await refund('submit_failed');
-    console.error('Tool FAL submit error:', {
+    console.error('Tool provider submit error:', {
+      provider: provider.id,
+      endpoint,
       message: getErrorMessage(error),
-      body: getFalErrorBody(error),
+      body: error instanceof ProviderSubmitError ? error.body : null,
     });
     return { ok: false, reason: 'submit_failed' };
   }
@@ -103,7 +120,7 @@ export async function enqueueToolJob(p: ToolEnqueueParams): Promise<ToolEnqueueR
       credit_cost: p.perImageCost,
       credit_operation_id: reservation.operation_id,
       fal_request_id: requestId,
-      fal_endpoint: GPT_IMAGE_EDIT,
+      fal_endpoint: encodeJobEndpoint(providerForModel(TOOL_IMAGE_MODEL), endpoint),
     })
     .select('id')
     .single();

@@ -1,10 +1,10 @@
-import { fal } from '@fal-ai/client';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabaseServer';
 import { canAccessFeature, creditCostForModel, type BusinessProfile } from '@/lib/business';
 import { enforceRateLimit } from '@/lib/generationSecurity';
-import { ReferenceImageAccessError, prepareReferenceUrls } from '@/lib/falReference';
-import { enqueueToolJob, type ToolEnqueueResult } from '@/lib/tools/enqueue';
+import { ReferenceImageAccessError, prepareReferenceUrls } from '@/lib/referenceImages';
+import { TOOL_IMAGE_MODEL } from '@/lib/modelCatalog';
+import { enqueueToolJob, toolImageProvider, type ToolEnqueueResult } from '@/lib/tools/enqueue';
 import { buildAdPrompts } from '@/lib/tools/prompts/ads';
 import { getTool } from '@/lib/tools/registry';
 import { AD_ANGLE_OPTIONS } from '@/lib/tools/adsAngles';
@@ -12,11 +12,13 @@ import { AD_ANGLE_OPTIONS } from '@/lib/tools/adsAngles';
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
-const PER_IMAGE_COST = creditCostForModel('gpt-image-2', 'image');
+const PER_IMAGE_COST = creditCostForModel(TOOL_IMAGE_MODEL, 'image');
 
 export async function POST(req: NextRequest) {
-  const apiKey = process.env.FAL_API_KEY || process.env.FAL_KEY;
-  if (!apiKey) return NextResponse.json({ error: 'FAL API key is not configured' }, { status: 500 });
+  const provider = toolImageProvider();
+  if (!provider.isConfigured()) {
+    return NextResponse.json({ error: `${provider.label} API key is not configured` }, { status: 500 });
+  }
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -70,10 +72,9 @@ export async function POST(req: NextRequest) {
 
   // Prepare references once (shared across every angle) before reserving any
   // credits — if this fails there's nothing to refund yet.
-  fal.config({ credentials: apiKey });
   let preparedReferences: string[];
   try {
-    preparedReferences = await prepareReferenceUrls(referenceList);
+    preparedReferences = await prepareReferenceUrls(provider, referenceList);
   } catch (error) {
     const message = error instanceof ReferenceImageAccessError ? error.message : 'Reference preparation failed';
     return NextResponse.json({ error: message }, { status: 400 });

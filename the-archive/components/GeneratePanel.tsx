@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import type { GenerationUsage } from '@/lib/types';
 import { MODEL_OPTIONS, creditCostFor, defaultSelection } from '@/lib/modelOptions';
+import { DEFAULT_MODEL, modelsOfType, type ProviderId } from '@/lib/modelCatalog';
 import { useAuth } from './AuthContext';
 import { MAX_REFERENCE_IMAGES, useGenerate } from './GenerateContext';
 import { useToast } from './Toast';
@@ -14,16 +15,10 @@ import ToolRunner from './generate/ToolRunner';
 import StyleTransferRunner from './generate/StyleTransferRunner';
 import { useReferenceUpload } from './generate/useReferenceUpload';
 
-const IMAGE_MODELS = [
-  { id: 'gpt-image-2', label: 'GPT Image 2', description: 'High fidelity, text-aware' },
-  { id: 'flux-pro', label: 'Flux Pro', description: 'Creative image generation' },
-  { id: 'nano-banana-pro', label: 'Nano Banana Pro', description: 'Reasoning image model' },
-];
-
-const VIDEO_MODELS = [
-  { id: 'kling-1.6', label: 'Kling 1.6', description: 'Standard text to video' },
-  { id: 'seedance', label: 'Seedance 2 Fast', description: 'Fast cinematic video' },
-];
+// Until /api/generate/usage reports which providers hold an API key, show the
+// historical FAL line-up only — so a provider the operator never configured
+// never flashes into the picker.
+const ASSUMED_PROVIDERS: Record<ProviderId, boolean> = { fal: true, kie: false };
 
 export default function GeneratePanel() {
   const {
@@ -49,10 +44,10 @@ export default function GeneratePanel() {
   // during Tools runs too, not just freeform generation.
   const [toolRunning, setToolRunning] = useState(false);
   const [usage, setUsage] = useState<GenerationUsage | null>(null);
-  const [selectedModel, setSelectedModel] = useState(IMAGE_MODELS[0].id);
+  const [selectedModel, setSelectedModel] = useState(DEFAULT_MODEL.image);
   // Per-model option selection (quality / format / resolution / duration).
   const [modelOptions, setModelOptions] = useState<Record<string, string>>(() =>
-    defaultSelection(IMAGE_MODELS[0].id),
+    defaultSelection(DEFAULT_MODEL.image),
   );
   const [error, setError] = useState<string | null>(null);
   // How many images to generate in one go (1–4). Each is an independent job.
@@ -63,7 +58,12 @@ export default function GeneratePanel() {
   const isTools = panelMode === 'tools';
   // Tools (currently image-based) always show the image credit footer.
   const footerType: 'image' | 'video' = isTools ? 'image' : generationType;
-  const models = useMemo(() => (generationType === 'image' ? IMAGE_MODELS : VIDEO_MODELS), [generationType]);
+  // Only models whose provider actually has an API key configured server-side.
+  const providers = usage?.providers ?? ASSUMED_PROVIDERS;
+  const models = useMemo(
+    () => modelsOfType(generationType).filter((model) => providers[model.provider]),
+    [generationType, providers],
+  );
   const optionControls = isTools ? [] : MODEL_OPTIONS[selectedModel]?.controls ?? [];
   // Cost is dynamic: model + selected options (quality / format / resolution /
   // duration). In tools mode the runner shows its own cost.
@@ -120,9 +120,16 @@ export default function GeneratePanel() {
   }, [closePanel, isOpen, setPrompt, user]);
 
   useEffect(() => {
-    const nextModels = generationType === 'image' ? IMAGE_MODELS : VIDEO_MODELS;
-    setSelectedModel(nextModels[0].id);
+    setSelectedModel(DEFAULT_MODEL[generationType]);
   }, [generationType]);
+
+  // A model can vanish from the list once the real provider availability lands
+  // (or the operator drops a key) — fall back to the first one still offered.
+  useEffect(() => {
+    if (models.length > 0 && !models.some((model) => model.id === selectedModel)) {
+      setSelectedModel(models[0].id);
+    }
+  }, [models, selectedModel]);
 
   // Reset the option selection to the model's defaults whenever the model changes.
   useEffect(() => {

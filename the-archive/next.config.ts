@@ -32,6 +32,11 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: 'images.unsplash.com' },
       { protocol: 'https', hostname: 'fal.media' },
       { protocol: 'https', hostname: '**.fal.media' },
+      // KIE AI media + uploaded references. Results are copied into Supabase,
+      // so these only serve the fallback path when that copy fails and the
+      // reference thumbnails the panel shows before a generation runs.
+      { protocol: 'https', hostname: '**.redpandaai.co' },
+      { protocol: 'https', hostname: '**.aiquickdraw.com' },
     ],
   },
   async headers() {

@@ -1,6 +1,13 @@
-import { fal } from '@fal-ai/client';
+// Reference-image intake: fetch a user-supplied image safely, then re-host it
+// on whichever provider is about to run the generation.
+//
+// The SSRF guards (DNS resolution, private-range rejection, redirect cap,
+// content-type + magic-byte checks) are provider-agnostic; only the final
+// upload differs, which is why the target provider is passed in.
+
 import { lookup } from 'node:dns/promises';
 import { isIP } from 'node:net';
+import type { GenerationProvider } from './providers/types';
 
 export class ReferenceImageAccessError extends Error {
   constructor(message: string) {
@@ -12,7 +19,6 @@ export class ReferenceImageAccessError extends Error {
 const MAX_REFERENCE_BYTES = 15 * 1024 * 1024;
 const FETCH_TIMEOUT_MS = 10_000;
 const MAX_REDIRECTS = 3;
-const FAL_HOST_PATTERNS = [/(^|\.)fal\.media$/i, /(^|\.)fal\.ai$/i, /(^|\.)fal\.run$/i];
 
 function hasAscii(bytes: Uint8Array, offset: number, value: string) {
   return value.split('').every((character, index) => bytes[offset + index] === character.charCodeAt(0));
@@ -88,15 +94,6 @@ async function assertPublicUrl(rawUrl: string) {
   return url;
 }
 
-export function isFalHostedUrl(url: string) {
-  try {
-    const host = new URL(url).hostname;
-    return FAL_HOST_PATTERNS.some((pattern) => pattern.test(host));
-  } catch {
-    return false;
-  }
-}
-
 async function fetchPublicReference(rawUrl: string) {
   let current = await assertPublicUrl(rawUrl);
   for (let redirects = 0; redirects <= MAX_REDIRECTS; redirects += 1) {
@@ -159,27 +156,57 @@ async function readLimitedBlob(response: Response, contentType: string) {
   return new Blob([combined.buffer], { type: contentType });
 }
 
-export async function rehostUrlToFal(url: string): Promise<string> {
+function fileNameFor(url: string, contentType: string) {
+  const extension = contentType.split('/')[1]?.replace(/[^a-z0-9]/gi, '') || 'png';
+  try {
+    const base = new URL(url).pathname.split('/').pop() || '';
+    if (/\.[a-z0-9]{2,5}$/i.test(base)) return base.slice(-80);
+  } catch {
+    // Fall through to the generated name.
+  }
+  return `reference.${extension}`;
+}
+
+/** Downloads a public image and re-hosts it on `provider`. */
+export async function rehostUrl(provider: GenerationProvider, url: string): Promise<string> {
+  // Already on the provider's own CDN — it can read this directly.
+  if (provider.hostsUrl(url)) return url;
+
   const response = await fetchPublicReference(url);
   if (!response.ok) {
     throw new ReferenceImageAccessError(`Reference image is not accessible (${response.status}).`);
   }
   const contentType = assertImageContentType(response.headers.get('content-type') || '');
-  return fal.storage.upload(await readLimitedBlob(response, contentType));
+  const blob = await readLimitedBlob(response, contentType);
+  return provider.uploadImage(blob, fileNameFor(url, contentType));
 }
 
-export async function rehostBlobToFal(blob: Blob): Promise<string> {
-  if (blob.size <= 0 || blob.size > MAX_REFERENCE_BYTES || !blob.type.startsWith('image/') || blob.type === 'image/svg+xml') {
+/** Re-hosts an already-in-memory image (direct file upload from the browser). */
+export async function rehostBlob(
+  provider: GenerationProvider,
+  blob: Blob,
+  fileName?: string,
+): Promise<string> {
+  if (
+    blob.size <= 0 ||
+    blob.size > MAX_REFERENCE_BYTES ||
+    !blob.type.startsWith('image/') ||
+    blob.type === 'image/svg+xml'
+  ) {
     throw new ReferenceImageAccessError('Only raster images up to 15MB are supported.');
   }
   const signature = new Uint8Array(await blob.slice(0, 16).arrayBuffer());
   if (!isSupportedRasterBytes(signature)) {
     throw new ReferenceImageAccessError('Reference is not a supported raster image.');
   }
-  return fal.storage.upload(blob);
+  const extension = blob.type.split('/')[1]?.replace(/[^a-z0-9]/gi, '') || 'png';
+  return provider.uploadImage(blob, fileName || `reference.${extension}`);
 }
 
-export async function prepareReferenceUrls(urls: string[]): Promise<string[]> {
+export async function prepareReferenceUrls(
+  provider: GenerationProvider,
+  urls: string[],
+): Promise<string[]> {
   if (urls.length > 3) throw new ReferenceImageAccessError('A maximum of 3 reference images is allowed.');
-  return Promise.all(urls.map((url) => rehostUrlToFal(url)));
+  return Promise.all(urls.map((url) => rehostUrl(provider, url)));
 }
