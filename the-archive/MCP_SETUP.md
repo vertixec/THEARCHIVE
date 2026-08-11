@@ -32,10 +32,14 @@ without leaving the tool they already work in.
 They open `/mcp`, name a key, pick permissions, and copy the token **once** — it is never shown
 again because only its SHA-256 is stored.
 
-**Claude.ai / Claude Desktop:** Settings → Connectors → Add custom connector → paste the server URL
-and set the authorization header to `Bearer <key>`.
+**Claude Code:**
 
-**Claude Code / Cursor** (via the `mcp-remote` bridge):
+```bash
+claude mcp add --transport http the-archive https://<your-domain>/api/mcp \
+  --header "Authorization: Bearer tarc_YOUR_KEY"
+```
+
+**Cursor / Claude Desktop** (via the `mcp-remote` bridge, which injects the header):
 
 ```json
 {
@@ -51,6 +55,13 @@ and set the authorization header to `Bearer <key>`.
   }
 }
 ```
+
+**Claude.ai — not supported yet.** The "Add custom connector" dialog accepts only a URL plus
+optional OAuth client id/secret; there is no field for a static bearer token. Connecting without
+one gets a 401, and the client then looks for `/.well-known/oauth-protected-resource` and
+`/.well-known/oauth-authorization-server`, which this server does not serve. Supporting it means
+implementing OAuth 2.1 (protected-resource metadata, authorization-server metadata, dynamic client
+registration, `/authorize` + `/token`). Until then, point members at the clients above.
 
 **Verify from a terminal:**
 

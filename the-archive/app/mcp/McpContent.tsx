@@ -43,6 +43,12 @@ export default function McpContent({ initialKeys, baseUrl, tier, planName, featu
   const endpoint = `${baseUrl}/api/mcp`;
   const canGenerate = features.includes('generate_image') || features.includes('generate_video');
 
+  const cliCommand = useMemo(
+    () =>
+      `claude mcp add --transport http the-archive ${endpoint} \\\n  --header "Authorization: Bearer YOUR_KEY"`,
+    [endpoint],
+  );
+
   const claudeConfig = useMemo(
     () =>
       JSON.stringify(
@@ -270,15 +276,21 @@ export default function McpContent({ initialKeys, baseUrl, tier, planName, featu
           <h2 className="font-bebas text-3xl uppercase tracking-wide">3 · Point Your Client At It</h2>
 
           <h3 className="mt-5 font-mono text-[10px] uppercase tracking-[0.25em] text-acid">
-            Claude.ai / Claude Desktop — custom connector
+            Claude Code — one command
           </h3>
-          <p className="mt-2 font-mono text-[10px] uppercase leading-relaxed tracking-widest text-white/40">
-            Settings → Connectors → Add custom connector. Paste the server URL above and set the
-            authorization header to <span className="text-white/70">Bearer YOUR_KEY</span>.
-          </p>
+          <pre className="mt-2 overflow-x-auto border border-white/10 bg-black/40 p-4 font-mono text-[11px] leading-relaxed text-white/80">
+            {cliCommand}
+          </pre>
+          <button
+            type="button"
+            onClick={() => copy(cliCommand, 'CLI')}
+            className="mt-3 border border-white/15 px-6 py-2 font-mono text-[10px] uppercase tracking-[0.25em] text-white/60 transition-colors hover:border-acid hover:text-acid"
+          >
+            Copy Command
+          </button>
 
           <h3 className="mt-7 font-mono text-[10px] uppercase tracking-[0.25em] text-acid">
-            Claude Code / Cursor — config file
+            Cursor / Claude Desktop — config file
           </h3>
           <pre className="mt-2 overflow-x-auto border border-white/10 bg-black/40 p-4 font-mono text-[11px] leading-relaxed text-white/80">
             {claudeConfig}
@@ -290,6 +302,15 @@ export default function McpContent({ initialKeys, baseUrl, tier, planName, featu
           >
             Copy Config
           </button>
+
+          <h3 className="mt-7 font-mono text-[10px] uppercase tracking-[0.25em] text-acid">
+            Claude.ai — not yet
+          </h3>
+          <p className="mt-2 font-mono text-[10px] uppercase leading-relaxed tracking-widest text-white/40">
+            The custom connector dialog only accepts OAuth, with nowhere to paste a key, so it
+            cannot reach this server yet. Use Claude Code, Cursor or Claude Desktop above. OAuth is
+            on the roadmap.
+          </p>
 
           <h3 className="mt-7 font-mono text-[10px] uppercase tracking-[0.25em] text-acid">
             Verify from a terminal
